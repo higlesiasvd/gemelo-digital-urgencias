@@ -1,0 +1,98 @@
+services:
+  # ═══════════════════════════════════════════════════════════════════
+  # SIMULADOR - Python + SimPy
+  # ═══════════════════════════════════════════════════════════════════
+  simulador:
+    build: .
+    container_name: urgencias-simulador
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - HOSPITALES=chuac
+      - DURACION=24
+      - VELOCIDAD=60
+    depends_on:
+      - mosquitto
+    restart: "no"
+    # Para ejecutar: make run-simulador
+
+  # ═══════════════════════════════════════════════════════════════════
+  # MQTT Broker - Comunicación entre simulación y Node-RED
+  # ═══════════════════════════════════════════════════════════════════
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: urgencias-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # InfluxDB - Base de datos de series temporales
+  # ═══════════════════════════════════════════════════════════════════
+  influxdb:
+    image: influxdb:2.7
+    container_name: urgencias-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminadmin
+      - DOCKER_INFLUXDB_INIT_ORG=urgencias
+      - DOCKER_INFLUXDB_INIT_BUCKET=hospitales
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=mi-token-secreto-urgencias-dt
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Grafana - Visualización y dashboards
+  # ═══════════════════════════════════════════════════════════════════
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: urgencias-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=agenty-flowcharting-panel,grafana-clock-panel,grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Node-RED - Integración y procesamiento de flujos
+  # ═══════════════════════════════════════════════════════════════════
+  nodered:
+    image: nodered/node-red:3.1
+    container_name: urgencias-nodered
+    ports:
+      - "1880:1880"
+    environment:
+      - TZ=Europe/Madrid
+    volumes:
+      - nodered_data:/data
+    depends_on:
+      - mosquitto
+      - influxdb
+    restart: unless-stopped
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:
+  influxdb_data:
+  grafana_data:
+  nodered_data:
+
+networks:
+  default:
+    name: urgencias-network

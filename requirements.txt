@@ -1,0 +1,22 @@
+# ═══════════════════════════════════════════════════════════════
+# Gemelo Digital Urgencias - Dependencias Python
+# ═══════════════════════════════════════════════════════════════
+
+# Simulación de eventos discretos
+simpy>=4.1.1
+
+# Comunicación MQTT
+paho-mqtt>=2.0.0
+
+# Análisis de datos
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Predicción (se usará en día 4)
+prophet>=1.1.4
+
+# Utilidades
+python-dateutil>=2.8.2
+
+# Para pruebas
+pytest>=7.4.0
