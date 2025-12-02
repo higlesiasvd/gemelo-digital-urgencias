@@ -137,13 +137,14 @@ make logs-simulador
 
 Las variables de entorno del simulador se configuran en `docker-compose.yml`:
 
-| Variable        | Descripción                   | Default   |
-| --------------- | ------------------------------ | --------- |
-| `MQTT_BROKER` | Dirección broker MQTT         | mosquitto |
-| `MQTT_PORT`   | Puerto MQTT                    | 1883      |
-| `HOSPITALES`  | Hospitales a simular           | chuac     |
-| `DURACION`    | Horas simuladas                | 24        |
-| `VELOCIDAD`   | Factor velocidad (60 = 1h/min) | 60        |
+| Variable        | Descripción                      | Default                        |
+| --------------- | -------------------------------- | ------------------------------ |
+| `MQTT_BROKER`   | Dirección broker MQTT            | mosquitto                      |
+| `MQTT_PORT`     | Puerto MQTT                      | 1883                           |
+| `HOSPITALES`    | Hospitales a simular             | chuac hm_modelo san_rafael     |
+| `DURACION`      | Horas simuladas                  | 24                             |
+| `VELOCIDAD`     | Factor velocidad (60 = 1h/min)   | 60                             |
+| `EMERGENCIAS`   | Activar emergencias aleatorias   | false                          |
 
 ### Ejecución manual (desarrollo local)
 
@@ -155,8 +156,11 @@ source venv/bin/activate
 # Instalar dependencias
 make install-dev
 
-# Ejecutar simulador
-python src/simulador.py --hospitales chuac --duracion 24 --velocidad 60
+# Ejecutar con los 3 hospitales
+python src/simulador.py --hospitales chuac hm_modelo san_rafael
+
+# Ejecutar con emergencias aleatorias
+python src/simulador.py --hospitales chuac hm_modelo san_rafael --emergencias
 ```
 
 ## 📊 Datos Simulados
@@ -183,34 +187,76 @@ python src/simulador.py --hospitales chuac --duracion 24 --velocidad 60
 
 El simulador publica en los siguientes topics:
 
+### Eventos de pacientes
 ```
 urgencias/{hospital_id}/eventos/llegada
 urgencias/{hospital_id}/eventos/triaje_completado
 urgencias/{hospital_id}/eventos/inicio_atencion
 urgencias/{hospital_id}/eventos/entrada_observacion
+urgencias/{hospital_id}/eventos/derivacion
 urgencias/{hospital_id}/eventos/salida
+```
+
+### Estadísticas y recursos
+```
 urgencias/{hospital_id}/stats
 urgencias/{hospital_id}/recursos/boxes
 urgencias/{hospital_id}/alertas
 ```
 
+### Coordinador central
+```
+urgencias/coordinador/estado
+urgencias/coordinador/alertas
+```
+
+## 🚨 Sistema de Emergencias
+
+El coordinador central gestiona 3 tipos de emergencias:
+
+| Tipo | Descripción | Pacientes Extra | Duración |
+|------|-------------|-----------------|----------|
+| **Accidente Múltiple** | Colisión en A-6/AP-9 | 15-30 | 2-4 horas |
+| **Brote Vírico** | Gastroenteritis/Gripe | 50-100 | 3-7 días |
+| **Evento Masivo** | Incidentes en Riazor/Coliseum | 20-50 | 4-8 horas |
+
+Las emergencias activan:
+- Aumento de llegadas de pacientes
+- Distribución de triaje específica
+- Alertas a la población
+- Coordinación intensiva entre hospitales
+
+## 🔄 Sistema de Derivaciones
+
+El coordinador central deriva pacientes automáticamente cuando:
+- Un hospital supera el **80% de ocupación**
+- Hay diferencia significativa (>10%) con otros hospitales
+- El paciente **no es nivel 1** (críticos se atienden donde llegan)
+
+Beneficios:
+- Reducción de tiempos de espera
+- Distribución equilibrada de carga
+- Mejor uso de recursos
+
 ## 📁 Estructura del Proyecto
 
 ```
 gemelo-digital-hospitalario/
-├── Makefile                # Comandos de gestión del proyecto
-├── Dockerfile              # Imagen del simulador
-├── docker-compose.yml      # Infraestructura Docker
-├── requirements.txt        # Dependencias Python
+├── Makefile                    # Comandos de gestión del proyecto
+├── Dockerfile                  # Imagen del simulador
+├── docker-compose.yml          # Infraestructura Docker
+├── requirements.txt            # Dependencias Python
 ├── README.md
 ├── config/
-│   └── mosquitto.conf      # Configuración MQTT
+│   └── mosquitto.conf          # Configuración MQTT
 ├── src/
-│   ├── simulador.py        # Simulador principal
-│   └── test_simulacion.py  # Tests
-├── dashboards/             # Dashboards Grafana
-├── node-red/               # Flujos Node-RED
-└── docs/                   # Documentación adicional
+│   ├── simulador.py            # Simulador principal (3 hospitales)
+│   ├── coordinador.py          # Coordinador central y emergencias
+│   ├── test_simulacion.py      # Tests básicos del simulador
+│   └── test_coordinador.py     # Tests del coordinador
+├── dashboards/                 # Dashboards Grafana
+├── node-red/                   # Flujos Node-RED
+└── docs/                       # Documentación adicional
 ```
 
 ## 🔧 Troubleshooting
@@ -266,8 +312,8 @@ make install
 
 ## 📅 Roadmap
 
-- [X] Día 1: Simulación básica 1 hospital
-- [ ] Día 2: 3 hospitales + coordinación
+- [x] Día 1: Simulación básica 1 hospital
+- [x] Día 2: 3 hospitales + coordinación + emergencias
 - [ ] Día 3: Node-RED + InfluxDB
 - [ ] Día 4: Predicción IA
 - [ ] Día 5: Dashboard Grafana

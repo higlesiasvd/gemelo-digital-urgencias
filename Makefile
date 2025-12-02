@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs status clean build ps shell-influx shell-nodered shell-grafana shell-mqtt install build-simulador run-simulador
+.PHONY: help up down restart logs status clean build ps shell-influx shell-nodered shell-grafana shell-mqtt install build-simulador run-simulador test-simulador test-coordinador
 
 # Variables
 COMPOSE_FILE := docker-compose.yml
@@ -158,9 +158,17 @@ update-deps: ## Actualiza requirements.txt y reconstruye
 # TESTING
 # ═══════════════════════════════════════════════════════════════════
 
-test: ## Ejecuta los tests dentro del contenedor
+test: ## Ejecuta todos los tests dentro del contenedor
 	@echo "$(GREEN)Ejecutando tests...$(NC)"
 	docker compose -f $(COMPOSE_FILE) run --rm simulador pytest src/ -v
+
+test-simulador: ## Ejecuta tests del simulador
+	@echo "$(GREEN)Ejecutando tests del simulador...$(NC)"
+	docker compose -f $(COMPOSE_FILE) run --rm simulador python src/test_simulacion.py
+
+test-coordinador: ## Ejecuta tests del coordinador
+	@echo "$(GREEN)Ejecutando tests del coordinador...$(NC)"
+	docker compose -f $(COMPOSE_FILE) run --rm simulador python src/test_coordinador.py
 
 test-local: ## Ejecuta los tests localmente
 	@echo "$(GREEN)Ejecutando tests localmente...$(NC)"

@@ -5,7 +5,7 @@ GEMELO DIGITAL - URGENCIAS HOSPITALARIAS A CORUÑA
 Simulador de eventos discretos para urgencias hospitalarias usando SimPy.
 
 Autor: Proyecto Gemelos Digitales
-Versión: 1.0 - Día 1 (1 hospital)
+Versión: 2.0 - Día 2 (3 hospitales + coordinador)
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 import paho.mqtt.client as mqtt
 from collections import defaultdict
 import threading
+import os
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -287,6 +288,7 @@ class HospitalUrgencias:
         self.env = env
         self.config = config
         self.mqtt_client = mqtt_client
+        self.coordinador = None  # Se asigna desde SimuladorUrgencias si hay múltiples hospitales
         
         # Recursos SimPy
         self.triaje = simpy.Resource(env, capacity=2)  # 2 puestos de triaje
@@ -396,6 +398,28 @@ class HospitalUrgencias:
         
         self.publicar_evento("triaje_completado", paciente)
         
+        # ═══ FASE 1.5: CONSULTAR DERIVACIÓN ═══
+        if self.coordinador:
+            hospital_destino = self.coordinador.decidir_hospital_destino(
+                self.config.id, 
+                paciente.nivel_triaje.value
+            )
+            if hospital_destino:
+                # Derivar paciente
+                paciente.destino = "derivado"
+                paciente.derivado_a = hospital_destino
+                paciente.hora_salida = self.env.now
+                
+                # Mover a completados
+                del self.pacientes_activos[paciente.id]
+                self.pacientes_completados.append(paciente)
+                
+                self.publicar_evento("derivacion", paciente)
+                
+                # Crear nuevo proceso en hospital destino
+                # (En una implementación real, habría tiempo de traslado)
+                return  # Termina el proceso en este hospital
+        
         # ═══ FASE 2: ESPERA Y ATENCIÓN EN BOX ═══
         # Prioridad: menor número = mayor prioridad (nivel 1 = máxima)
         prioridad = paciente.nivel_triaje.value
@@ -410,6 +434,11 @@ class HospitalUrgencias:
                 self.cola_espera_atencion.remove(paciente)
             
             paciente.hora_inicio_atencion = self.env.now
+            
+            # Guardar tiempo de espera
+            if paciente.tiempo_espera_atencion:
+                self.tiempos_espera_recientes.append(paciente.tiempo_espera_atencion)
+            
             self.publicar_evento("inicio_atencion", paciente)
             
             # Tiempo de atención según nivel
@@ -609,17 +638,20 @@ class SimuladorUrgencias:
     
     def __init__(self, hospitales_ids: List[str] = ["chuac"], 
                  mqtt_broker: str = "localhost", mqtt_port: int = 1883,
-                 velocidad: float = 60.0):
+                 velocidad: float = 60.0, emergencias_aleatorias: bool = False):
         """
         Args:
             hospitales_ids: Lista de IDs de hospitales a simular
             mqtt_broker: Dirección del broker MQTT
             mqtt_port: Puerto del broker MQTT
             velocidad: Factor de velocidad (60 = 1 hora simulada por minuto real)
+            emergencias_aleatorias: Si True, genera emergencias aleatorias
         """
         self.env = simpy.Environment()
         self.velocidad = velocidad
         self.hospitales: Dict[str, HospitalUrgencias] = {}
+        self.ultima_hora_impresa = -1  # Control para evitar duplicados
+        self.coordinador = None
         
         # Conectar MQTT
         self.mqtt_manager = MQTTManager(mqtt_broker, mqtt_port)
@@ -640,6 +672,23 @@ class SimuladorUrgencias:
                 print(f"   - Boxes: {config.num_boxes}")
                 print(f"   - Observación: {config.num_camas_observacion}")
                 print(f"   - Pacientes/día estimados: {config.pacientes_dia_base}")
+        
+        # Crear coordinador si hay múltiples hospitales
+        if len(self.hospitales) > 1:
+            from coordinador import CoordinadorCentral, GeneradorEmergencias
+            
+            self.coordinador = CoordinadorCentral(self.env, self.hospitales, mqtt_client)
+            self.env.process(self.coordinador.proceso_coordinacion())
+            
+            # Vincular hospitales al coordinador para derivaciones
+            for hospital in self.hospitales.values():
+                hospital.coordinador = self.coordinador
+            
+            # Generador de emergencias aleatorias (opcional)
+            if emergencias_aleatorias:
+                generador = GeneradorEmergencias(self.env, self.coordinador)
+                self.env.process(generador.proceso_emergencias())
+                print(f"⚡ Generador de emergencias aleatorias activado")
     
     def ejecutar(self, duracion_horas: float = 24, tiempo_real: bool = True):
         """
@@ -681,8 +730,10 @@ class SimuladorUrgencias:
                 siguiente = min(self.env.now + paso, tiempo_simulado_objetivo, duracion_minutos)
                 self.env.run(until=siguiente)
             
-            # Mostrar progreso cada hora simulada
-            if int(self.env.now) % 60 == 0 and int(self.env.now) > 0:
+            # Mostrar progreso cada hora simulada (evitando duplicados)
+            hora_actual = int(self.env.now // 60)
+            if hora_actual > self.ultima_hora_impresa and hora_actual > 0:
+                self.ultima_hora_impresa = hora_actual
                 self._imprimir_estado()
             
             # Pequeña pausa para no saturar CPU
@@ -717,8 +768,12 @@ class SimuladorUrgencias:
         print("📊 RESUMEN DE SIMULACIÓN")
         print(f"{'═'*60}")
         
+        total_pacientes_sistema = 0
+        total_derivados = 0
+        
         for hospital_id, hospital in self.hospitales.items():
             total_atendidos = len(hospital.pacientes_completados)
+            total_pacientes_sistema += total_atendidos
             
             # Calcular estadísticas
             tiempos_totales = [p.tiempo_total for p in hospital.pacientes_completados if p.tiempo_total]
@@ -730,14 +785,29 @@ class SimuladorUrgencias:
             # Contar por destino
             altas = sum(1 for p in hospital.pacientes_completados if p.destino == "alta")
             ingresos = sum(1 for p in hospital.pacientes_completados if p.destino == "ingreso")
+            derivados = sum(1 for p in hospital.pacientes_completados if p.destino == "derivado")
+            total_derivados += derivados
             
             print(f"\n🏥 {hospital.config.nombre}")
             print(f"   Total pacientes atendidos: {total_atendidos}")
             print(f"   Tiempo medio total: {tiempo_medio:.1f} minutos")
             print(f"   Tiempo medio espera: {espera_media:.1f} minutos")
-            print(f"   Altas: {altas} | Ingresos: {ingresos}")
+            print(f"   Altas: {altas} | Ingresos: {ingresos} | Derivados: {derivados}")
         
-        print(f"\n{'═'*60}\n")
+        # Resumen del coordinador
+        if self.coordinador:
+            print(f"\n{'─'*60}")
+            print("🎯 COORDINACIÓN CENTRAL")
+            resumen = self.coordinador.obtener_resumen()
+            print(f"   Derivaciones totales: {resumen['derivaciones_totales']}")
+            print(f"   Minutos ahorrados (estimado): {resumen['minutos_ahorrados']:.0f}")
+            print(f"   Alertas emitidas: {resumen['alertas_emitidas']}")
+            if resumen['emergencias_gestionadas'] > 0:
+                print(f"   Emergencias gestionadas: {resumen['emergencias_gestionadas']}")
+        
+        print(f"\n{'═'*60}")
+        print(f"   TOTAL PACIENTES EN EL SISTEMA: {total_pacientes_sistema}")
+        print(f"{'═'*60}\n")
     
     def detener(self):
         """Detiene la simulación y limpia recursos"""
@@ -750,21 +820,32 @@ class SimuladorUrgencias:
 
 if __name__ == "__main__":
     import argparse
+    import os
+    
+    # Leer variables de entorno (para Docker)
+    env_broker = os.environ.get("MQTT_BROKER", "localhost")
+    env_port = int(os.environ.get("MQTT_PORT", "1883"))
+    env_hospitales = os.environ.get("HOSPITALES", "chuac").split()
+    env_duracion = float(os.environ.get("DURACION", "24"))
+    env_velocidad = float(os.environ.get("VELOCIDAD", "60"))
+    env_emergencias = os.environ.get("EMERGENCIAS", "false").lower() == "true"
     
     parser = argparse.ArgumentParser(description="Gemelo Digital - Urgencias Hospitalarias A Coruña")
-    parser.add_argument("--hospitales", nargs="+", default=["chuac"],
+    parser.add_argument("--hospitales", nargs="+", default=env_hospitales,
                         choices=["chuac", "hm_modelo", "san_rafael"],
                         help="Hospitales a simular")
-    parser.add_argument("--duracion", type=float, default=24,
+    parser.add_argument("--duracion", type=float, default=env_duracion,
                         help="Duración en horas simuladas (default: 24)")
-    parser.add_argument("--velocidad", type=float, default=60,
+    parser.add_argument("--velocidad", type=float, default=env_velocidad,
                         help="Factor de velocidad (default: 60 = 1h sim/min real)")
-    parser.add_argument("--mqtt-broker", default="localhost",
+    parser.add_argument("--mqtt-broker", default=env_broker,
                         help="Dirección del broker MQTT")
-    parser.add_argument("--mqtt-port", type=int, default=1883,
+    parser.add_argument("--mqtt-port", type=int, default=env_port,
                         help="Puerto del broker MQTT")
     parser.add_argument("--rapido", action="store_true",
                         help="Ejecutar sin sincronización de tiempo real")
+    parser.add_argument("--emergencias", action="store_true", default=env_emergencias,
+                        help="Activar emergencias aleatorias durante la simulación")
     
     args = parser.parse_args()
     
@@ -773,7 +854,8 @@ if __name__ == "__main__":
         hospitales_ids=args.hospitales,
         mqtt_broker=args.mqtt_broker,
         mqtt_port=args.mqtt_port,
-        velocidad=args.velocidad
+        velocidad=args.velocidad,
+        emergencias_aleatorias=args.emergencias
     )
     
     try:

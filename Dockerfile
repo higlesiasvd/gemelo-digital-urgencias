@@ -1,6 +1,9 @@
 # ═══════════════════════════════════════════════════════════════
 # Gemelo Digital Hospitalario - Simulador de Urgencias
 # ═══════════════════════════════════════════════════════════════
+# Simula 3 hospitales de A Coruña (CHUAC, HM Modelo, San Rafael)
+# con coordinación central, derivaciones y gestión de emergencias.
+# ═══════════════════════════════════════════════════════════════
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -14,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código fuente
+# Copiar código fuente (simulador + coordinador + tests)
 COPY src/ ./src/
 COPY config/ ./config/
 
@@ -22,6 +25,10 @@ COPY config/ ./config/
 ENV PYTHONUNBUFFERED=1
 ENV MQTT_BROKER=mosquitto
 ENV MQTT_PORT=1883
+ENV HOSPITALES="chuac hm_modelo san_rafael"
+ENV DURACION=24
+ENV VELOCIDAD=60
+ENV EMERGENCIAS=false
 
 # Ejecutar el simulador
 CMD ["python", "src/simulador.py"]
