@@ -1,263 +1,661 @@
-# 🏥 Gemelo Digital - Urgencias Hospitalarias A Coruña
+# 🏥 Gemelo Digital - Urgencias Hospitalarias A Coruña# 🏥 Gemelo Digital - Urgencias Hospitalarias A Coruña
 
-Sistema de simulación y visualización en tiempo real de las urgencias hospitalarias de A Coruña, coordinando tres hospitales: CHUAC, HM Modelo y San Rafael.
 
-## 📋 Descripción
 
-Este proyecto implementa un gemelo digital que simula:
+Sistema de simulación y visualización en tiempo real de las urgencias hospitalarias de A Coruña, coordinando tres hospitales: CHUAC, HM Modelo y San Rafael.Sistema de simulación y visualización en tiempo real de las urgencias hospitalarias de A Coruña, coordinando tres hospitales: CHUAC, HM Modelo y San Rafael.
 
-- Llegada de pacientes con distribución realista
-- Sistema de triaje Manchester (5 niveles)
-- Gestión de recursos (boxes, observación)
-- Coordinación entre hospitales
-- Detección automática de emergencias
-- Predicción de demanda con IA
 
-## 🏗️ Arquitectura
+
+## 📋 Descripción## 📋 Descripción
+
+
+
+Este proyecto implementa un gemelo digital que simula:Este proyecto implementa un gemelo digital que simula:
+
+
+
+- Llegada de pacientes con distribución realista- Llegada de pacientes con distribución realista
+
+- Sistema de triaje Manchester (5 niveles)- Sistema de triaje Manchester (5 niveles)
+
+- Gestión de recursos (boxes, observación)- Gestión de recursos (boxes, observación)
+
+- Coordinación entre hospitales- Coordinación entre hospitales
+
+- Detección automática de emergencias- Detección automática de emergencias
+
+- Predicción de demanda con IA- Predicción de demanda con IA
+
+
+
+## 🏗️ Arquitectura## 🏗️ Arquitectura
+
+
+
+``````
+
+┌─────────────────┐     MQTT      ┌─────────────────┐┌─────────────────┐     MQTT      ┌─────────────────┐
+
+│   Simulación    │──────────────▶│    Node-RED     ││   Simulación    │──────────────▶│    Node-RED     │
+
+│   (Python)      │               │  (Integración)  ││   (Python)      │               │  (Integración)  │
+
+└─────────────────┘               └────────┬────────┘└─────────────────┘               └────────┬────────┘
+
+                                           │                                           │
+
+                                           ▼                                           ▼
+
+┌─────────────────┐               ┌─────────────────┐┌─────────────────┐               ┌─────────────────┐
+
+│    InfluxDB     │◀──────────────│    Grafana      ││    InfluxDB     │◀──────────────│    Grafana      │
+
+│ (Series temp.)  │               │  (Dashboard)    ││ (Series temp.)  │               │  (Dashboard)    │
+
+└─────────────────┘               └─────────────────┘└─────────────────┘               └─────────────────┘
+
+``````
+
+
+
+## 📁 Estructura del Proyecto## 🚀 Inicio Rápido
+
+
+
+```### Prerrequisitos
+
+gemelo-digital-hospitalario/
+
+├── 📄 Makefile                     # Comandos de gestión del proyecto- Docker Desktop instalado y ejecutándose
+
+├── 🐳 Dockerfile                   # Imagen del simulador- Make (viene preinstalado en macOS/Linux)
+
+├── 🐳 docker-compose.yml           # Infraestructura Docker
+
+├── 📄 requirements.txt             # Dependencias Python### 1. Levantar infraestructura
+
+├── 📄 README.md
+
+│```bash
+
+├── 📁 src/                         # Código fuente# Ver todos los comandos disponibles
+
+│   ├── simulador.py                # Simulador principal (3 hospitales)make help
+
+│   └── coordinador.py              # Coordinador central y emergencias
+
+│# Iniciar todos los servicios
+
+├── 📁 tests/                       # Tests del proyectomake up
+
+│   ├── __init__.py
+
+│   ├── test_simulacion.py          # Tests unitarios del simulador# Verificar estado
+
+│   ├── test_coordinador.py         # Tests del coordinador multi-hospitalmake status
+
+│   └── test_integracion.py         # Tests de integración MQTT+InfluxDB```
+
+│
+
+├── 📁 config/                      # Configuración de servicios### 2. Construir e instalar dependencias
+
+│   └── mosquitto.conf              # Configuración MQTT
+
+│```bash
+
+├── 📁 grafana/                     # Configuración Grafana# Construir el contenedor del simulador (instala dependencias automáticamente)
+
+│   └── provisioning/make install
+
+│       └── datasources/
+
+│           └── influxdb.yaml       # Datasource InfluxDB auto-configurado# O si prefieres reconstruir desde cero
+
+│make rebuild-simulador
+
+├── 📁 node-red/                    # Flujos Node-RED```
+
+│   └── flows.json                  # Flujos MQTT → InfluxDB
+
+│### 3. Ejecutar simulación
+
+├── 📁 dashboards/                  # Dashboards Grafana
+
+│   └── .gitkeep```bash
+
+│# Ejecutar el simulador (una vez)
+
+├── 📁 scripts/                     # Scripts de utilidadmake run-simulador
+
+│   └── setup-nodered.sh            # Configuración Node-RED
+
+│# O iniciarlo en segundo plano
+
+└── 📁 docs/                        # Documentación adicionalmake start-simulador
 
 ```
-┌─────────────────┐     MQTT      ┌─────────────────┐
-│   Simulación    │──────────────▶│    Node-RED     │
-│   (Python)      │               │  (Integración)  │
-└─────────────────┘               └────────┬────────┘
-                                           │
-                                           ▼
-┌─────────────────┐               ┌─────────────────┐
-│    InfluxDB     │◀──────────────│    Grafana      │
-│ (Series temp.)  │               │  (Dashboard)    │
-└─────────────────┘               └─────────────────┘
-```
 
-## 🚀 Inicio Rápido
+# Ver logs del simulador
+
+## 🚀 Inicio Rápidomake logs-simulador
+
+```
 
 ### Prerrequisitos
 
-- Docker Desktop instalado y ejecutándose
-- Make (viene preinstalado en macOS/Linux)
-
-### 1. Levantar infraestructura
-
-```bash
-# Ver todos los comandos disponibles
-make help
-
-# Iniciar todos los servicios
-make up
-
-# Verificar estado
-make status
-```
-
-### 2. Construir e instalar dependencias
-
-```bash
-# Construir el contenedor del simulador (instala dependencias automáticamente)
-make install
-
-# O si prefieres reconstruir desde cero
-make rebuild-simulador
-```
-
-### 3. Ejecutar simulación
-
-```bash
-# Ejecutar el simulador (una vez)
-make run-simulador
-
-# O iniciarlo en segundo plano
-make start-simulador
-
-# Ver logs del simulador
-make logs-simulador
-```
-
 ## 🌐 URLs de Acceso
 
-| Servicio                 | URL                   | Credenciales       |
-| ------------------------ | --------------------- | ------------------ |
-| **Grafana**        | http://localhost:3001 | admin / admin      |
-| **Node-RED**       | http://localhost:1880 | -                  |
-| **InfluxDB**       | http://localhost:8086 | admin / adminadmin |
-| **MQTT**           | localhost:1883        | -                  |
-| **MQTT WebSocket** | localhost:9001        | -                  |
+- Docker Desktop instalado y ejecutándose
 
-## 🛠️ Comandos Make
+- Make (viene preinstalado en macOS/Linux)| Servicio                 | URL                   | Credenciales       |
+
+| ------------------------ | --------------------- | ------------------ |
+
+### 1. Levantar infraestructura| **Grafana**        | http://localhost:3001 | admin / admin      |
+
+| **Node-RED**       | http://localhost:1880 | -                  |
+
+```bash| **InfluxDB**       | http://localhost:8086 | admin / adminadmin |
+
+# Ver todos los comandos disponibles| **MQTT**           | localhost:1883        | -                  |
+
+make help| **MQTT WebSocket** | localhost:9001        | -                  |
+
+
+
+# Iniciar todos los servicios## 🛠️ Comandos Make
+
+make up
 
 ### Servicios Docker
 
-| Comando          | Descripción                        |
-| ---------------- | ----------------------------------- |
+# Verificar estado
+
+make status| Comando          | Descripción                        |
+
+```| ---------------- | ----------------------------------- |
+
 | `make up`      | Inicia todos los servicios          |
-| `make down`    | Detiene todos los servicios         |
+
+### 2. Construir e instalar dependencias| `make down`    | Detiene todos los servicios         |
+
 | `make restart` | Reinicia todos los servicios        |
-| `make status`  | Muestra el estado de los servicios  |
-| `make logs`    | Muestra logs de todos los servicios |
-| `make urls`    | Muestra las URLs de acceso          |
 
-### Simulador
+```bash| `make status`  | Muestra el estado de los servicios  |
 
-| Comando                    | Descripción                             |
+# Construir el contenedor del simulador (instala dependencias automáticamente)| `make logs`    | Muestra logs de todos los servicios |
+
+make install| `make urls`    | Muestra las URLs de acceso          |
+
+
+
+# O si prefieres reconstruir desde cero### Simulador
+
+make rebuild-simulador
+
+```| Comando                    | Descripción                             |
+
 | -------------------------- | ---------------------------------------- |
-| `make install`           | Construye el contenedor con dependencias |
+
+### 3. Ejecutar simulación| `make install`           | Construye el contenedor con dependencias |
+
 | `make build-simulador`   | Construye la imagen del simulador        |
-| `make rebuild-simulador` | Reconstruye sin caché                   |
-| `make run-simulador`     | Ejecuta el simulador una vez             |
-| `make start-simulador`   | Inicia el simulador en segundo plano     |
+
+```bash| `make rebuild-simulador` | Reconstruye sin caché                   |
+
+# Ejecutar el simulador (una vez)| `make run-simulador`     | Ejecuta el simulador una vez             |
+
+make run-simulador| `make start-simulador`   | Inicia el simulador en segundo plano     |
+
 | `make stop-simulador`    | Detiene el simulador                     |
-| `make logs-simulador`    | Muestra logs del simulador               |
+
+# O iniciarlo en segundo plano| `make logs-simulador`    | Muestra logs del simulador               |
+
+make start-simulador
 
 ### Testing
 
-| Comando             | Descripción                   |
-| ------------------- | ------------------------------ |
+# Ver logs del simulador
+
+make logs-simulador| Comando             | Descripción                   |
+
+```| ------------------- | ------------------------------ |
+
 | `make test`       | Ejecuta tests en el contenedor |
-| `make test-local` | Ejecuta tests localmente       |
+
+### 4. Verificar integración| `make test-local` | Ejecuta tests localmente       |
+
 | `make test-mqtt`  | Prueba conexión MQTT          |
 
-### Mantenimiento
+```bash
 
-| Comando              | Descripción                          |
+# Ejecutar tests de integración### Mantenimiento
+
+make test-integracion
+
+```| Comando              | Descripción                          |
+
 | -------------------- | ------------------------------------- |
-| `make clean`       | Elimina contenedores y volúmenes     |
+
+## 🌐 URLs de Acceso| `make clean`       | Elimina contenedores y volúmenes     |
+
 | `make clean-all`   | Limpieza profunda (incluye imágenes) |
-| `make backup`      | Crea backup de los volúmenes         |
-| `make update-deps` | Actualiza dependencias                |
 
-### Acceso a contenedores
+| Servicio             | URL                   | Credenciales       || `make backup`      | Crea backup de los volúmenes         |
 
-| Comando                  | Descripción        |
-| ------------------------ | ------------------- |
+| -------------------- | --------------------- | ------------------ || `make update-deps` | Actualiza dependencias                |
+
+| **Grafana**          | http://localhost:3001 | admin / admin      |
+
+| **Node-RED**         | http://localhost:1880 | -                  |### Acceso a contenedores
+
+| **InfluxDB**         | http://localhost:8086 | admin / adminadmin |
+
+| **MQTT**             | localhost:1883        | -                  || Comando                  | Descripción        |
+
+| **MQTT WebSocket**   | localhost:9001        | -                  || ------------------------ | ------------------- |
+
 | `make shell-simulador` | Shell del simulador |
-| `make shell-influx`    | Shell de InfluxDB   |
+
+## 🛠️ Comandos Make| `make shell-influx`    | Shell de InfluxDB   |
+
 | `make shell-grafana`   | Shell de Grafana    |
-| `make shell-nodered`   | Shell de Node-RED   |
+
+### Servicios Docker| `make shell-nodered`   | Shell de Node-RED   |
+
 | `make shell-mqtt`      | Shell de Mosquitto  |
 
-## ⚙️ Opciones de Simulación
+| Comando          | Descripción                        |
 
-Las variables de entorno del simulador se configuran en `docker-compose.yml`:
+| ---------------- | ---------------------------------- |## ⚙️ Opciones de Simulación
 
-| Variable        | Descripción                      | Default                        |
-| --------------- | -------------------------------- | ------------------------------ |
-| `MQTT_BROKER`   | Dirección broker MQTT            | mosquitto                      |
+| `make up`        | Inicia todos los servicios         |
+
+| `make down`      | Detiene todos los servicios        |Las variables de entorno del simulador se configuran en `docker-compose.yml`:
+
+| `make restart`   | Reinicia todos los servicios       |
+
+| `make status`    | Muestra el estado de los servicios || Variable        | Descripción                      | Default                        |
+
+| `make logs`      | Muestra logs de todos los servicios|| --------------- | -------------------------------- | ------------------------------ |
+
+| `make urls`      | Muestra las URLs de acceso         || `MQTT_BROKER`   | Dirección broker MQTT            | mosquitto                      |
+
 | `MQTT_PORT`     | Puerto MQTT                      | 1883                           |
-| `HOSPITALES`    | Hospitales a simular             | chuac hm_modelo san_rafael     |
+
+### Simulador| `HOSPITALES`    | Hospitales a simular             | chuac hm_modelo san_rafael     |
+
 | `DURACION`      | Horas simuladas                  | 24                             |
-| `VELOCIDAD`     | Factor velocidad (60 = 1h/min)   | 60                             |
-| `EMERGENCIAS`   | Activar emergencias aleatorias   | false                          |
 
-### Ejecución manual (desarrollo local)
+| Comando                  | Descripción                              || `VELOCIDAD`     | Factor velocidad (60 = 1h/min)   | 60                             |
 
-```bash
-# Crear entorno virtual
-python -m venv venv
-source venv/bin/activate
+| ------------------------ | ---------------------------------------- || `EMERGENCIAS`   | Activar emergencias aleatorias   | false                          |
 
-# Instalar dependencias
+| `make install`           | Construye el contenedor con dependencias |
+
+| `make build-simulador`   | Construye la imagen del simulador        |### Ejecución manual (desarrollo local)
+
+| `make rebuild-simulador` | Reconstruye sin caché                    |
+
+| `make run-simulador`     | Ejecuta el simulador una vez             |```bash
+
+| `make start-simulador`   | Inicia el simulador en segundo plano     |# Crear entorno virtual
+
+| `make stop-simulador`    | Detiene el simulador                     |python -m venv venv
+
+| `make logs-simulador`    | Muestra logs del simulador               |source venv/bin/activate
+
+
+
+### Testing# Instalar dependencias
+
 make install-dev
 
-# Ejecutar con los 3 hospitales
-python src/simulador.py --hospitales chuac hm_modelo san_rafael
+| Comando                      | Descripción                              |
 
-# Ejecutar con emergencias aleatorias
-python src/simulador.py --hospitales chuac hm_modelo san_rafael --emergencias
-```
+| ---------------------------- | ---------------------------------------- |# Ejecutar con los 3 hospitales
 
-## 📊 Datos Simulados
+| `make test`                  | Ejecuta todos los tests en contenedor    |python src/simulador.py --hospitales chuac hm_modelo san_rafael
+
+| `make test-simulador`        | Tests unitarios del simulador            |
+
+| `make test-coordinador`      | Tests del coordinador multi-hospital     |# Ejecutar con emergencias aleatorias
+
+| `make test-integracion`      | Tests de integración (requiere `make up`)|python src/simulador.py --hospitales chuac hm_modelo san_rafael --emergencias
+
+| `make test-local`            | Ejecuta todos los tests localmente       |```
+
+| `make test-local-simulador`  | Tests del simulador localmente           |
+
+| `make test-local-coordinador`| Tests del coordinador localmente         |## 📊 Datos Simulados
+
+| `make test-mqtt`             | Prueba conexión MQTT                     |
 
 ### Sistema de Triaje Manchester
 
+### Mantenimiento
+
 | Nivel | Color       | Tiempo Máx | % Pacientes |
-| ----- | ----------- | ----------- | ----------- |
-| 1     | 🔴 Rojo     | Inmediato   | 0.1%        |
-| 2     | 🟠 Naranja  | ≤10 min    | 8.3%        |
-| 3     | 🟡 Amarillo | ≤60 min    | 17.9%       |
-| 4     | 🟢 Verde    | ≤120 min   | 62.7%       |
-| 5     | 🔵 Azul     | ≤240 min   | 11%         |
 
-### Hospitales
+| Comando          | Descripción                          || ----- | ----------- | ----------- | ----------- |
 
-| Hospital   | Boxes | Observación | Pac./día |
-| ---------- | ----- | ------------ | --------- |
-| CHUAC      | 40    | 30           | ~420      |
-| HM Modelo  | 15    | 10           | ~120      |
-| San Rafael | 12    | 8            | ~80       |
+| ---------------- | ------------------------------------ || 1     | 🔴 Rojo     | Inmediato   | 0.1%        |
 
-## 📡 Topics MQTT
+| `make clean`     | Elimina contenedores y volúmenes     || 2     | 🟠 Naranja  | ≤10 min    | 8.3%        |
 
-El simulador publica en los siguientes topics:
+| `make clean-all` | Limpieza profunda (incluye imágenes) || 3     | 🟡 Amarillo | ≤60 min    | 17.9%       |
 
-### Eventos de pacientes
+| `make backup`    | Crea backup de los volúmenes         || 4     | 🟢 Verde    | ≤120 min   | 62.7%       |
+
+| `make update-deps`| Actualiza dependencias              || 5     | 🔵 Azul     | ≤240 min   | 11%         |
+
+
+
+### Acceso a contenedores### Hospitales
+
+
+
+| Comando                | Descripción         || Hospital   | Boxes | Observación | Pac./día |
+
+| ---------------------- | ------------------- || ---------- | ----- | ------------ | --------- |
+
+| `make shell-simulador` | Shell del simulador || CHUAC      | 40    | 30           | ~420      |
+
+| `make shell-influx`    | Shell de InfluxDB   || HM Modelo  | 15    | 10           | ~120      |
+
+| `make shell-grafana`   | Shell de Grafana    || San Rafael | 12    | 8            | ~80       |
+
+| `make shell-nodered`   | Shell de Node-RED   |
+
+| `make shell-mqtt`      | Shell de Mosquitto  |## 📡 Topics MQTT
+
+
+
+## ⚙️ Opciones de SimulaciónEl simulador publica en los siguientes topics:
+
+
+
+Las variables de entorno del simulador se configuran en `docker-compose.yml`:### Eventos de pacientes
+
 ```
-urgencias/{hospital_id}/eventos/llegada
-urgencias/{hospital_id}/eventos/triaje_completado
-urgencias/{hospital_id}/eventos/inicio_atencion
-urgencias/{hospital_id}/eventos/entrada_observacion
-urgencias/{hospital_id}/eventos/derivacion
-urgencias/{hospital_id}/eventos/salida
-```
+
+| Variable      | Descripción                    | Default                    |urgencias/{hospital_id}/eventos/llegada
+
+| ------------- | ------------------------------ | -------------------------- |urgencias/{hospital_id}/eventos/triaje_completado
+
+| `MQTT_BROKER` | Dirección broker MQTT          | mosquitto                  |urgencias/{hospital_id}/eventos/inicio_atencion
+
+| `MQTT_PORT`   | Puerto MQTT                    | 1883                       |urgencias/{hospital_id}/eventos/entrada_observacion
+
+| `HOSPITALES`  | Hospitales a simular           | chuac hm_modelo san_rafael |urgencias/{hospital_id}/eventos/derivacion
+
+| `DURACION`    | Horas simuladas                | 24                         |urgencias/{hospital_id}/eventos/salida
+
+| `VELOCIDAD`   | Factor velocidad (60 = 1h/min) | 60                         |```
+
+| `EMERGENCIAS` | Activar emergencias aleatorias | false                      |
 
 ### Estadísticas y recursos
-```
+
+### Ejecución manual (desarrollo local)```
+
 urgencias/{hospital_id}/stats
-urgencias/{hospital_id}/recursos/boxes
-urgencias/{hospital_id}/alertas
-```
+
+```bashurgencias/{hospital_id}/recursos/boxes
+
+# Crear entorno virtualurgencias/{hospital_id}/alertas
+
+python -m venv venv```
+
+source venv/bin/activate
 
 ### Coordinador central
-```
-urgencias/coordinador/estado
+
+# Instalar dependencias```
+
+make install-devurgencias/coordinador/estado
+
 urgencias/coordinador/alertas
-```
+
+# Ejecutar con los 3 hospitales```
+
+python src/simulador.py --hospitales chuac hm_modelo san_rafael
 
 ## 🚨 Sistema de Emergencias
 
-El coordinador central gestiona 3 tipos de emergencias:
+# Ejecutar con emergencias aleatorias
+
+python src/simulador.py --hospitales chuac hm_modelo san_rafael --emergenciasEl coordinador central gestiona 3 tipos de emergencias:
+
+```
 
 | Tipo | Descripción | Pacientes Extra | Duración |
-|------|-------------|-----------------|----------|
+
+## 📊 Datos Simulados|------|-------------|-----------------|----------|
+
 | **Accidente Múltiple** | Colisión en A-6/AP-9 | 15-30 | 2-4 horas |
-| **Brote Vírico** | Gastroenteritis/Gripe | 50-100 | 3-7 días |
+
+### Sistema de Triaje Manchester| **Brote Vírico** | Gastroenteritis/Gripe | 50-100 | 3-7 días |
+
 | **Evento Masivo** | Incidentes en Riazor/Coliseum | 20-50 | 4-8 horas |
 
-Las emergencias activan:
-- Aumento de llegadas de pacientes
-- Distribución de triaje específica
-- Alertas a la población
-- Coordinación intensiva entre hospitales
+| Nivel | Color       | Tiempo Máx | % Pacientes |
+
+| ----- | ----------- | ---------- | ----------- |Las emergencias activan:
+
+| 1     | 🔴 Rojo     | Inmediato  | 0.1%        |- Aumento de llegadas de pacientes
+
+| 2     | 🟠 Naranja  | ≤10 min    | 8.3%        |- Distribución de triaje específica
+
+| 3     | 🟡 Amarillo | ≤60 min    | 17.9%       |- Alertas a la población
+
+| 4     | 🟢 Verde    | ≤120 min   | 62.7%       |- Coordinación intensiva entre hospitales
+
+| 5     | 🔵 Azul     | ≤240 min   | 11%         |
 
 ## 🔄 Sistema de Derivaciones
 
-El coordinador central deriva pacientes automáticamente cuando:
-- Un hospital supera el **80% de ocupación**
-- Hay diferencia significativa (>10%) con otros hospitales
-- El paciente **no es nivel 1** (críticos se atienden donde llegan)
+### Hospitales
 
-Beneficios:
+El coordinador central deriva pacientes automáticamente cuando:
+
+| Hospital   | Boxes | Observación | Pac./día |- Un hospital supera el **80% de ocupación**
+
+| ---------- | ----- | ----------- | -------- |- Hay diferencia significativa (>10%) con otros hospitales
+
+| CHUAC      | 40    | 30          | ~420     |- El paciente **no es nivel 1** (críticos se atienden donde llegan)
+
+| HM Modelo  | 15    | 10          | ~120     |
+
+| San Rafael | 12    | 8           | ~80      |Beneficios:
+
 - Reducción de tiempos de espera
-- Distribución equilibrada de carga
+
+## 📡 Topics MQTT- Distribución equilibrada de carga
+
 - Mejor uso de recursos
+
+El simulador publica en los siguientes topics:
 
 ## 📁 Estructura del Proyecto
 
-```
-gemelo-digital-hospitalario/
-├── Makefile                    # Comandos de gestión del proyecto
-├── Dockerfile                  # Imagen del simulador
-├── docker-compose.yml          # Infraestructura Docker
-├── requirements.txt            # Dependencias Python
-├── README.md
-├── config/
+### Eventos de pacientes
+
+``````
+
+urgencias/{hospital_id}/eventos/llegadagemelo-digital-hospitalario/
+
+urgencias/{hospital_id}/eventos/triaje_completado├── Makefile                    # Comandos de gestión del proyecto
+
+urgencias/{hospital_id}/eventos/inicio_atencion├── Dockerfile                  # Imagen del simulador
+
+urgencias/{hospital_id}/eventos/entrada_observacion├── docker-compose.yml          # Infraestructura Docker
+
+urgencias/{hospital_id}/eventos/derivacion├── requirements.txt            # Dependencias Python
+
+urgencias/{hospital_id}/eventos/salida├── README.md
+
+```├── config/
+
 │   └── mosquitto.conf          # Configuración MQTT
-├── src/
-│   ├── simulador.py            # Simulador principal (3 hospitales)
-│   ├── coordinador.py          # Coordinador central y emergencias
-│   ├── test_simulacion.py      # Tests básicos del simulador
-│   └── test_coordinador.py     # Tests del coordinador
-├── dashboards/                 # Dashboards Grafana
+
+### Estadísticas y recursos├── src/
+
+```│   ├── simulador.py            # Simulador principal (3 hospitales)
+
+urgencias/{hospital_id}/stats│   ├── coordinador.py          # Coordinador central y emergencias
+
+urgencias/{hospital_id}/recursos/boxes│   ├── test_simulacion.py      # Tests básicos del simulador
+
+urgencias/{hospital_id}/alertas│   └── test_coordinador.py     # Tests del coordinador
+
+```├── dashboards/                 # Dashboards Grafana
+
 ├── node-red/                   # Flujos Node-RED
-└── docs/                       # Documentación adicional
+
+### Coordinador central└── docs/                       # Documentación adicional
+
+``````
+
+urgencias/coordinador/estado
+
+urgencias/coordinador/alertas## 🔧 Troubleshooting
+
 ```
+
+### Docker no funciona en macOS
+
+## 🔄 Flujos Node-RED
+
+```bash
+
+Los flujos pre-configurados en `node-red/flows.json` procesan:# Abrir Docker Desktop
+
+open -a Docker
+
+| Flujo | Descripción |
+
+| ----- | ----------- |# Añadir Docker al PATH (temporal)
+
+| **Eventos Pacientes** | Recibe MQTT `urgencias/+/eventos/+` → InfluxDB |export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
+
+| **Stats Hospitales** | Recibe MQTT `urgencias/+/stats` → InfluxDB |
+
+| **Coordinador** | Recibe estado y alertas del coordinador central |# Añadir permanentemente al ~/.zshrc
+
+| **Alertas Críticas** | Filtra y notifica alertas nivel "critical" |echo 'export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"' >> ~/.zshrc
+
+| **Panel Estado** | Query periódico a InfluxDB para mostrar saturación |```
+
+
+
+## 🚨 Sistema de Emergencias### Puerto ya en uso
+
+
+
+El coordinador central gestiona 3 tipos de emergencias:```bash
+
+# Ver qué proceso usa el puerto (ej: 8086)
+
+| Tipo                   | Descripción              | Pacientes Extra | Duración  |lsof -i :8086
+
+| ---------------------- | ------------------------ | --------------- | --------- |
+
+| **Accidente Múltiple** | Colisión en A-6/AP-9     | 15-30           | 2-4 horas |# Matar el proceso
+
+| **Brote Vírico**       | Gastroenteritis/Gripe    | 50-100          | 3-7 días  |kill -9 <PID>
+
+| **Evento Masivo**      | Incidentes Riazor/Coliseum | 20-50         | 4-8 horas |
+
+# O cambiar el puerto en docker-compose.yml
+
+Las emergencias activan:```
+
+- Aumento de llegadas de pacientes
+
+- Distribución de triaje específica### MQTT no conecta
+
+- Alertas a la población
+
+- Coordinación intensiva entre hospitales```bash
+
+# Verificar que Mosquitto está corriendo
+
+## 🔄 Sistema de Derivacionesmake logs-mqtt
+
+
+
+El coordinador central deriva pacientes automáticamente cuando:# Probar conexión
+
+- Un hospital supera el **80% de ocupación**make test-mqtt
+
+- Hay diferencia significativa (>10%) con otros hospitales```
+
+- El paciente **no es nivel 1** (críticos se atienden donde llegan)
+
+### Grafana no muestra datos
+
+Beneficios:
+
+- Reducción de tiempos de espera1. Verificar que InfluxDB está configurado como datasource
+
+- Distribución equilibrada de carga2. Comprobar que la simulación está publicando: `make logs-simulador`
+
+- Mejor uso de recursos3. Revisar logs: `make logs-grafana`
+
+
+
+## 🧪 Testing### Reconstruir todo desde cero
+
+
+
+### Ejecutar todos los tests```bash
+
+make clean-all
+
+```bashmake up
+
+# En Docker (recomendado)make install
+
+make test```
+
+
+
+# Localmente## 📅 Roadmap
+
+make test-local
+
+```- [x] Día 1: Simulación básica 1 hospital
+
+- [x] Día 2: 3 hospitales + coordinación + emergencias
+
+### Tests por categoría- [ ] Día 3: Node-RED + InfluxDB
+
+- [ ] Día 4: Predicción IA
+
+```bash- [ ] Día 5: Dashboard Grafana
+
+# Tests unitarios del simulador- [ ] Día 6: Flowcharting + escenarios
+
+make test-simulador- [ ] Día 7: Documentación final
+
+
+
+# Tests del coordinador multi-hospital## 👨‍💻 Autor
+
+make test-coordinador
+
+Proyecto para la asignatura de Gemelos Digitales
+
+# Tests de integración (requiere servicios activos)
+
+make up## 📄 Licencia
+
+make test-integracion
+
+```MIT License
+
 
 ## 🔧 Troubleshooting
 
@@ -298,9 +696,16 @@ make test-mqtt
 
 ### Grafana no muestra datos
 
-1. Verificar que InfluxDB está configurado como datasource
-2. Comprobar que la simulación está publicando: `make logs-simulador`
-3. Revisar logs: `make logs-grafana`
+1. El datasource InfluxDB se configura automáticamente (ver `grafana/provisioning/datasources/`)
+2. Verificar que Node-RED está procesando mensajes: http://localhost:1880
+3. Comprobar que la simulación está publicando: `make logs-simulador`
+4. Revisar logs: `make logs-grafana`
+
+### Node-RED no tiene los flujos
+
+Los flujos se montan automáticamente desde `node-red/flows.json`. Si no aparecen:
+1. Reiniciar: `make restart`
+2. Importar manualmente desde http://localhost:1880
 
 ### Reconstruir todo desde cero
 
@@ -314,7 +719,7 @@ make install
 
 - [x] Día 1: Simulación básica 1 hospital
 - [x] Día 2: 3 hospitales + coordinación + emergencias
-- [ ] Día 3: Node-RED + InfluxDB
+- [x] Día 3: Node-RED + InfluxDB + tests integración
 - [ ] Día 4: Predicción IA
 - [ ] Día 5: Dashboard Grafana
 - [ ] Día 6: Flowcharting + escenarios

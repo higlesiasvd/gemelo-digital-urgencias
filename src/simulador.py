@@ -165,6 +165,7 @@ class Paciente:
     nivel_triaje: NivelTriaje
     patologia: str
     hora_llegada: float
+    edad: int = 45  # Edad del paciente (default: 45 años)
     hora_triaje: Optional[float] = None
     hora_inicio_atencion: Optional[float] = None
     hora_fin_atencion: Optional[float] = None
@@ -199,6 +200,7 @@ class Paciente:
             "nivel_triaje_nombre": CONFIG_TRIAJE[self.nivel_triaje].nombre,
             "nivel_triaje_color": CONFIG_TRIAJE[self.nivel_triaje].color,
             "patologia": self.patologia,
+            "edad": self.edad,
             "hora_llegada": self.hora_llegada,
             "hora_triaje": self.hora_triaje,
             "hora_inicio_atencion": self.hora_inicio_atencion,
@@ -368,12 +370,21 @@ class HospitalUrgencias:
             self.paciente_counter += 1
             nivel = self.generar_nivel_triaje()
             
+            # Generar edad realista según nivel de triaje
+            if nivel == NivelTriaje.ROJO:
+                edad = random.choice([random.randint(0, 5), random.randint(65, 95)])
+            elif nivel == NivelTriaje.NARANJA:
+                edad = random.randint(30, 85)
+            else:
+                edad = random.randint(18, 80)
+            
             paciente = Paciente(
                 id=self.paciente_counter,
                 hospital_id=self.config.id,
                 nivel_triaje=nivel,
                 patologia=self.generar_patologia(nivel),
-                hora_llegada=self.env.now
+                hora_llegada=self.env.now,
+                edad=edad
             )
             
             self.pacientes_activos[paciente.id] = paciente

@@ -68,6 +68,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
     depends_on:
       - influxdb
     restart: unless-stopped
@@ -76,7 +77,7 @@ services:
   # Node-RED - Integración y procesamiento de flujos
   # ═══════════════════════════════════════════════════════════════════
   nodered:
-    image: nodered/node-red:3.1
+    build: ./node-red
     container_name: urgencias-nodered
     ports:
       - "1880:1880"

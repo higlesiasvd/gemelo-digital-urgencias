@@ -159,17 +159,34 @@ update-deps: ## Actualiza requirements.txt y reconstruye
 # ═══════════════════════════════════════════════════════════════════
 
 test: ## Ejecuta todos los tests dentro del contenedor
-	@echo "$(GREEN)Ejecutando tests...$(NC)"
-	docker compose -f $(COMPOSE_FILE) run --rm simulador pytest src/ -v
+	@echo "$(GREEN)Ejecutando todos los tests...$(NC)"
+	docker compose -f $(COMPOSE_FILE) run --rm simulador pytest tests/ -v
 
 test-simulador: ## Ejecuta tests del simulador
 	@echo "$(GREEN)Ejecutando tests del simulador...$(NC)"
-	docker compose -f $(COMPOSE_FILE) run --rm simulador python src/test_simulacion.py
+	docker compose -f $(COMPOSE_FILE) run --rm simulador python tests/test_simulacion.py
 
 test-coordinador: ## Ejecuta tests del coordinador
 	@echo "$(GREEN)Ejecutando tests del coordinador...$(NC)"
-	docker compose -f $(COMPOSE_FILE) run --rm simulador python src/test_coordinador.py
+	docker compose -f $(COMPOSE_FILE) run --rm simulador python tests/test_coordinador.py
+
+test-integracion: ## Ejecuta tests de integración (requiere servicios activos)
+	@echo "$(GREEN)Ejecutando tests de integración...$(NC)"
+	@echo "$(YELLOW)Nota: Requiere que los servicios estén corriendo (make up)$(NC)"
+	docker compose -f $(COMPOSE_FILE) run --rm simulador python tests/test_integracion.py
 
 test-local: ## Ejecuta los tests localmente
 	@echo "$(GREEN)Ejecutando tests localmente...$(NC)"
-	pytest src/ -v
+	PYTHONPATH=src pytest tests/ -v
+
+test-local-simulador: ## Ejecuta tests del simulador localmente
+	@echo "$(GREEN)Ejecutando tests del simulador localmente...$(NC)"
+	python tests/test_simulacion.py
+
+test-local-coordinador: ## Ejecuta tests del coordinador localmente
+	@echo "$(GREEN)Ejecutando tests del coordinador localmente...$(NC)"
+	python tests/test_coordinador.py
+
+test-local-integracion: ## Ejecuta tests de integración localmente
+	@echo "$(GREEN)Ejecutando tests de integración localmente...$(NC)"
+	python tests/test_integracion.py

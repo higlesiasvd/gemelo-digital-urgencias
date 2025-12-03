@@ -17,9 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código fuente (simulador + coordinador + tests)
+# Copiar código fuente y tests
 COPY src/ ./src/
+COPY tests/ ./tests/
 COPY config/ ./config/
+
+# Añadir src al PYTHONPATH para imports
+ENV PYTHONPATH=/app/src
 
 # Variables de entorno por defecto
 ENV PYTHONUNBUFFERED=1

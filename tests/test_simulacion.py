@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
 ═══════════════════════════════════════════════════════════════════════════════
-TEST RÁPIDO - Verificar que la simulación funciona
+TEST SIMULADOR - Verificar que la simulación funciona correctamente
 ═══════════════════════════════════════════════════════════════════════════════
 
-Ejecuta una simulación corta sin MQTT para verificar que todo está OK.
+Tests unitarios del simulador de urgencias hospitalarias.
 
 Uso:
-    python src/test_simulacion.py
+    pytest tests/test_simulacion.py -v
+    make test-simulador
 """
 
 import sys
 import os
 
 # Añadir el directorio src al path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
 from simulador import (
     SimuladorUrgencias, HospitalUrgencias, HOSPITALES, 
@@ -154,8 +155,8 @@ def main():
         print("✅ TODOS LOS TESTS PASARON CORRECTAMENTE")
         print("═"*60)
         print("\n📝 Siguiente paso: Levantar Docker y ejecutar simulación completa")
-        print("   docker-compose up -d")
-        print("   python src/simulador.py --hospitales chuac\n")
+        print("   make up")
+        print("   make run-simulador\n")
         
     except AssertionError as e:
         print(f"\n❌ TEST FALLIDO: {e}")

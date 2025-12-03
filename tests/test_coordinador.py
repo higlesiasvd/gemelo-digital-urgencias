@@ -10,14 +10,16 @@ Pruebas del sistema de coordinación entre hospitales:
 - Alertas y comunicación entre hospitales
 
 Uso:
-    python src/test_coordinador.py
-    pytest src/test_coordinador.py -v
+    pytest tests/test_coordinador.py -v
+    make test-coordinador
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Añadir el directorio src al path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
 from simulador import SimuladorUrgencias, HospitalUrgencias, HOSPITALES
 from coordinador import CoordinadorCentral, TipoEmergencia, EMERGENCIAS_CONFIG
@@ -38,8 +40,8 @@ def test_tres_hospitales():
     assert len(simulador.hospitales) == 3, "Deberían haber 3 hospitales"
     assert simulador.coordinador is not None, "Debería existir coordinador"
     
-    print(f"   ✅ 3 hospitales creados")
-    print(f"   ✅ Coordinador central activo")
+    print("   ✅ 3 hospitales creados")
+    print("   ✅ Coordinador central activo")
     
     # Simular 2 horas
     simulador.env.run(until=120)
@@ -76,18 +78,18 @@ def test_coordinador_derivaciones():
     # Nivel 2 debería derivarse
     destino = coordinador.decidir_hospital_destino("chuac", 2)
     assert destino == "hm_modelo", f"Debería derivar a hm_modelo, no a {destino}"
-    print(f"   ✅ Derivación nivel 2: chuac → hm_modelo")
+    print("   ✅ Derivación nivel 2: chuac → hm_modelo")
     
     # Nivel 1 (crítico) NO debería derivarse
     destino_critico = coordinador.decidir_hospital_destino("chuac", 1)
     assert destino_critico is None, "Nivel 1 no debería derivarse"
-    print(f"   ✅ Nivel 1 (crítico) NO se deriva")
+    print("   ✅ Nivel 1 (crítico) NO se deriva")
     
     # Si no hay saturación, no derivar
     hospitales["chuac"].stats.nivel_saturacion = 0.50
     destino_bajo = coordinador.decidir_hospital_destino("chuac", 3)
     assert destino_bajo is None, "Sin saturación no debería derivar"
-    print(f"   ✅ Sin saturación no deriva")
+    print("   ✅ Sin saturación no deriva")
     
     print("✅ Derivaciones OK\n")
 
@@ -108,19 +110,19 @@ def test_emergencias():
     
     # Verificar configuración de emergencias
     assert len(EMERGENCIAS_CONFIG) == 3, "Deberían haber 3 tipos de emergencia"
-    print(f"   ✅ 3 tipos de emergencia configurados")
+    print("   ✅ 3 tipos de emergencia configurados")
     
     # Activar emergencia
     coordinador.activar_emergencia(TipoEmergencia.ACCIDENTE_MULTIPLE)
     
     assert coordinador.emergencia_activa, "Emergencia debería estar activa"
     assert coordinador.tipo_emergencia == TipoEmergencia.ACCIDENTE_MULTIPLE
-    print(f"   ✅ Emergencia activada correctamente")
+    print("   ✅ Emergencia activada correctamente")
     
     # Verificar que todos los hospitales tienen emergencia activa
     for h in hospitales.values():
         assert h.emergencia_activa, f"{h.config.id} debería tener emergencia activa"
-    print(f"   ✅ Emergencia propagada a todos los hospitales")
+    print("   ✅ Emergencia propagada a todos los hospitales")
     
     # Verificar alertas emitidas
     alertas = [a for a in coordinador.alertas_emitidas if a.tipo == "emergencia_activada"]
@@ -167,9 +169,9 @@ def test_simulacion_completa_corta():
 
 
 def main():
-    """Ejecuta todos los tests del día 2"""
+    """Ejecuta todos los tests del coordinador"""
     print("\n" + "═"*60)
-    print("🧪 TESTS DÍA 2 - COORDINADOR Y 3 HOSPITALES")
+    print("🧪 TESTS COORDINADOR Y 3 HOSPITALES")
     print("═"*60 + "\n")
     
     try:
@@ -179,7 +181,7 @@ def main():
         test_simulacion_completa_corta()
         
         print("═"*60)
-        print("✅ TODOS LOS TESTS DEL DÍA 2 PASARON")
+        print("✅ TODOS LOS TESTS DEL COORDINADOR PASARON")
         print("═"*60)
         print("\n📝 Para ejecutar con los 3 hospitales:")
         print("   make run-simulador")
