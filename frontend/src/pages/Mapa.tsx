@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Stack, Title, Text, Card, SimpleGrid, Badge, Group, Progress, RingProgress, ThemeIcon, Paper, Grid, Divider, Loader, Center } from '@mantine/core';
+import { Stack, Title, Text, Card, SimpleGrid, Badge, Group, RingProgress, ThemeIcon, Paper, Grid, Divider, Loader, Center } from '@mantine/core';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { HOSPITALES } from '@/types/hospital';
 import { useHospitalStore } from '@/store/hospitalStore';
 import { 
   IconMapPin, 
-  IconBuilding, 
   IconAlertTriangle, 
   IconCloudRain,
   IconSun,
@@ -12,8 +14,6 @@ import {
   IconSnowflake,
   IconCalendarEvent,
   IconTemperature,
-  IconUsers,
-  IconClock,
   IconActivity,
   IconBallFootball,
   IconMusic,
@@ -21,12 +21,50 @@ import {
   IconRun
 } from '@tabler/icons-react';
 
-// Coordenadas reales de Grafana
-const HOSPITAL_COORDS: Record<string, { lat: number; lon: number }> = {
-  chuac: { lat: 43.34427, lon: -8.38932 },
-  hm_modelo: { lat: 43.3669, lon: -8.4189 },
-  san_rafael: { lat: 43.34521, lon: -8.3879 },
+// Fix para iconos de Leaflet en React
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+// Crear iconos personalizados para cada hospital
+const createHospitalIcon = (color: string) => {
+  return L.divIcon({
+    className: 'custom-hospital-marker',
+    html: `
+      <div style="
+        background-color: ${color};
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+      ">🏥</div>
+    `,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -15],
+  });
 };
+
+// Coordenadas reales de Grafana
+const HOSPITAL_COORDS: Record<string, { lat: number; lon: number; color: string }> = {
+  chuac: { lat: 43.34427, lon: -8.38932, color: '#228be6' },
+  hm_modelo: { lat: 43.3669, lon: -8.4189, color: '#40c057' },
+  san_rafael: { lat: 43.34521, lon: -8.3879, color: '#fab005' },
+};
+
+// Centro del mapa (A Coruña)
+const MAP_CENTER: [number, number] = [43.355, -8.40];
+const MAP_ZOOM = 13;
 
 // Tipos para datos de APIs
 interface WeatherData {
@@ -380,7 +418,7 @@ export function Mapa() {
       </Card>
 
       <Grid>
-        {/* Mapa Visual */}
+        {/* Mapa Real con Leaflet */}
         <Grid.Col span={{ base: 12, lg: 8 }}>
           <Card shadow="sm" padding="lg" radius="md" withBorder>
             <Title order={4} mb="md">
@@ -390,101 +428,94 @@ export function Mapa() {
               </Group>
             </Title>
 
-            {/* Mapa esquemático con posiciones reales */}
-            <Paper 
-              p="md" 
-              radius="md"
-              style={{ 
-                position: 'relative', 
-                height: 350, 
-                background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%)',
-                overflow: 'hidden'
-              }}
-            >
-              {/* Leyenda del mapa */}
-              <Paper p="xs" radius="sm" style={{ position: 'absolute', top: 10, left: 10, zIndex: 10 }}>
-                <Text size="xs" fw={600} mb={4}>Saturación:</Text>
-                <Group gap={4}>
-                  <Badge size="xs" color="green">{'<50%'}</Badge>
-                  <Badge size="xs" color="yellow">50-70%</Badge>
-                  <Badge size="xs" color="orange">70-85%</Badge>
-                  <Badge size="xs" color="red">{'>85%'}</Badge>
-                </Group>
-              </Paper>
-
-              {/* Hospitales posicionados */}
-              {hospitalIds.map((id) => {
-                const hospital = HOSPITALES[id];
-                const hospitalStats = stats[id];
-                const coords = HOSPITAL_COORDS[id];
-                const saturacion = hospitalStats?.nivel_saturacion || 0;
+            {/* Mapa Leaflet */}
+            <div style={{ height: 400, borderRadius: 8, overflow: 'hidden' }}>
+              <MapContainer
+                center={MAP_CENTER}
+                zoom={MAP_ZOOM}
+                style={{ height: '100%', width: '100%' }}
+                scrollWheelZoom={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
                 
-                const latMin = 43.34, latMax = 43.38;
-                const lonMin = -8.43, lonMax = -8.37;
-                
-                const top = ((latMax - coords.lat) / (latMax - latMin)) * 100;
-                const left = ((coords.lon - lonMin) / (lonMax - lonMin)) * 100;
+                {hospitalIds.map((id) => {
+                  const hospital = HOSPITALES[id];
+                  const hospitalStats = stats[id];
+                  const coords = HOSPITAL_COORDS[id];
+                  const saturacion = hospitalStats?.nivel_saturacion || 0;
+                  const color = getColorBySaturation(saturacion);
 
-                return (
-                  <Card
-                    key={id}
-                    shadow="lg"
-                    padding="sm"
-                    radius="md"
-                    withBorder
-                    style={{
-                      position: 'absolute',
-                      top: `${Math.max(5, Math.min(70, top))}%`,
-                      left: `${Math.max(5, Math.min(70, left))}%`,
-                      minWidth: 180,
-                      backgroundColor: 'white',
-                      borderColor: getColorBySaturation(saturacion),
-                      borderWidth: 3,
-                      zIndex: 5,
-                    }}
-                  >
-                    <Group gap="xs" mb="xs">
-                      <ThemeIcon 
-                        size="sm" 
-                        color={getColorBySaturation(saturacion)} 
-                        variant="filled"
-                        radius="xl"
+                  return (
+                    <div key={id}>
+                      {/* Círculo de área de influencia */}
+                      <Circle
+                        center={[coords.lat, coords.lon]}
+                        radius={800}
+                        pathOptions={{
+                          color: color,
+                          fillColor: color,
+                          fillOpacity: 0.2,
+                          weight: 2,
+                        }}
+                      />
+                      
+                      {/* Marcador del hospital */}
+                      <Marker
+                        position={[coords.lat, coords.lon]}
+                        icon={createHospitalIcon(color)}
                       >
-                        <IconBuilding size={12} />
-                      </ThemeIcon>
-                      <Text size="sm" fw={700}>{hospital.nombre.split(' - ')[0]}</Text>
-                    </Group>
-                    
-                    <Progress 
-                      value={saturacion * 100} 
-                      color={getColorBySaturation(saturacion)}
-                      size="lg"
-                      mb="xs"
-                    />
-                    
-                    <Group justify="space-between" mb={4}>
-                      <Badge 
-                        size="sm"
-                        color={saturacion > 0.85 ? 'red' : saturacion > 0.70 ? 'orange' : saturacion > 0.50 ? 'yellow' : 'green'}
-                      >
-                        {getSaturationLabel(saturacion)} {Math.round(saturacion * 100)}%
-                      </Badge>
-                    </Group>
-                    
-                    <SimpleGrid cols={2} spacing={4}>
-                      <Group gap={4}>
-                        <IconUsers size={12} />
-                        <Text size="xs">{hospitalStats?.pacientes_en_espera_atencion || 0} cola</Text>
-                      </Group>
-                      <Group gap={4}>
-                        <IconClock size={12} />
-                        <Text size="xs">{hospitalStats?.tiempo_medio_espera?.toFixed(0) || 0} min</Text>
-                      </Group>
-                    </SimpleGrid>
-                  </Card>
-                );
-              })}
-            </Paper>
+                        <Popup>
+                          <div style={{ minWidth: 200 }}>
+                            <h4 style={{ margin: '0 0 8px 0' }}>{hospital.nombre.split(' - ')[0]}</h4>
+                            <div style={{ 
+                              padding: '4px 8px', 
+                              borderRadius: 4, 
+                              backgroundColor: color,
+                              color: 'white',
+                              display: 'inline-block',
+                              marginBottom: 8
+                            }}>
+                              {getSaturationLabel(saturacion)} - {Math.round(saturacion * 100)}%
+                            </div>
+                            <table style={{ width: '100%', fontSize: 12 }}>
+                              <tbody>
+                                <tr>
+                                  <td>Boxes:</td>
+                                  <td><strong>{hospitalStats?.boxes_ocupados || 0}/{hospital.num_boxes}</strong></td>
+                                </tr>
+                                <tr>
+                                  <td>Observación:</td>
+                                  <td><strong>{hospitalStats?.observacion_ocupadas || 0}/{hospital.num_camas_observacion}</strong></td>
+                                </tr>
+                                <tr>
+                                  <td>En cola:</td>
+                                  <td><strong>{hospitalStats?.pacientes_en_espera_atencion || 0}</strong></td>
+                                </tr>
+                                <tr>
+                                  <td>T. espera:</td>
+                                  <td><strong>{hospitalStats?.tiempo_medio_espera?.toFixed(0) || 0} min</strong></td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    </div>
+                  );
+                })}
+              </MapContainer>
+            </div>
+
+            {/* Leyenda */}
+            <Group mt="md" justify="center">
+              <Badge color="green" variant="filled">Normal &lt;50%</Badge>
+              <Badge color="yellow" variant="filled">Atención 50-70%</Badge>
+              <Badge color="orange" variant="filled">Alerta 70-85%</Badge>
+              <Badge color="red" variant="filled">Crítico &gt;85%</Badge>
+            </Group>
           </Card>
         </Grid.Col>
 
