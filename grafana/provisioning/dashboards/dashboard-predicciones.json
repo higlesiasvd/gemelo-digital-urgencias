@@ -115,7 +115,7 @@
             "type": "influxdb",
             "uid": "influxdb"
           },
-          "query": "// Llegadas reales\nreal = from(bucket: \"hospitales\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._measurement =~ /^eventos_/)\n  |> filter(fn: (r) => r._field == \"tipo_evento\")\n  |> filter(fn: (r) => r._value == \"llegada\")\n  |> aggregateWindow(every: 1h, fn: count, createEmpty: false)\n  |> set(key: \"tipo\", value: \"Real\")\n\n// Predicciones (si existen)\npred = from(bucket: \"hospitales\")\n  |> range(start: -6h, stop: 6h)\n  |> filter(fn: (r) => r._measurement == \"predicciones\")\n  |> filter(fn: (r) => r._field == \"llegadas_esperadas\")\n  |> set(key: \"tipo\", value: \"Predicción\")\n\nunion(tables: [real, pred])\n  |> yield(name: \"prediccion_vs_real\")",
+          "query": "// Llegadas reales\nreal = from(bucket: \"hospitales\")\n  |> range(start: -6h)\n  |> filter(fn: (r) => r._measurement =~ /^eventos_/)\n  |> filter(fn: (r) => r._field == \"tipo_evento\")\n  |> filter(fn: (r) => r._value == \"llegada\")\n  |> aggregateWindow(every: 1h, fn: count, createEmpty: false)\n  |> set(key: \"tipo\", value: \"Real\")\n\n// Predicciones desde alertas_prediccion\npred = from(bucket: \"hospitales\")\n  |> range(start: -6h, stop: 6h)\n  |> filter(fn: (r) => r._measurement == \"alertas_prediccion\")\n  |> filter(fn: (r) => r._field == \"llegadas_esperadas\")\n  |> filter(fn: (r) => r.tipo == \"prediccion\")\n  |> set(key: \"tipo\", value: \"Predicción\")\n\nunion(tables: [real, pred])\n  |> yield(name: \"prediccion_vs_real\")",
           "refId": "A"
         }
       ],
@@ -270,7 +270,7 @@
             "type": "influxdb",
             "uid": "influxdb"
           },
-          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"anomalias\")\n  |> filter(fn: (r) => r._field == \"detectada\")\n  |> count()\n  |> yield(name: \"anomalias\")",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"alertas_prediccion\")\n  |> filter(fn: (r) => r._field == \"valor\")\n  |> count()\n  |> yield(name: \"anomalias\")",
           "refId": "A"
         }
       ],
@@ -320,7 +320,7 @@
             "type": "influxdb",
             "uid": "influxdb"
           },
-          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"anomalias\")\n  |> filter(fn: (r) => r._field == \"z_score\")\n  |> group(columns: [\"hospital\"])\n  |> last()\n  |> yield(name: \"z_scores\")",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -3h)\n  |> filter(fn: (r) => r._measurement == \"alertas_prediccion\")\n  |> filter(fn: (r) => r._field == \"z_score\")\n  |> group(columns: [\"hospital\"])\n  |> last()\n  |> yield(name: \"z_scores\")",
           "refId": "A"
         }
       ],

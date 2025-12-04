@@ -1,268 +1,202 @@
-.PHONY: help up down restart logs status clean build ps shell-influx shell-nodered shell-grafana shell-mqtt install build-simulador run-simulador test test-all test-quick
+.PHONY: help start stop restart build clean urls logs test demo
 
 # Variables
-COMPOSE_FILE := docker-compose.yml
-PROJECT_NAME := gemelo-digital-hospitalario
+COMPOSE := docker compose
 PYTHON := python3
 
-# Colores para output
+# Colores
 GREEN := \033[0;32m
 YELLOW := \033[0;33m
 BLUE := \033[0;36m
 RED := \033[0;31m
 NC := \033[0m
 
+# ═══════════════════════════════════════════════════════════════════
+# AYUDA
+# ═══════════════════════════════════════════════════════════════════
+
 help: ## Muestra esta ayuda
 	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(GREEN)  🏥 Gemelo Digital Hospitalario - Comandos disponibles$(NC)"
+	@echo "$(GREEN)  🏥 Gemelo Digital Urgencias - Comandos Principales$(NC)"
 	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-25s$(NC) %s\n", $$1, $$2}'
+	@echo ""
+	@echo "$(YELLOW)🚀 Inicio Rápido:$(NC)"
+	@echo "  make start          - Inicia todo el sistema"
+	@echo "  make demo           - Ejecuta simulación demo"
+	@echo "  make urls           - Muestra URLs de acceso"
+	@echo "  make stop           - Detiene todo"
+	@echo ""
+	@echo "$(YELLOW)🖥️  Frontend:$(NC)"
+	@echo "  make ui             - Inicia solo el frontend"
+	@echo "  make ui-dev         - Desarrollo local del frontend"
+	@echo "  make ui-build       - Reconstruye el frontend"
+	@echo ""
+	@echo "$(YELLOW)🔧 Docker:$(NC)"
+	@echo "  make restart        - Reinicia servicios"
+	@echo "  make build          - Reconstruye imágenes"
+	@echo "  make logs           - Ver logs (Ctrl+C para salir)"
+	@echo "  make status         - Estado de contenedores"
+	@echo "  make clean          - Limpia todo (¡cuidado!)"
+	@echo ""
+	@echo "$(YELLOW)🧪 Testing:$(NC)"
+	@echo "  make test           - Tests rápidos"
+	@echo "  make test-all       - Todos los tests"
+	@echo ""
+	@echo "$(YELLOW)📦 Python:$(NC)"
+	@echo "  make install        - Instala dependencias"
+	@echo "  make sim-quick      - Simulación rápida local"
 	@echo ""
 
 # ═══════════════════════════════════════════════════════════════════
-# INFRAESTRUCTURA - Docker Compose
+# COMANDOS PRINCIPALES
 # ═══════════════════════════════════════════════════════════════════
 
-up: ## Inicia todos los servicios
-	@echo "$(GREEN)🚀 Iniciando servicios...$(NC)"
-	docker compose -f $(COMPOSE_FILE) up -d
-	@echo "$(GREEN)✓ Servicios iniciados$(NC)"
+start: ## Inicia todo el sistema
+	@echo "$(GREEN)🚀 Iniciando sistema completo...$(NC)"
+	@$(COMPOSE) up -d
+	@sleep 3
 	@make urls
+	@echo ""
+	@echo "$(GREEN)✓ Sistema listo! Ejecuta 'make demo' para ver una simulación$(NC)"
 
-down: ## Detiene todos los servicios
+stop: ## Detiene todos los servicios
 	@echo "$(YELLOW)⏹  Deteniendo servicios...$(NC)"
-	docker compose -f $(COMPOSE_FILE) down
-	@echo "$(GREEN)✓ Servicios detenidos$(NC)"
+	@$(COMPOSE) down
+	@echo "$(GREEN)✓ Sistema detenido$(NC)"
 
 restart: ## Reinicia todos los servicios
-	@echo "$(YELLOW)🔄 Reiniciando servicios...$(NC)"
-	docker compose -f $(COMPOSE_FILE) restart
-	@echo "$(GREEN)✓ Servicios reiniciados$(NC)"
+	@echo "$(YELLOW)🔄 Reiniciando...$(NC)"
+	@$(COMPOSE) restart
+	@echo "$(GREEN)✓ Reiniciado$(NC)"
 
-build: ## Reconstruye los contenedores
-	@echo "$(GREEN)🔨 Reconstruyendo contenedores...$(NC)"
-	docker compose -f $(COMPOSE_FILE) build --no-cache
+build: ## Reconstruye todas las imágenes
+	@echo "$(GREEN)🔨 Reconstruyendo imágenes...$(NC)"
+	@$(COMPOSE) build --no-cache
 
-status: ## Muestra el estado de los servicios
-	@echo "$(BLUE)📊 Estado de los servicios:$(NC)"
-	@docker compose -f $(COMPOSE_FILE) ps
+status: ## Muestra estado de servicios
+	@echo "$(BLUE)📊 Estado:$(NC)"
+	@$(COMPOSE) ps
 
-ps: status ## Alias para status
-
-urls: ## Muestra las URLs de acceso
+urls: ## Muestra URLs de acceso
 	@echo ""
-	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(GREEN)  🌐 URLs de acceso:$(NC)"
-	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "  $(YELLOW)Grafana:$(NC)    http://localhost:3001  (admin/admin)"
-	@echo "  $(YELLOW)Node-RED:$(NC)   http://localhost:1880"
-	@echo "  $(YELLOW)InfluxDB:$(NC)   http://localhost:8086  (admin/adminadmin)"
-	@echo "  $(YELLOW)MQTT:$(NC)       localhost:1883"
-	@echo "  $(YELLOW)MQTT WS:$(NC)    localhost:9001"
+	@echo "$(GREEN)════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)  🌐 Accesos al Sistema$(NC)"
+	@echo "$(GREEN)════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "  $(BLUE)🎨 UI Moderna:$(NC)    http://localhost:3002"
+	@echo "  $(YELLOW)📊 Grafana:$(NC)      http://localhost:3001  (admin/admin)"
+	@echo "  $(YELLOW)🔴 Node-RED:$(NC)     http://localhost:1880"
+	@echo "  $(YELLOW)💾 InfluxDB:$(NC)     http://localhost:8086  (admin/adminadmin)"
 	@echo ""
 
-# ═══════════════════════════════════════════════════════════════════
-# LOGS
-# ═══════════════════════════════════════════════════════════════════
+logs: ## Ver logs de todos los servicios
+	@$(COMPOSE) logs -f
 
-logs: ## Muestra los logs de todos los servicios
-	docker compose -f $(COMPOSE_FILE) logs -f
-
-logs-mqtt: ## Muestra los logs de Mosquitto
-	docker compose -f $(COMPOSE_FILE) logs -f mosquitto
-
-logs-influx: ## Muestra los logs de InfluxDB
-	docker compose -f $(COMPOSE_FILE) logs -f influxdb
-
-logs-grafana: ## Muestra los logs de Grafana
-	docker compose -f $(COMPOSE_FILE) logs -f grafana
-
-logs-nodered: ## Muestra los logs de Node-RED
-	docker compose -f $(COMPOSE_FILE) logs -f nodered
-
-logs-simulador: ## Muestra los logs del simulador
-	docker compose -f $(COMPOSE_FILE) logs -f simulador
-
-# ═══════════════════════════════════════════════════════════════════
-# LIMPIEZA
-# ═══════════════════════════════════════════════════════════════════
-
-clean: ## Elimina contenedores, volúmenes y redes
-	@echo "$(RED)⚠️  ¡ATENCIÓN! Esto eliminará todos los datos.$(NC)"
-	@read -p "¿Estás seguro? [y/N]: " confirm && [ "$$confirm" = "y" ] || exit 1
-	docker compose -f $(COMPOSE_FILE) down -v --remove-orphans
+clean: ## Elimina todo (volúmenes incluidos)
+	@echo "$(RED)⚠️  CUIDADO: Esto eliminará TODOS los datos$(NC)"
+	@read -p "¿Continuar? [y/N]: " confirm && [ "$$confirm" = "y" ] || exit 1
+	@$(COMPOSE) down -v --remove-orphans
 	@echo "$(GREEN)✓ Limpieza completada$(NC)"
 
-clean-all: ## Limpieza profunda incluyendo imágenes
-	@echo "$(RED)⚠️  ¡ATENCIÓN! Esto eliminará todos los datos e imágenes.$(NC)"
-	@read -p "¿Estás seguro? [y/N]: " confirm && [ "$$confirm" = "y" ] || exit 1
-	docker compose -f $(COMPOSE_FILE) down -v --remove-orphans --rmi all
-	@echo "$(GREEN)✓ Limpieza profunda completada$(NC)"
-
 # ═══════════════════════════════════════════════════════════════════
-# SHELL ACCESS
+# FRONTEND UI
 # ═══════════════════════════════════════════════════════════════════
 
-shell-mqtt: ## Accede al shell de Mosquitto
-	docker exec -it urgencias-mqtt sh
+ui: ## Inicia solo el frontend
+	@echo "$(GREEN)🎨 Iniciando frontend UI...$(NC)"
+	@$(COMPOSE) up -d frontend
+	@echo ""
+	@echo "$(GREEN)✓ Frontend disponible en: http://localhost:3002$(NC)"
 
-shell-influx: ## Accede al shell de InfluxDB
-	docker exec -it urgencias-influxdb bash
+ui-build: ## Reconstruye el frontend
+	@echo "$(GREEN)🔨 Reconstruyendo frontend...$(NC)"
+	@$(COMPOSE) build --no-cache frontend
+	@$(COMPOSE) up -d frontend
+	@echo "$(GREEN)✓ Frontend reconstruido$(NC)"
 
-shell-grafana: ## Accede al shell de Grafana
-	docker exec -it urgencias-grafana bash
+ui-dev: ## Desarrollo local del frontend
+	@echo "$(BLUE)🚀 Iniciando desarrollo local...$(NC)"
+	@cd frontend && npm install && npm run dev
 
-shell-nodered: ## Accede al shell de Node-RED
-	docker exec -it urgencias-nodered bash
-
-shell-simulador: ## Accede al shell del simulador
-	docker exec -it urgencias-simulador bash
+ui-logs: ## Ver logs del frontend
+	@$(COMPOSE) logs -f frontend
 
 # ═══════════════════════════════════════════════════════════════════
-# SIMULADOR - Construcción y ejecución
+# SIMULACIÓN
 # ═══════════════════════════════════════════════════════════════════
 
-build-simulador: ## Construye la imagen del simulador
-	@echo "$(GREEN)🔨 Construyendo imagen del simulador...$(NC)"
-	docker compose -f $(COMPOSE_FILE) build simulador
-	@echo "$(GREEN)✓ Imagen construida$(NC)"
-
-rebuild-simulador: ## Reconstruye la imagen del simulador sin caché
-	@echo "$(GREEN)🔨 Reconstruyendo imagen del simulador...$(NC)"
-	docker compose -f $(COMPOSE_FILE) build --no-cache simulador
-	@echo "$(GREEN)✓ Imagen reconstruida$(NC)"
-
-run-simulador: ## Ejecuta el simulador (una vez)
-	@echo "$(GREEN)🏥 Ejecutando simulador...$(NC)"
-	docker compose -f $(COMPOSE_FILE) run --rm simulador
-
-start-simulador: ## Inicia el simulador en segundo plano
-	@echo "$(GREEN)🚀 Iniciando simulador en segundo plano...$(NC)"
-	docker compose -f $(COMPOSE_FILE) up -d simulador
-
-stop-simulador: ## Detiene el simulador
-	@echo "$(YELLOW)⏹  Deteniendo simulador...$(NC)"
-	docker compose -f $(COMPOSE_FILE) stop simulador
-
-# Ejecuciones específicas del simulador
-sim-quick: ## Simulación rápida (1h, 3 hospitales)
-	@echo "$(GREEN)⚡ Ejecutando simulación rápida...$(NC)"
-	$(PYTHON) src/simulador.py --hospitales chuac hm_modelo san_rafael --duracion 1 --velocidad 120 --rapido
-
-sim-demo: ## Simulación demo (2h, con emergencias)
+demo: ## Simulación demo (recomendado para empezar)
 	@echo "$(GREEN)🎬 Ejecutando simulación demo...$(NC)"
-	$(PYTHON) src/simulador.py --hospitales chuac hm_modelo san_rafael --duracion 2 --velocidad 120 --emergencias
+	@$(PYTHON) src/simulador.py --hospitales chuac hm_modelo san_rafael --duracion 2 --velocidad 120 --emergencias
 
-sim-full: ## Simulación completa (24h, 3 hospitales, con predicción)
-	@echo "$(GREEN)🚀 Ejecutando simulación completa...$(NC)"
-	$(PYTHON) src/simulador.py --hospitales chuac hm_modelo san_rafael --duracion 24 --velocidad 60
+sim-quick: ## Simulación rápida (1h)
+	@echo "$(GREEN)⚡ Simulación rápida...$(NC)"
+	@$(PYTHON) src/simulador.py --hospitales chuac hm_modelo san_rafael --duracion 1 --velocidad 120 --rapido
 
-# ═══════════════════════════════════════════════════════════════════
-# DEPENDENCIAS
-# ═══════════════════════════════════════════════════════════════════
-
-install: ## Instala dependencias localmente
-	@echo "$(GREEN)📦 Instalando dependencias...$(NC)"
-	pip install -r requirements.txt
-	@echo "$(GREEN)✓ Dependencias instaladas$(NC)"
-
-install-dev: ## Instala dependencias de desarrollo
-	@echo "$(GREEN)📦 Instalando dependencias de desarrollo...$(NC)"
-	pip install -r requirements.txt
-	pip install pytest pytest-cov black flake8
-	@echo "$(GREEN)✓ Dependencias de desarrollo instaladas$(NC)"
+sim-full: ## Simulación completa (24h)
+	@echo "$(GREEN)🚀 Simulación completa...$(NC)"
+	@$(PYTHON) src/simulador.py --hospitales chuac hm_modelo san_rafael --duracion 24 --velocidad 60
 
 # ═══════════════════════════════════════════════════════════════════
-# TESTING - Tests locales (más rápido)
+# TESTING
 # ═══════════════════════════════════════════════════════════════════
 
-test-quick: ## Test rápido de integración (~5 seg)
-	@echo "$(BLUE)⚡ Ejecutando test rápido...$(NC)"
+test: test-quick ## Test rápido
+
+test-quick: ## Test de integración (~5 seg)
+	@echo "$(BLUE)⚡ Test rápido...$(NC)"
 	@$(PYTHON) tests/test_integracion_simple.py
 
-test-predictor: ## Test del predictor de demanda (~10 seg)
-	@echo "$(BLUE)🔮 Ejecutando test del predictor...$(NC)"
-	@$(PYTHON) tests/test_predictor_demanda.py
-
-test-sim: ## Test con simulación corta (~10 seg)
-	@echo "$(BLUE)🏥 Ejecutando test con simulación...$(NC)"
-	@$(PYTHON) tests/test_ejecucion_rapida.py
-
-test-all: ## Ejecuta todos los tests secuencialmente
+test-all: ## Todos los tests
 	@echo "$(BLUE)🧪 Ejecutando todos los tests...$(NC)"
-	@echo ""
-	@echo "$(YELLOW)1/3 Test de integración...$(NC)"
 	@$(PYTHON) tests/test_integracion_simple.py
-	@echo ""
-	@echo "$(YELLOW)2/3 Test del predictor...$(NC)"
 	@$(PYTHON) tests/test_predictor_demanda.py
-	@echo ""
-	@echo "$(YELLOW)3/3 Test de simulación...$(NC)"
 	@$(PYTHON) tests/test_ejecucion_rapida.py
-	@echo ""
-	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(GREEN)✅ TODOS LOS TESTS COMPLETADOS$(NC)"
-	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
-
-test: test-all ## Alias para test-all
-
-test-pytest: ## Ejecuta tests con pytest
-	@echo "$(BLUE)🧪 Ejecutando tests con pytest...$(NC)"
-	PYTHONPATH=src pytest tests/ -v
-
-test-cov: ## Ejecuta tests con cobertura
-	@echo "$(BLUE)📊 Ejecutando tests con cobertura...$(NC)"
-	PYTHONPATH=src pytest tests/ --cov=src --cov-report=html --cov-report=term
+	@echo "$(GREEN)✅ Tests completados$(NC)"
 
 # ═══════════════════════════════════════════════════════════════════
-# UTILITIES
+# PYTHON
 # ═══════════════════════════════════════════════════════════════════
 
-test-mqtt: ## Prueba la conexión MQTT
-	@echo "$(GREEN)🔌 Probando conexión MQTT...$(NC)"
-	@docker exec urgencias-mqtt mosquitto_pub -h localhost -t "test/topic" -m "Test desde Makefile" && echo "$(GREEN)✓ MQTT funcionando$(NC)" || echo "$(RED)✗ Error en MQTT$(NC)"
+install: ## Instala dependencias Python
+	@echo "$(GREEN)📦 Instalando dependencias...$(NC)"
+	@pip install -r requirements.txt
+	@echo "$(GREEN)✓ Instalado$(NC)"
 
-backup: ## Crea backup de los volúmenes
+# ═══════════════════════════════════════════════════════════════════
+# LOGS ESPECÍFICOS
+# ═══════════════════════════════════════════════════════════════════
+
+logs-ui: ui-logs ## Alias para ui-logs
+logs-simulador: ## Ver logs del simulador
+	@$(COMPOSE) logs -f simulador
+logs-grafana: ## Ver logs de Grafana
+	@$(COMPOSE) logs -f grafana
+logs-influx: ## Ver logs de InfluxDB
+	@$(COMPOSE) logs -f influxdb
+logs-nodered: ## Ver logs de Node-RED
+	@$(COMPOSE) logs -f nodered
+
+# ═══════════════════════════════════════════════════════════════════
+# UTILIDADES
+# ═══════════════════════════════════════════════════════════════════
+
+shell-ui: ## Shell del contenedor frontend
+	@docker exec -it urgencias-frontend sh
+
+shell-simulador: ## Shell del simulador
+	@docker exec -it urgencias-simulador bash
+
+backup: ## Backup de volúmenes
 	@echo "$(GREEN)💾 Creando backup...$(NC)"
 	@mkdir -p backups
-	@docker run --rm -v gemelo-digital-hospitalario_influxdb_data:/data -v $(PWD)/backups:/backup alpine tar czf /backup/influxdb_$$(date +%Y%m%d_%H%M%S).tar.gz -C /data .
-	@docker run --rm -v gemelo-digital-hospitalario_grafana_data:/data -v $(PWD)/backups:/backup alpine tar czf /backup/grafana_$$(date +%Y%m%d_%H%M%S).tar.gz -C /data .
-	@docker run --rm -v gemelo-digital-hospitalario_nodered_data:/data -v $(PWD)/backups:/backup alpine tar czf /backup/nodered_$$(date +%Y%m%d_%H%M%S).tar.gz -C /data .
-	@echo "$(GREEN)✓ Backup completado en ./backups/$(NC)"
+	@docker run --rm \
+		-v gemelo-digital-hospitalario_influxdb_data:/data \
+		-v $(PWD)/backups:/backup \
+		alpine tar czf /backup/influxdb_$$(date +%Y%m%d_%H%M%S).tar.gz -C /data .
+	@echo "$(GREEN)✓ Backup en ./backups/$(NC)"
 
-format: ## Formatea el código con black
-	@echo "$(BLUE)✨ Formateando código...$(NC)"
-	black src/ tests/
-
-lint: ## Ejecuta linter
-	@echo "$(BLUE)🔍 Ejecutando linter...$(NC)"
-	flake8 src/ tests/ --max-line-length=120
-
-# ═══════════════════════════════════════════════════════════════════
-# QUICK START - Comandos comunes
-# ═══════════════════════════════════════════════════════════════════
-
-start: up ## Inicia el sistema completo
-	@echo "$(GREEN)✓ Sistema iniciado. Ejecuta 'make demo' para ver una simulación.$(NC)"
-
-demo: sim-demo ## Ejecuta una simulación demo
-
-stop: down ## Detiene todo
-
-verify: test-quick ## Verifica que todo funciona
-
-# ═══════════════════════════════════════════════════════════════════
-# DESARROLLO
-# ═══════════════════════════════════════════════════════════════════
-
-dev-setup: install-dev ## Configura entorno de desarrollo
-	@echo "$(GREEN)✓ Entorno de desarrollo configurado$(NC)"
-	@echo "$(YELLOW)Ejecuta 'make test-all' para verificar$(NC)"
-
-dev-test: ## Loop de desarrollo con tests
-	@echo "$(BLUE)🔄 Modo desarrollo: ejecutando tests en loop...$(NC)"
-	@while true; do \
-		make test-quick; \
-		echo "$(YELLOW)Presiona Ctrl+C para salir, o espera 5 segundos para re-ejecutar...$(NC)"; \
-		sleep 5; \
-	done
+# Alias útiles
+ps: status
+down: stop
+up: start

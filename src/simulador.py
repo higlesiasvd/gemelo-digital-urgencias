@@ -818,8 +818,9 @@ class SimuladorUrgencias:
                     for alerta in alertas:
                         print(f"   🔮 {alerta['mensaje']}")
 
-                # Actualizar predicciones cada 6 horas simuladas
-                if int(self.env.now) % 360 == 0:
+                # Actualizar predicciones cada hora simulada (para testing)
+                # Cambiar a 360 (6 horas) para producción
+                if int(self.env.now) % 60 == 0:
                     self.servicio_prediccion.actualizar_predicciones()
     
     def ejecutar(self, duracion_horas: float = 24, tiempo_real: bool = True):

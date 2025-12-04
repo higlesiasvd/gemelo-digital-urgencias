@@ -560,7 +560,7 @@
         "type": "function",
         "z": "flow_principal",
         "name": "Parsear Predicción",
-        "func": "const parts = msg.topic.split('/');\nconst hospital = parts[1].toLowerCase();\nconst data = msg.payload;\n\n// Guardar cada predicción horaria como punto separado\nconst puntos = [];\n\nif (data.predicciones && Array.isArray(data.predicciones)) {\n    data.predicciones.forEach(pred => {\n        puntos.push({\n            measurement: \"prediccion_\" + hospital,\n            fields: {\n                llegadas_esperadas: Number(pred.llegadas_esperadas) || 0,\n                minimo: Number(pred.minimo) || 0,\n                maximo: Number(pred.maximo) || 0,\n                hora: Number(pred.hora) || 0\n            },\n            timestamp: new Date(pred.timestamp)\n        });\n    });\n}\n\nif (puntos.length > 0) {\n    msg.payload = puntos;\n    node.status({fill:\"purple\", shape:\"dot\", text: hospital + \": \" + puntos.length + \" predicciones\"});\n    return msg;\n}\n\nreturn null;",
+        "func": "const parts = msg.topic.split('/');\nconst hospital = parts[1].toLowerCase();\nconst data = msg.payload;\n\nif (!data.predicciones || !Array.isArray(data.predicciones)) {\n    return null;\n}\n\n// Guardar en alertas_prediccion con tipo 'prediccion'\ndata.predicciones.forEach(pred => {\n    const newMsg = RED.util.cloneMessage(msg);\n    newMsg.measurement = \"alertas_prediccion\";\n    newMsg.payload = {\n        tipo: \"prediccion\",\n        hospital: hospital,\n        llegadas_esperadas: Number(pred.llegadas_esperadas) || 0,\n        minimo: Number(pred.minimo) || 0,\n        maximo: Number(pred.maximo) || 0,\n        hora: Number(pred.hora) || 0,\n        z_score: 0\n    };\n    newMsg.timestamp = new Date(pred.timestamp);\n    node.send(newMsg);\n});\n\nnode.status({fill:\"purple\", shape:\"dot\", text: hospital + \": \" + data.predicciones.length + \" predicciones\"});\nreturn null;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -571,9 +571,26 @@
         "y": 1000,
         "wires": [
             [
-                "influx_prediccion"
+                "influx_alerta_pred"
             ]
         ]
+    },
+    {
+        "id": "debug_prediccion",
+        "type": "debug",
+        "z": "flow_principal",
+        "name": "Debug Predicción",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 560,
+        "y": 960,
+        "wires": []
     },
     {
         "id": "influx_prediccion",
@@ -581,7 +598,7 @@
         "z": "flow_principal",
         "influxdb": "influxdb_config",
         "name": "InfluxDB Predicción",
-        "measurement": "",
+        "measurement": "predicciones",
         "precision": "",
         "retentionPolicy": "",
         "database": "",
@@ -619,8 +636,8 @@
         "type": "function",
         "z": "flow_principal",
         "name": "Parsear Alerta Pred",
-        "func": "const data = msg.payload;\n\nmsg.measurement = \"alertas_prediccion\";\nmsg.payload = {\n    tipo: String(data.tipo || \"anomalia\"),\n    nivel: String(data.nivel || \"warning\"),\n    mensaje: String(data.mensaje || \"\"),\n    hospital: String(data.hospital || \"sistema\"),\n    z_score: Number(data.z_score) || 0,\n    valor: 1\n};\n\nlet color = \"yellow\";\nif (data.nivel === \"critical\") color = \"red\";\nnode.status({fill: color, shape:\"ring\", text: data.tipo + \": \" + (data.hospital || \"regional\")});\n\n// También mostrar en debug si es crítico\nif (data.nivel === \"critical\") {\n    node.warn(\"🔮 ALERTA PREDICCIÓN: \" + data.mensaje);\n}\n\nreturn msg;",
-        "outputs": 1,
+        "func": "const data = msg.payload;\n\n// Guardar alerta en alertas_prediccion\nmsg.measurement = \"alertas_prediccion\";\nmsg.payload = {\n    tipo: String(data.tipo || \"anomalia\"),\n    nivel: String(data.nivel || \"warning\"),\n    mensaje: String(data.mensaje || \"\"),\n    hospital: String(data.hospital || \"sistema\"),\n    z_score: Number(data.z_score) || 0,\n    valor: 1\n};\n\nlet color = \"yellow\";\nif (data.nivel === \"critical\") color = \"red\";\nnode.status({fill: color, shape:\"ring\", text: data.tipo + \": \" + (data.hospital || \"regional\")});\n\n// También mostrar en debug si es crítico\nif (data.nivel === \"critical\") {\n    node.warn(\"🔮 ALERTA PREDICCIÓN: \" + data.mensaje);\n}\n\n// Si hay z_score y hospital, crear entrada adicional en 'anomalias'\nif (data.z_score && data.hospital) {\n    const anomaliaMsg = {\n        measurement: \"anomalias\",\n        payload: {\n            hospital: String(data.hospital),\n            z_score: Number(data.z_score),\n            detectada: 1,\n            tipo: String(data.tipo || \"anomalia\")\n        }\n    };\n    return [msg, anomaliaMsg];\n}\n\nreturn [msg, null];",
+        "outputs": 2,
         "timeout": "",
         "noerr": 0,
         "initialize": "",
@@ -631,6 +648,9 @@
         "wires": [
             [
                 "influx_alerta_pred"
+            ],
+            [
+                "influx_anomalia"
             ]
         ]
     },
@@ -649,7 +669,25 @@
         "org": "urgencias",
         "bucket": "hospitales",
         "x": 570,
-        "y": 1060,
+        "y": 1040,
+        "wires": []
+    },
+    {
+        "id": "influx_anomalia",
+        "type": "influxdb out",
+        "z": "flow_principal",
+        "influxdb": "influxdb_config",
+        "name": "InfluxDB Anomalía",
+        "measurement": "",
+        "precision": "",
+        "retentionPolicy": "",
+        "database": "",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "urgencias",
+        "bucket": "hospitales",
+        "x": 570,
+        "y": 1080,
         "wires": []
     },
     {

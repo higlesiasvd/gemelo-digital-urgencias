@@ -50,9 +50,11 @@
 
 ### 📊 Visualización en Tiempo Real
 
-- **Grafana** para dashboards interactivos
+- **Grafana** para dashboards interactivos y análisis avanzado
+- **React UI** moderna con Mantine para una experiencia de usuario superior
 - **InfluxDB** para almacenamiento de series temporales
 - **Node-RED** para procesamiento de eventos MQTT
+- **MQTT WebSocket** para actualizaciones en tiempo real en la UI
 - **Métricas en tiempo real**: Ocupación, tiempos de espera, flujo de pacientes
 
 ---
@@ -93,8 +95,12 @@ make start
 
 make demo
 
-# 3. Acceder a Grafana
+# 3. Acceder a las interfaces
 
+# UI Moderna (React + Mantine) - RECOMENDADO
+open http://localhost:3002
+
+# Grafana (Dashboards avanzados)
 open http://localhost:3001  # usuario: admin, password: admin
 \`\`\`
 
@@ -146,6 +152,7 @@ open http://localhost:3001  # usuario: admin, password: admin
 | **Simulador**   | Python + SimPy   | -      | Motor de simulación de eventos discretos         |
 | **Coordinador** | Python           | -      | Gestión de derivaciones y emergencias            |
 | **Predictor**   | Python + Prophet | -      | Predicción de demanda y detección de anomalías |
+| **Frontend UI** | React + Mantine  | 3002   | Interfaz de usuario moderna y responsive         |
 | **Mosquitto**   | MQTT Broker      | 1883   | Mensajería en tiempo real                        |
 | **Node-RED**    | Node.js          | 1880   | Procesamiento de flujos de datos                  |
 | **InfluxDB**    | Time Series DB   | 8086   | Almacenamiento de métricas                       |

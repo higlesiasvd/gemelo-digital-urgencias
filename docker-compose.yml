@@ -89,6 +89,25 @@ services:
       - influxdb
     restart: unless-stopped
 
+  # ═══════════════════════════════════════════════════════════════════
+  # Frontend UI - React + Mantine (UI Moderna)
+  # ═══════════════════════════════════════════════════════════════════
+  frontend:
+    build: ./frontend
+    container_name: urgencias-frontend
+    ports:
+      - "3002:80"
+    environment:
+      - VITE_INFLUXDB_URL=http://influxdb:8086
+      - VITE_INFLUXDB_TOKEN=mi-token-secreto-urgencias-dt
+      - VITE_INFLUXDB_ORG=urgencias
+      - VITE_INFLUXDB_BUCKET=hospitales
+      - VITE_MQTT_URL=ws://mosquitto:9001
+    depends_on:
+      - influxdb
+      - mosquitto
+    restart: unless-stopped
+
 volumes:
   mosquitto_data:
   mosquitto_log:
