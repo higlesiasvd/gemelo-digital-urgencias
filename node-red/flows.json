@@ -79,7 +79,7 @@
         "type": "function",
         "z": "flow_principal",
         "name": "Parsear Evento",
-        "func": "const parts = msg.topic.split('/');\nconst hospital = parts[1].toLowerCase();\nconst tipo_evento = parts[3];\nconst data = msg.payload;\n\n// Los datos del paciente están ANIDADOS en data.paciente\nconst paciente = data.paciente || {};\n\nmsg.measurement = \"eventos_\" + hospital;\nmsg.payload = {\n    tipo_evento: tipo_evento,\n    nivel_triaje: Number(paciente.nivel_triaje) || 0,\n    nivel_triaje_nombre: String(paciente.nivel_triaje_nombre || \"\"),\n    patologia: String(paciente.patologia || \"no_especificada\"),\n    paciente_id: String(paciente.id || \"\"),\n    edad: Number(paciente.edad) || 0,\n    tiempo_total: Number(paciente.tiempo_total) || 0,\n    tiempo_espera: Number(paciente.tiempo_espera_atencion) || 0,\n    destino: String(paciente.destino || \"\"),\n    valor: 1\n};\n\nnode.status({fill:\"green\", shape:\"dot\", text: hospital + \" - \" + tipo_evento + \" (edad:\" + msg.payload.edad + \")\"});\nreturn msg;",
+        "func": "const parts = msg.topic.split('/');\nconst hospital = parts[1].toLowerCase();\nconst tipo_evento = parts[3];\nconst data = msg.payload;\n\n// Los datos vienen planos (no anidados en data.paciente)\nmsg.measurement = \"eventos_\" + hospital;\nmsg.payload = {\n    tipo_evento: tipo_evento,\n    nivel_triaje_nombre: String(data.nivel_triaje || \"\"),\n    patologia: String(data.patologia || \"no_especificada\"),\n    paciente_id: String(data.paciente_id || \"\"),\n    edad: Number(data.edad) || 0,\n    tiempo_total: Number(data.tiempo_total) || 0,\n    tiempo_espera: Number(data.tiempo_espera_atencion) || 0,\n    destino: String(data.destino || \"\"),\n    derivado_a: String(data.derivado_a || \"\"),\n    valor: 1\n};\n\nnode.status({fill:\"green\", shape:\"dot\", text: hospital + \" - \" + tipo_evento + \" (edad:\" + msg.payload.edad + \")\"});\nreturn msg;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -523,6 +523,134 @@
         "wires": [
             []
         ]
+    },
+    {
+        "id": "comment_prediccion",
+        "type": "comment",
+        "z": "flow_principal",
+        "name": "──── PREDICCIONES (DÍA 4) ────",
+        "info": "Recibe predicciones del servicio de predicción",
+        "x": 170,
+        "y": 940,
+        "wires": []
+    },
+    {
+        "id": "mqtt_prediccion",
+        "type": "mqtt in",
+        "z": "flow_principal",
+        "name": "Predicciones",
+        "topic": "urgencias/+/prediccion",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "mqtt_broker",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 110,
+        "y": 1000,
+        "wires": [
+            [
+                "parse_prediccion"
+            ]
+        ]
+    },
+    {
+        "id": "parse_prediccion",
+        "type": "function",
+        "z": "flow_principal",
+        "name": "Parsear Predicción",
+        "func": "const parts = msg.topic.split('/');\nconst hospital = parts[1].toLowerCase();\nconst data = msg.payload;\n\n// Guardar cada predicción horaria como punto separado\nconst puntos = [];\n\nif (data.predicciones && Array.isArray(data.predicciones)) {\n    data.predicciones.forEach(pred => {\n        puntos.push({\n            measurement: \"prediccion_\" + hospital,\n            fields: {\n                llegadas_esperadas: Number(pred.llegadas_esperadas) || 0,\n                minimo: Number(pred.minimo) || 0,\n                maximo: Number(pred.maximo) || 0,\n                hora: Number(pred.hora) || 0\n            },\n            timestamp: new Date(pred.timestamp)\n        });\n    });\n}\n\nif (puntos.length > 0) {\n    msg.payload = puntos;\n    node.status({fill:\"purple\", shape:\"dot\", text: hospital + \": \" + puntos.length + \" predicciones\"});\n    return msg;\n}\n\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 1000,
+        "wires": [
+            [
+                "influx_prediccion"
+            ]
+        ]
+    },
+    {
+        "id": "influx_prediccion",
+        "type": "influxdb out",
+        "z": "flow_principal",
+        "influxdb": "influxdb_config",
+        "name": "InfluxDB Predicción",
+        "measurement": "",
+        "precision": "",
+        "retentionPolicy": "",
+        "database": "",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "urgencias",
+        "bucket": "hospitales",
+        "x": 560,
+        "y": 1000,
+        "wires": []
+    },
+    {
+        "id": "mqtt_alertas_prediccion",
+        "type": "mqtt in",
+        "z": "flow_principal",
+        "name": "Alertas Predicción",
+        "topic": "urgencias/prediccion/alertas",
+        "qos": "0",
+        "datatype": "json",
+        "broker": "mqtt_broker",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 1060,
+        "wires": [
+            [
+                "parse_alerta_pred"
+            ]
+        ]
+    },
+    {
+        "id": "parse_alerta_pred",
+        "type": "function",
+        "z": "flow_principal",
+        "name": "Parsear Alerta Pred",
+        "func": "const data = msg.payload;\n\nmsg.measurement = \"alertas_prediccion\";\nmsg.payload = {\n    tipo: String(data.tipo || \"anomalia\"),\n    nivel: String(data.nivel || \"warning\"),\n    mensaje: String(data.mensaje || \"\"),\n    hospital: String(data.hospital || \"sistema\"),\n    z_score: Number(data.z_score) || 0,\n    valor: 1\n};\n\nlet color = \"yellow\";\nif (data.nivel === \"critical\") color = \"red\";\nnode.status({fill: color, shape:\"ring\", text: data.tipo + \": \" + (data.hospital || \"regional\")});\n\n// También mostrar en debug si es crítico\nif (data.nivel === \"critical\") {\n    node.warn(\"🔮 ALERTA PREDICCIÓN: \" + data.mensaje);\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 1060,
+        "wires": [
+            [
+                "influx_alerta_pred"
+            ]
+        ]
+    },
+    {
+        "id": "influx_alerta_pred",
+        "type": "influxdb out",
+        "z": "flow_principal",
+        "influxdb": "influxdb_config",
+        "name": "InfluxDB Alerta Pred",
+        "measurement": "",
+        "precision": "",
+        "retentionPolicy": "",
+        "database": "",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "urgencias",
+        "bucket": "hospitales",
+        "x": 570,
+        "y": 1060,
+        "wires": []
     },
     {
         "id": "influxdb_config",

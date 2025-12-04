@@ -1,0 +1,641 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 2,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "type": "row",
+      "title": "🏥 CHUAC - Hospital Universitario",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "collapsed": false
+    },
+    {
+      "type": "gauge",
+      "title": "Ocupación Boxes",
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\" and r._field == \"ocupacion_boxes\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Ocupación Observación",
+      "gridPos": { "h": 6, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\" and r._field == \"ocupacion_observacion\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "⏱️ Espera Media",
+      "gridPos": { "h": 3, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "orange", "value": 60 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "m",
+          "decimals": 0
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value" },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\" and r._field == \"tiempo_medio_espera\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "👥 Cola",
+      "gridPos": { "h": 3, "w": 4, "x": 8, "y": 4 },
+      "id": 4,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "orange", "value": 20 },
+              { "color": "red", "value": 30 }
+            ]
+          },
+          "unit": "none",
+          "decimals": 0
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value" },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\" and (r._field == \"pacientes_en_espera_triaje\" or r._field == \"pacientes_en_espera_atencion\"))\n  |> last()\n  |> group()\n  |> sum()"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "📊 Recursos CHUAC",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 1 },
+      "id": 5,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "medicos" }, "properties": [{ "id": "displayName", "value": "👨‍⚕️ Médicos" }] },
+          { "matcher": { "id": "byName", "options": "enfermeros" }, "properties": [{ "id": "displayName", "value": "👩‍⚕️ Enfermeros" }] },
+          { "matcher": { "id": "byName", "options": "boxes_ocupados" }, "properties": [{ "id": "displayName", "value": "🛏️ Boxes Ocupados" }] },
+          { "matcher": { "id": "byName", "options": "observacion_ocupadas" }, "properties": [{ "id": "displayName", "value": "🔬 Observación" }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -30m)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\")\n  |> filter(fn: (r) => r._field == \"boxes_ocupados\" or r._field == \"observacion_ocupadas\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "🏥 HM Modelo",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "id": 101,
+      "collapsed": false
+    },
+    {
+      "type": "gauge",
+      "title": "Ocupación Boxes",
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 8 },
+      "id": 11,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\" and r._field == \"ocupacion_boxes\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Ocupación Observación",
+      "gridPos": { "h": 6, "w": 4, "x": 4, "y": 8 },
+      "id": 12,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\" and r._field == \"ocupacion_observacion\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "⏱️ Espera Media",
+      "gridPos": { "h": 3, "w": 4, "x": 8, "y": 8 },
+      "id": 13,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "orange", "value": 60 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "m",
+          "decimals": 0
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value" },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\" and r._field == \"tiempo_medio_espera\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "👥 Cola",
+      "gridPos": { "h": 3, "w": 4, "x": 8, "y": 11 },
+      "id": 14,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "orange", "value": 10 },
+              { "color": "red", "value": 15 }
+            ]
+          },
+          "unit": "none",
+          "decimals": 0
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value" },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\" and (r._field == \"pacientes_en_espera_triaje\" or r._field == \"pacientes_en_espera_atencion\"))\n  |> last()\n  |> group()\n  |> sum()"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "📊 Recursos HM Modelo",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 8 },
+      "id": 15,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "medicos" }, "properties": [{ "id": "displayName", "value": "👨‍⚕️ Médicos" }] },
+          { "matcher": { "id": "byName", "options": "enfermeros" }, "properties": [{ "id": "displayName", "value": "👩‍⚕️ Enfermeros" }] },
+          { "matcher": { "id": "byName", "options": "boxes_ocupados" }, "properties": [{ "id": "displayName", "value": "🛏️ Boxes Ocupados" }] },
+          { "matcher": { "id": "byName", "options": "observacion_ocupadas" }, "properties": [{ "id": "displayName", "value": "🔬 Observación" }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -30m)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\")\n  |> filter(fn: (r) => r._field == \"boxes_ocupados\" or r._field == \"observacion_ocupadas\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "🏥 San Rafael",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "id": 102,
+      "collapsed": false
+    },
+    {
+      "type": "gauge",
+      "title": "Ocupación Boxes",
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 15 },
+      "id": 21,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\" and r._field == \"ocupacion_boxes\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Ocupación Observación",
+      "gridPos": { "h": 6, "w": 4, "x": 4, "y": 15 },
+      "id": 22,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\" and r._field == \"ocupacion_observacion\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "⏱️ Espera Media",
+      "gridPos": { "h": 3, "w": 4, "x": 8, "y": 15 },
+      "id": 23,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "orange", "value": 60 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "m",
+          "decimals": 0
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value" },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\" and r._field == \"tiempo_medio_espera\")\n  |> last()"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "👥 Cola",
+      "gridPos": { "h": 3, "w": 4, "x": 8, "y": 18 },
+      "id": 24,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "orange", "value": 8 },
+              { "color": "red", "value": 12 }
+            ]
+          },
+          "unit": "none",
+          "decimals": 0
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value" },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\" and (r._field == \"pacientes_en_espera_triaje\" or r._field == \"pacientes_en_espera_atencion\"))\n  |> last()\n  |> group()\n  |> sum()"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "📊 Recursos San Rafael",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 15 },
+      "id": 25,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "medicos" }, "properties": [{ "id": "displayName", "value": "👨‍⚕️ Médicos" }] },
+          { "matcher": { "id": "byName", "options": "enfermeros" }, "properties": [{ "id": "displayName", "value": "👩‍⚕️ Enfermeros" }] },
+          { "matcher": { "id": "byName", "options": "boxes_ocupados" }, "properties": [{ "id": "displayName", "value": "🛏️ Boxes Ocupados" }] },
+          { "matcher": { "id": "byName", "options": "observacion_ocupadas" }, "properties": [{ "id": "displayName", "value": "🔬 Observación" }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -30m)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\")\n  |> filter(fn: (r) => r._field == \"boxes_ocupados\" or r._field == \"observacion_ocupadas\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "📈 Resumen Global",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "id": 103,
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "⏱️ Tiempos de Espera - Todos los Hospitales",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+      "id": 30,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "m",
+          "decimals": 1
+        },
+        "overrides": [
+          { "matcher": { "id": "byFrameRefID", "options": "A" }, "properties": [{ "id": "displayName", "value": "CHUAC" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "B" }, "properties": [{ "id": "displayName", "value": "HM Modelo" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "C" }, "properties": [{ "id": "displayName", "value": "San Rafael" }] }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["lastNotNull", "mean", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\" and r._field == \"tiempo_medio_espera\")\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "B",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\" and r._field == \"tiempo_medio_espera\")\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "C",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\" and r._field == \"tiempo_medio_espera\")\n  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "👥 Colas de Espera - Todos los Hospitales",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+      "id": 31,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "bars",
+            "barAlignment": 0,
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "gradientMode": "scheme",
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "mode": "normal", "group": "A" }
+          },
+          "unit": "none",
+          "decimals": 0
+        },
+        "overrides": [
+          { "matcher": { "id": "byFrameRefID", "options": "A" }, "properties": [{ "id": "displayName", "value": "CHUAC" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "B" }, "properties": [{ "id": "displayName", "value": "HM Modelo" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "C" }, "properties": [{ "id": "displayName", "value": "San Rafael" }] }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["lastNotNull", "sum"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\" and (r._field == \"pacientes_en_espera_triaje\" or r._field == \"pacientes_en_espera_atencion\"))\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "B",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\" and (r._field == \"pacientes_en_espera_triaje\" or r._field == \"pacientes_en_espera_atencion\"))\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "C",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\" and (r._field == \"pacientes_en_espera_triaje\" or r._field == \"pacientes_en_espera_atencion\"))\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["hospitales", "operacional", "recursos"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "📊 Dashboard Operacional",
+  "uid": "dashboard-operacional",
+  "version": 1,
+  "weekStart": ""
+}

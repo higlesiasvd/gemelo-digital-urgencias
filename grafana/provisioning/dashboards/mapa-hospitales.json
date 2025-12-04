@@ -1,0 +1,468 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "type": "geomap",
+      "title": "🗺️ Mapa de Hospitales - A Coruña",
+      "description": "Hospitales coloreados según nivel de saturación. Verde: <50%, Amarillo: 50-70%, Naranja: 70-85%, Rojo: >85%",
+      "gridPos": { "h": 16, "w": 16, "x": 0, "y": 0 },
+      "id": 1,
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "options": {
+        "view": {
+          "id": "coords",
+          "lat": 43.355,
+          "lon": -8.40,
+          "zoom": 13
+        },
+        "basemap": {
+          "type": "carto",
+          "name": "CARTO Positron"
+        },
+        "layers": [
+          {
+            "type": "markers",
+            "name": "Hospitales",
+            "config": {
+              "showLegend": true,
+              "style": {
+                "color": {
+                  "field": "saturacion",
+                  "fixed": "green"
+                },
+                "opacity": 0.9,
+                "rotation": {
+                  "fixed": 0,
+                  "mode": "fixed"
+                },
+                "size": {
+                  "field": "saturacion",
+                  "fixed": 25,
+                  "min": 20,
+                  "max": 60
+                },
+                "symbol": {
+                  "fixed": "img/icons/marker/circle.svg",
+                  "mode": "fixed"
+                },
+                "text": {
+                  "field": "hospital",
+                  "fixed": "",
+                  "mode": "field"
+                },
+                "textConfig": {
+                  "fontSize": 12,
+                  "offsetX": 0,
+                  "offsetY": -20,
+                  "textAlign": "center",
+                  "textBaseline": "middle"
+                }
+              }
+            },
+            "location": {
+              "mode": "coords",
+              "latitude": "lat",
+              "longitude": "lon"
+            },
+            "tooltip": true
+          }
+        ],
+        "tooltip": {
+          "mode": "details"
+        },
+        "controls": {
+          "showZoom": true,
+          "showAttribution": true,
+          "showScale": false,
+          "showMeasure": false,
+          "showDebug": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "orange", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          },
+          "unit": "percent",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        }
+      ],
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\" and r._field == \"nivel_saturacion\")\n  |> last()\n  |> map(fn: (r) => ({r with hospital: \"CHUAC\", lat: 43.34427, lon: -8.38932, saturacion: r._value * 100.0}))"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "B",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\" and r._field == \"nivel_saturacion\")\n  |> last()\n  |> map(fn: (r) => ({r with hospital: \"HM Modelo\", lat: 43.3669, lon: -8.4189, saturacion: r._value * 100.0}))"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "C",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\" and r._field == \"nivel_saturacion\")\n  |> last()\n  |> map(fn: (r) => ({r with hospital: \"San Rafael\", lat: 43.34521, lon: -8.3879, saturacion: r._value * 100.0}))"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "🏥 CHUAC - Saturación",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 0 },
+      "id": 2,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "orange", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\" and r._field == \"nivel_saturacion\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "🏥 HM Modelo - Saturación",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 5 },
+      "id": 3,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "orange", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\" and r._field == \"nivel_saturacion\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "🏥 San Rafael - Saturación",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 10 },
+      "id": 4,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "orange", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "orientation": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\" and r._field == \"nivel_saturacion\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+        }
+      ]
+    },
+    {
+      "type": "bargauge",
+      "title": "📊 Ocupación Boxes por Hospital",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 16 },
+      "id": 5,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "orange", "value": 80 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": [
+          { "matcher": { "id": "byFrameRefID", "options": "A" }, "properties": [{ "id": "displayName", "value": "CHUAC (40 boxes)" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "B" }, "properties": [{ "id": "displayName", "value": "HM Modelo (15 boxes)" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "C" }, "properties": [{ "id": "displayName", "value": "San Rafael (12 boxes)" }] }
+        ]
+      },
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showUnfilled": true,
+        "valueMode": "color",
+        "minVizWidth": 0,
+        "minVizHeight": 10
+      },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\" and r._field == \"ocupacion_boxes\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "B",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\" and r._field == \"ocupacion_boxes\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "C",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\" and r._field == \"ocupacion_boxes\")\n  |> last()\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "🚨 Estado del Sistema",
+      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 16 },
+      "id": 6,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "type": "range", "options": { "from": 0, "to": 49, "result": { "text": "✅ NORMAL", "color": "green" } } },
+            { "type": "range", "options": { "from": 50, "to": 69, "result": { "text": "⚠️ ATENCIÓN", "color": "yellow" } } },
+            { "type": "range", "options": { "from": 70, "to": 84, "result": { "text": "🔶 ALERTA", "color": "orange" } } },
+            { "type": "range", "options": { "from": 85, "to": 100, "result": { "text": "🚨 CRÍTICO", "color": "red" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "orange", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          },
+          "unit": "percent"
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["max"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement =~ /^stats_/ and r._field == \"nivel_saturacion\")\n  |> last()\n  |> group()\n  |> max()\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "👥 Pacientes en Cola (Total)",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 16 },
+      "id": 7,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "orange", "value": 25 },
+              { "color": "red", "value": 40 }
+            ]
+          },
+          "unit": "none",
+          "decimals": 0
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement =~ /^stats_/ and (r._field == \"pacientes_en_espera_triaje\" or r._field == \"pacientes_en_espera_atencion\"))\n  |> last()\n  |> group()\n  |> sum()"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "📈 Evolución Saturación (última hora)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "id": 8,
+      "datasource": { "type": "influxdb", "uid": "influxdb" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Saturación %",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "hideFrom": { "tooltip": false, "viz": false, "legend": false },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line+area" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "transparent", "value": null },
+              { "color": "rgba(255, 152, 48, 0.2)", "value": 70 },
+              { "color": "rgba(242, 73, 92, 0.3)", "value": 85 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": [
+          { "matcher": { "id": "byFrameRefID", "options": "A" }, "properties": [{ "id": "displayName", "value": "CHUAC" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "B" }, "properties": [{ "id": "displayName", "value": "HM Modelo" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "C" }, "properties": [{ "id": "displayName", "value": "San Rafael" }] }
+        ]
+      },
+      "options": {
+        "legend": {
+          "calcs": ["lastNotNull", "mean", "max"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "A",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"stats_chuac\" and r._field == \"nivel_saturacion\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "B",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"stats_hm_modelo\" and r._field == \"nivel_saturacion\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "influxdb" },
+          "refId": "C",
+          "query": "from(bucket: \"hospitales\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"stats_san_rafael\" and r._field == \"nivel_saturacion\")\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["hospitales", "mapa", "coruña"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "🗺️ Mapa Hospitales A Coruña",
+  "uid": "mapa-hospitales",
+  "version": 1,
+  "weekStart": ""
+}

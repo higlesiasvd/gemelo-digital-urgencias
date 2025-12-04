@@ -376,13 +376,14 @@ class CoordinadorCentral:
         """Publica el estado del coordinador por MQTT"""
         if not self.mqtt_client:
             return
-        
+
         estado = {
             "timestamp": self.env.now,
             "emergencia_activa": self.emergencia_activa,
             "tipo_emergencia": self.tipo_emergencia.value if self.tipo_emergencia else None,
             "derivaciones_totales": self.derivaciones_totales,
             "minutos_ahorrados": self.minutos_ahorrados,
+            "alertas_emitidas": len(self.alertas_emitidas),
             "hospitales": {}
         }
         

@@ -15,6 +15,10 @@ numpy>=1.24.0
 # Predicción (se usará en día 4)
 prophet>=1.1.4
 
+# APIs externas y datos
+requests>=2.31.0
+holidays>=0.35
+
 # Utilidades
 python-dateutil>=2.8.2
 

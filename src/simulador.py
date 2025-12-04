@@ -22,18 +22,17 @@ from collections import defaultdict
 import threading
 import os
 
+# Servicios externos y generador de pacientes
+from infrastructure.external_services import WeatherService, HolidaysService, EventsService, FootballService
+from domain.services.generador_pacientes import GeneradorPacientes
+from config.hospital_config import NivelTriaje, CONFIG_TRIAJE, PATOLOGIAS as PATOLOGIAS_CONFIG
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN Y CONSTANTES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class NivelTriaje(Enum):
-    """Sistema Manchester de triaje - 5 niveles"""
-    ROJO = 1      # Resucitación - Inmediato
-    NARANJA = 2   # Emergencia - ≤10 min
-    AMARILLO = 3  # Urgente - ≤60 min
-    VERDE = 4     # Menos urgente - ≤120 min
-    AZUL = 5      # No urgente - ≤240 min
+# Nota: Ahora usamos NivelTriaje y CONFIG_TRIAJE de config.hospital_config
 
 
 @dataclass
@@ -165,7 +164,7 @@ class Paciente:
     nivel_triaje: NivelTriaje
     patologia: str
     hora_llegada: float
-    edad: int = 45  # Edad del paciente (default: 45 años)
+    edad: int = 0  # Edad del paciente (se genera aleatoriamente)
     hora_triaje: Optional[float] = None
     hora_inicio_atencion: Optional[float] = None
     hora_fin_atencion: Optional[float] = None
@@ -200,7 +199,6 @@ class Paciente:
             "nivel_triaje_nombre": CONFIG_TRIAJE[self.nivel_triaje].nombre,
             "nivel_triaje_color": CONFIG_TRIAJE[self.nivel_triaje].color,
             "patologia": self.patologia,
-            "edad": self.edad,
             "hora_llegada": self.hora_llegada,
             "hora_triaje": self.hora_triaje,
             "hora_inicio_atencion": self.hora_inicio_atencion,
@@ -286,12 +284,21 @@ class HospitalUrgencias:
     5. (Opcional) Observación → 6. Alta/Ingreso
     """
     
-    def __init__(self, env: simpy.Environment, config: ConfigHospital, mqtt_client: Optional[mqtt.Client] = None):
+    def __init__(self, env: simpy.Environment, config: ConfigHospital, mqtt_client: Optional[mqtt.Client] = None,
+                 weather_service=None, holidays_service=None, events_service=None):
         self.env = env
         self.config = config
         self.mqtt_client = mqtt_client
         self.coordinador = None  # Se asigna desde SimuladorUrgencias si hay múltiples hospitales
-        
+
+        # Generador de pacientes con datos realistas
+        self.generador_pacientes = GeneradorPacientes(
+            weather_service=weather_service,
+            holidays_service=holidays_service,
+            events_service=events_service,
+            seed=None  # Usar seed aleatorio para cada hospital
+        )
+
         # Recursos SimPy
         self.triaje = simpy.Resource(env, capacity=2)  # 2 puestos de triaje
         self.boxes = simpy.PriorityResource(env, capacity=config.num_boxes)
@@ -363,36 +370,43 @@ class HospitalUrgencias:
     def proceso_llegada_pacientes(self):
         """Proceso principal de llegada de pacientes"""
         while True:
-            # Esperar hasta la próxima llegada
-            yield self.env.timeout(self.calcular_tiempo_entre_llegadas())
-            
-            # Crear paciente
-            self.paciente_counter += 1
-            nivel = self.generar_nivel_triaje()
-            
-            # Generar edad realista según nivel de triaje
-            if nivel == NivelTriaje.ROJO:
-                edad = random.choice([random.randint(0, 5), random.randint(65, 95)])
-            elif nivel == NivelTriaje.NARANJA:
-                edad = random.randint(30, 85)
-            else:
-                edad = random.randint(18, 80)
-            
-            paciente = Paciente(
-                id=self.paciente_counter,
-                hospital_id=self.config.id,
-                nivel_triaje=nivel,
-                patologia=self.generar_patologia(nivel),
-                hora_llegada=self.env.now,
-                edad=edad
+            # Calcular tiempo entre llegadas usando el contexto
+            contexto = self.generador_pacientes.generar_contexto(self.env.now)
+            tiempo_espera = self.generador_pacientes.calcular_tiempo_entre_llegadas(
+                self.config.pacientes_dia_base,
+                contexto
             )
-            
+
+            # Si hay emergencia activa, reducir tiempo entre llegadas
+            if self.emergencia_activa:
+                tiempo_espera *= 0.5
+
+            yield self.env.timeout(tiempo_espera)
+
+            # Crear paciente usando el generador realista
+            self.paciente_counter += 1
+            paciente_data = self.generador_pacientes.generar_paciente_completo(
+                paciente_id=self.paciente_counter,
+                hospital_id=self.config.id,
+                tiempo_simulado=self.env.now
+            )
+
+            # Convertir a objeto Paciente para el simulador
+            paciente = Paciente(
+                id=paciente_data['id'],
+                hospital_id=paciente_data['hospital_id'],
+                nivel_triaje=paciente_data['nivel_triaje'],
+                patologia=paciente_data['patologia'],
+                hora_llegada=self.env.now,
+                edad=paciente_data['edad']
+            )
+
             self.pacientes_activos[paciente.id] = paciente
             self.llegadas_ultima_hora.append(self.env.now)
-            
-            # Publicar evento de llegada
-            self.publicar_evento("llegada", paciente)
-            
+
+            # Publicar evento de llegada con contexto enriquecido
+            self.publicar_evento("llegada", paciente, contexto=paciente_data.get('contexto'))
+
             # Iniciar proceso de atención
             self.env.process(self.proceso_atencion_paciente(paciente))
     
@@ -539,16 +553,29 @@ class HospitalUrgencias:
             # Publicar estadísticas
             self.publicar_estadisticas()
     
-    def publicar_evento(self, tipo: str, paciente: Paciente):
+    def publicar_evento(self, tipo: str, paciente: Paciente, contexto=None):
         """Publica un evento de paciente via MQTT"""
         if self.mqtt_client:
             topic = f"urgencias/{self.config.id}/eventos/{tipo}"
-            payload = json.dumps({
+            # Aplanar datos del paciente para facilitar procesamiento en Node-RED
+            payload = {
                 "tipo": tipo,
                 "timestamp": self.env.now,
-                "paciente": paciente.to_dict()
-            })
-            self.mqtt_client.publish(topic, payload)
+                "paciente_id": paciente.id,
+                "edad": paciente.edad,
+                "nivel_triaje": paciente.nivel_triaje.name if paciente.nivel_triaje else "desconocido",
+                "patologia": paciente.patologia or "no_especificada",
+                "tiempo_total": paciente.tiempo_total or 0,
+                "tiempo_espera_atencion": paciente.tiempo_espera_atencion or 0,
+                "destino": paciente.destino or "",
+                "derivado_a": getattr(paciente, 'derivado_a', None) or ""
+            }
+
+            # Añadir datos de contexto si están disponibles
+            if contexto:
+                payload["contexto"] = contexto
+
+            self.mqtt_client.publish(topic, json.dumps(payload))
     
     def publicar_estadisticas(self):
         """Publica estadísticas via MQTT"""
@@ -647,9 +674,10 @@ class MQTTManager:
 class SimuladorUrgencias:
     """Controlador principal de la simulación"""
     
-    def __init__(self, hospitales_ids: List[str] = ["chuac"], 
+    def __init__(self, hospitales_ids: List[str] = ["chuac"],
                  mqtt_broker: str = "localhost", mqtt_port: int = 1883,
-                 velocidad: float = 60.0, emergencias_aleatorias: bool = False):
+                 velocidad: float = 60.0, emergencias_aleatorias: bool = False,
+                 prediccion_activa: bool = True):
         """
         Args:
             hospitales_ids: Lista de IDs de hospitales a simular
@@ -657,36 +685,56 @@ class SimuladorUrgencias:
             mqtt_port: Puerto del broker MQTT
             velocidad: Factor de velocidad (60 = 1 hora simulada por minuto real)
             emergencias_aleatorias: Si True, genera emergencias aleatorias
+            prediccion_activa: Si True, activa el servicio de predicción
         """
         self.env = simpy.Environment()
         self.velocidad = velocidad
         self.hospitales: Dict[str, HospitalUrgencias] = {}
         self.ultima_hora_impresa = -1  # Control para evitar duplicados
         self.coordinador = None
-        
+        self.servicio_prediccion = None
+
         # Conectar MQTT
         self.mqtt_manager = MQTTManager(mqtt_broker, mqtt_port)
         mqtt_client = self.mqtt_manager.client if self.mqtt_manager.conectar() else None
+
+        # Inicializar servicios externos (compartidos por todos los hospitales)
+        print("🌐 Inicializando servicios externos...")
+        self.weather_service = WeatherService()  # Open-Meteo (gratis)
+        self.holidays_service = HolidaysService()
+        self.events_service = EventsService()
+        self.football_service = FootballService()  # TheSportsDB (gratis)
+        print("✅ Servicios externos inicializados")
         
         # Crear hospitales
         for hospital_id in hospitales_ids:
             if hospital_id in HOSPITALES:
                 config = HOSPITALES[hospital_id]
-                hospital = HospitalUrgencias(self.env, config, mqtt_client)
+                hospital = HospitalUrgencias(
+                    self.env, config, mqtt_client,
+                    weather_service=self.weather_service,
+                    holidays_service=self.holidays_service,
+                    events_service=self.events_service
+                )
                 self.hospitales[hospital_id] = hospital
-                
+
                 # Iniciar procesos
                 self.env.process(hospital.proceso_llegada_pacientes())
                 self.env.process(hospital.proceso_actualizacion_estadisticas())
-                
+
                 print(f"🏥 Hospital {config.nombre} inicializado")
                 print(f"   - Boxes: {config.num_boxes}")
                 print(f"   - Observación: {config.num_camas_observacion}")
                 print(f"   - Pacientes/día estimados: {config.pacientes_dia_base}")
+                print(f"   - GeneradorPacientes: ✅ Activo con APIs gratuitas")
+
+        # Iniciar proceso de publicación de datos contextuales
+        if mqtt_client:
+            self.env.process(self._proceso_publicar_contexto(mqtt_client))
         
         # Crear coordinador si hay múltiples hospitales
         if len(self.hospitales) > 1:
-            from coordinador import CoordinadorCentral, GeneradorEmergencias
+            from domain.services.coordinador import CoordinadorCentral, GeneradorEmergencias
             
             self.coordinador = CoordinadorCentral(self.env, self.hospitales, mqtt_client)
             self.env.process(self.coordinador.proceso_coordinacion())
@@ -700,20 +748,97 @@ class SimuladorUrgencias:
                 generador = GeneradorEmergencias(self.env, self.coordinador)
                 self.env.process(generador.proceso_emergencias())
                 print(f"⚡ Generador de emergencias aleatorias activado")
+        
+        # Crear servicio de predicción
+        if prediccion_activa:
+            try:
+                from domain.services.predictor import ServicioPrediccion
+                self.servicio_prediccion = ServicioPrediccion(
+                    list(self.hospitales.keys()),
+                    mqtt_client
+                )
+                self.servicio_prediccion.inicializar()
+                self.env.process(self._proceso_prediccion())
+            except Exception as e:
+                print(f"⚠️  No se pudo inicializar predicción: {e}")
+    
+    def _proceso_publicar_contexto(self, mqtt_client):
+        """Proceso que publica datos contextuales (clima, eventos, fútbol) cada 30 minutos simulados"""
+        while True:
+            yield self.env.timeout(30)  # Cada 30 minutos simulados
+
+            try:
+                # Publicar datos de clima
+                clima = self.weather_service.obtener_clima()
+                mqtt_client.publish("urgencias/contexto/clima", json.dumps(clima.to_dict()))
+
+                # Publicar próximos festivos
+                festivos = self.holidays_service.obtener_proximos_festivos(dias=7)
+                mqtt_client.publish("urgencias/contexto/festivos", json.dumps({
+                    "festivos": [{"nombre": f.nombre, "fecha": f.fecha.isoformat(), "factor_demanda": f.factor_demanda} for f in festivos]
+                }))
+
+                # Publicar eventos locales próximos
+                eventos = self.events_service.obtener_proximos_eventos(dias=7)
+                mqtt_client.publish("urgencias/contexto/eventos", json.dumps({
+                    "eventos": [{"nombre": e.nombre, "fecha": e.fecha.isoformat(), "asistentes": e.asistentes_esperados} for e in eventos]
+                }))
+
+                # Publicar próximos partidos del Deportivo
+                partidos = self.football_service.obtener_proximos_partidos(dias=14)
+                if partidos:
+                    mqtt_client.publish("urgencias/contexto/futbol", json.dumps({
+                        "partidos": [{
+                            "local": p.equipo_local,
+                            "visitante": p.equipo_visitante,
+                            "fecha": p.fecha.isoformat(),
+                            "en_casa": p.es_en_casa,
+                            "asistentes": p.asistentes_estimados
+                        } for p in partidos[:5]]  # Solo próximos 5 partidos
+                    }))
+            except Exception as e:
+                print(f"⚠️  Error publicando contexto: {e}")
+
+    def _proceso_prediccion(self):
+        """Proceso que actualiza predicciones y detecta anomalías cada hora simulada"""
+        while True:
+            yield self.env.timeout(60)  # Cada hora simulada
+
+            if self.servicio_prediccion:
+                # Recopilar llegadas de la última hora
+                datos_actuales = {}
+                for h_id, hospital in self.hospitales.items():
+                    # Usar pacientes_llegados_hora que ya está calculado en stats
+                    datos_actuales[h_id] = hospital.stats.pacientes_llegados_hora
+
+                # Analizar anomalías
+                alertas = self.servicio_prediccion.analizar_situacion(datos_actuales)
+
+                if alertas:
+                    for alerta in alertas:
+                        print(f"   🔮 {alerta['mensaje']}")
+
+                # Actualizar predicciones cada 6 horas simuladas
+                if int(self.env.now) % 360 == 0:
+                    self.servicio_prediccion.actualizar_predicciones()
     
     def ejecutar(self, duracion_horas: float = 24, tiempo_real: bool = True):
         """
         Ejecuta la simulación.
         
         Args:
-            duracion_horas: Duración en horas simuladas
+            duracion_horas: Duración en horas simuladas (0 = infinito)
             tiempo_real: Si True, la simulación corre en tiempo real escalado
         """
-        duracion_minutos = duracion_horas * 60
+        modo_infinito = duracion_horas <= 0
+        duracion_minutos = float('inf') if modo_infinito else duracion_horas * 60
         
         print(f"\n{'═'*60}")
         print(f"🚀 Iniciando simulación")
-        print(f"   Duración: {duracion_horas} horas simuladas")
+        if modo_infinito:
+            print(f"   Duración: ♾️  MODO CONTINUO INFINITO")
+        else:
+            print(f"   Duración: {duracion_horas} horas simuladas")
         print(f"   Velocidad: {self.velocidad}x (1 min real = {self.velocidad} min simulados)")
         print(f"{'═'*60}\n")
         
@@ -728,17 +853,22 @@ class SimuladorUrgencias:
     
     def _ejecutar_tiempo_real(self, duracion_minutos: float):
         """Ejecuta la simulación sincronizada con tiempo real"""
+        import math
         inicio = time.time()
         paso = 1.0  # Avanzar 1 minuto simulado cada iteración
+        modo_infinito = math.isinf(duracion_minutos)
         
-        while self.env.now < duracion_minutos:
+        while modo_infinito or self.env.now < duracion_minutos:
             # Calcular cuánto tiempo simulado debería haber pasado
             tiempo_real_transcurrido = time.time() - inicio
             tiempo_simulado_objetivo = tiempo_real_transcurrido * self.velocidad
             
             # Avanzar simulación si es necesario
             if self.env.now < tiempo_simulado_objetivo:
-                siguiente = min(self.env.now + paso, tiempo_simulado_objetivo, duracion_minutos)
+                if modo_infinito:
+                    siguiente = min(self.env.now + paso, tiempo_simulado_objetivo)
+                else:
+                    siguiente = min(self.env.now + paso, tiempo_simulado_objetivo, duracion_minutos)
                 self.env.run(until=siguiente)
             
             # Mostrar progreso cada hora simulada (evitando duplicados)
@@ -816,6 +946,19 @@ class SimuladorUrgencias:
             if resumen['emergencias_gestionadas'] > 0:
                 print(f"   Emergencias gestionadas: {resumen['emergencias_gestionadas']}")
         
+        # Resumen del predictor
+        if self.servicio_prediccion:
+            print(f"\n{'─'*60}")
+            print("🔮 PREDICCIÓN DE DEMANDA")
+            resumen_pred = self.servicio_prediccion.detector.obtener_resumen()
+            print(f"   Anomalías detectadas (24h): {resumen_pred['anomalias_ultimas_24h']}")
+            
+            # Mostrar predicción próximas 3 horas
+            proximas = self.servicio_prediccion.obtener_prediccion_proximas_horas(3)
+            print(f"   Predicción próximas 3 horas:")
+            for h_id, datos in proximas.items():
+                print(f"      {h_id.upper()}: {datos['total_esperado']:.0f} llegadas esperadas")
+        
         print(f"\n{'═'*60}")
         print(f"   TOTAL PACIENTES EN EL SISTEMA: {total_pacientes_sistema}")
         print(f"{'═'*60}\n")
@@ -839,7 +982,6 @@ if __name__ == "__main__":
     env_hospitales = os.environ.get("HOSPITALES", "chuac").split()
     env_duracion = float(os.environ.get("DURACION", "24"))
     env_velocidad = float(os.environ.get("VELOCIDAD", "60"))
-    env_emergencias = os.environ.get("EMERGENCIAS", "false").lower() == "true"
     
     parser = argparse.ArgumentParser(description="Gemelo Digital - Urgencias Hospitalarias A Coruña")
     parser.add_argument("--hospitales", nargs="+", default=env_hospitales,
@@ -855,8 +997,10 @@ if __name__ == "__main__":
                         help="Puerto del broker MQTT")
     parser.add_argument("--rapido", action="store_true",
                         help="Ejecutar sin sincronización de tiempo real")
-    parser.add_argument("--emergencias", action="store_true", default=env_emergencias,
+    parser.add_argument("--emergencias", action="store_true",
                         help="Activar emergencias aleatorias durante la simulación")
+    parser.add_argument("--sin-prediccion", action="store_true",
+                        help="Desactivar el servicio de predicción")
     
     args = parser.parse_args()
     
@@ -866,7 +1010,8 @@ if __name__ == "__main__":
         mqtt_broker=args.mqtt_broker,
         mqtt_port=args.mqtt_port,
         velocidad=args.velocidad,
-        emergencias_aleatorias=args.emergencias
+        emergencias_aleatorias=args.emergencias,
+        prediccion_activa=not args.sin_prediccion
     )
     
     try:
