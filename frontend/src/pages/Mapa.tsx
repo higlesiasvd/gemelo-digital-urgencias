@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Stack, Title, Text, Card, SimpleGrid, Badge, Group, RingProgress, ThemeIcon, Paper, Grid, Divider, Loader, Center } from '@mantine/core';
+import { Stack, Title, Text, Card, SimpleGrid, Badge, Group, ThemeIcon, Paper, Grid, Loader, Center } from '@mantine/core';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { HOSPITALES } from '@/types/hospital';
 import { useHospitalStore } from '@/store/hospitalStore';
-import { 
-  IconMapPin, 
-  IconAlertTriangle, 
+import { EventCalendar } from '@/components/EventCalendar';
+import { HospitalMetrics } from '@/components/HospitalMetrics';
+import {
+  IconMapPin,
+  IconAlertTriangle,
   IconCloudRain,
   IconSun,
   IconCloud,
@@ -81,6 +83,7 @@ interface PartidoData {
   estadio: string;
   esLocal: boolean;
   asistentes: number;
+  factorDemanda: number;
 }
 
 interface EventoData {
@@ -122,32 +125,43 @@ export function Mapa() {
       });
     }
 
+    // Helper function to format dates as DD/MM/YYYY
+    const formatDate = (date: Date): string => {
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
     // Simular próximos partidos del Deportivo (TheSportsDB API)
     const hoy = new Date();
     setPartidos([
       {
-        fecha: new Date(hoy.getTime() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES'),
+        fecha: formatDate(new Date(hoy.getTime() + 3 * 24 * 60 * 60 * 1000)),
         local: 'RC Deportivo',
         visitante: 'Racing Santander',
         estadio: 'Riazor',
         esLocal: true,
         asistentes: 22000,
+        factorDemanda: 1.35,
       },
       {
-        fecha: new Date(hoy.getTime() + 10 * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES'),
+        fecha: formatDate(new Date(hoy.getTime() + 10 * 24 * 60 * 60 * 1000)),
         local: 'Real Oviedo',
         visitante: 'RC Deportivo',
         estadio: 'Carlos Tartiere',
         esLocal: false,
         asistentes: 0,
+        factorDemanda: 1.0,
       },
       {
-        fecha: new Date(hoy.getTime() + 17 * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES'),
+        fecha: formatDate(new Date(hoy.getTime() + 17 * 24 * 60 * 60 * 1000)),
         local: 'RC Deportivo',
         visitante: 'SD Eibar',
         estadio: 'Riazor',
         esLocal: true,
         asistentes: 18000,
+        factorDemanda: 1.30,
       },
     ]);
 
@@ -155,7 +169,7 @@ export function Mapa() {
     setEventos([
       {
         nombre: 'Concierto en Coliseum',
-        fecha: new Date(hoy.getTime() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES'),
+        fecha: formatDate(new Date(hoy.getTime() + 5 * 24 * 60 * 60 * 1000)),
         tipo: 'musical',
         ubicacion: 'Coliseum A Coruña',
         asistentes: 6000,
@@ -163,7 +177,7 @@ export function Mapa() {
       },
       {
         nombre: 'Maratón A Coruña',
-        fecha: new Date(hoy.getTime() + 12 * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES'),
+        fecha: formatDate(new Date(hoy.getTime() + 12 * 24 * 60 * 60 * 1000)),
         tipo: 'deportivo',
         ubicacion: 'Ciudad A Coruña',
         asistentes: 5000,
@@ -307,70 +321,77 @@ export function Mapa() {
           </Card>
         </Grid.Col>
 
-        {/* Próximos Partidos - TheSportsDB API */}
-        <Grid.Col span={{ base: 12, md: 4 }}>
-          <Card shadow="sm" padding="md" radius="md" withBorder h="100%">
-            <Group mb="sm">
-              <ThemeIcon size="lg" color="green" variant="light">
-                <IconBallFootball size={20} />
-              </ThemeIcon>
+        {/* Resumen de Eventos (eliminando duplicados) */}
+        <Grid.Col span={{ base: 12, md: 12 }}>
+          <Card shadow="sm" padding="md" radius="md" withBorder>
+            <Group mb="md" justify="space-between">
               <div>
-                <Text fw={600}>⚽ Próximos Partidos</Text>
-                <Text size="xs" c="dimmed">TheSportsDB API</Text>
+                <Text fw={600} size="lg">📅 Próximos Eventos de Alto Impacto</Text>
+                <Text size="xs" c="dimmed">Eventos que aumentarán la demanda hospitalaria - Ver calendario completo abajo</Text>
               </div>
+              <Group>
+                <Badge size="lg" color="green" variant="light">
+                  {partidos.filter(p => p.esLocal).length} Partidos
+                </Badge>
+                <Badge size="lg" color="grape" variant="light">
+                  {eventos.length} Eventos
+                </Badge>
+              </Group>
             </Group>
-            <Stack gap="xs">
-              {partidos.slice(0, 3).map((partido, idx) => (
-                <Paper key={idx} p="xs" radius="sm" withBorder>
-                  <Group justify="space-between">
-                    <div>
-                      <Text size="xs" fw={500}>
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
+              {/* Mostrar partidos locales */}
+              {partidos.filter(p => p.esLocal).slice(0, 2).map((partido, idx) => (
+                <Paper key={`partido-${idx}`} p="md" radius="md" withBorder style={{
+                  background: 'linear-gradient(135deg, var(--mantine-color-blue-0) 0%, var(--mantine-color-green-0) 100%)'
+                }}>
+                  <Group gap="xs" mb="xs">
+                    <ThemeIcon size="lg" color="green" variant="light">
+                      <IconBallFootball size={20} />
+                    </ThemeIcon>
+                    <div style={{ flex: 1 }}>
+                      <Text size="sm" fw={600} lineClamp={1}>
                         {partido.local} vs {partido.visitante}
                       </Text>
-                      <Text size="xs" c="dimmed">{partido.fecha} - {partido.estadio}</Text>
+                      <Text size="xs" c="dimmed">{partido.fecha}</Text>
                     </div>
-                    {partido.esLocal && (
-                      <Badge size="xs" color="orange">
-                        🏟️ {(partido.asistentes / 1000).toFixed(0)}k
-                      </Badge>
-                    )}
                   </Group>
-                </Paper>
-              ))}
-            </Stack>
-          </Card>
-        </Grid.Col>
-
-        {/* Próximos Eventos */}
-        <Grid.Col span={{ base: 12, md: 4 }}>
-          <Card shadow="sm" padding="md" radius="md" withBorder h="100%">
-            <Group mb="sm">
-              <ThemeIcon size="lg" color="grape" variant="light">
-                <IconCalendarEvent size={20} />
-              </ThemeIcon>
-              <div>
-                <Text fw={600}>🎉 Próximos Eventos</Text>
-                <Text size="xs" c="dimmed">Eventos locales A Coruña</Text>
-              </div>
-            </Group>
-            <Stack gap="xs">
-              {eventos.map((evento, idx) => (
-                <Paper key={idx} p="xs" radius="sm" withBorder>
-                  <Group justify="space-between">
-                    <Group gap="xs">
-                      {getEventIcon(evento.tipo)}
-                      <div>
-                        <Text size="xs" fw={500}>{evento.nombre}</Text>
-                        <Text size="xs" c="dimmed">{evento.fecha}</Text>
-                      </div>
-                    </Group>
-                    <Badge size="xs" color="grape">
-                      x{evento.factorDemanda.toFixed(2)}
+                  <Group justify="space-between" mt="sm">
+                    <Badge size="sm" variant="dot" color="orange">
+                      {partido.asistentes ? `${(partido.asistentes / 1000).toFixed(0)}k personas` : 'Impacto alto'}
                     </Badge>
+                    <Text size="xs" fw={600} c="orange">
+                      +{((partido.factorDemanda - 1) * 100).toFixed(0)}% demanda
+                    </Text>
                   </Group>
                 </Paper>
               ))}
-            </Stack>
+              {/* Mostrar eventos */}
+              {eventos.slice(0, 1).map((evento, idx) => (
+                <Paper key={`evento-${idx}`} p="md" radius="md" withBorder style={{
+                  background: 'linear-gradient(135deg, var(--mantine-color-blue-0) 0%, var(--mantine-color-grape-0) 100%)'
+                }}>
+                  <Group gap="xs" mb="xs">
+                    <ThemeIcon size="lg" color="grape" variant="light">
+                      {getEventIcon(evento.tipo)}
+                    </ThemeIcon>
+                    <div style={{ flex: 1 }}>
+                      <Text size="sm" fw={600} lineClamp={1}>
+                        {evento.nombre}
+                      </Text>
+                      <Text size="xs" c="dimmed">{evento.fecha}</Text>
+                    </div>
+                  </Group>
+                  <Group justify="space-between" mt="sm">
+                    <Badge size="sm" variant="dot" color="orange">
+                      {evento.asistentes ? `${(evento.asistentes / 1000).toFixed(0)}k personas` : 'Impacto alto'}
+                    </Badge>
+                    <Text size="xs" fw={600} c="orange">
+                      +{((evento.factorDemanda - 1) * 100).toFixed(0)}% demanda
+                    </Text>
+                  </Group>
+                </Paper>
+              ))}
+            </SimpleGrid>
           </Card>
         </Grid.Col>
       </Grid>
@@ -519,114 +540,144 @@ export function Mapa() {
           </Card>
         </Grid.Col>
 
-        {/* Panel de Alertas */}
+        {/* Panel de Alertas Mejorado */}
         <Grid.Col span={{ base: 12, lg: 4 }}>
           <Card shadow="sm" padding="md" radius="md" withBorder h="100%">
-            <Title order={4} mb="sm">
-              <Group gap="xs">
-                <IconAlertTriangle size={20} />
-                Alertas Activas ({alertasActivas.length})
-              </Group>
-            </Title>
+            <Group justify="space-between" mb="sm">
+              <Title order={4}>
+                <Group gap="xs">
+                  <IconAlertTriangle size={20} />
+                  Situación Crítica
+                </Group>
+              </Title>
+              {alertasActivas.length > 0 && (
+                <Badge size="lg" color="red" variant="filled">
+                  {alertasActivas.length}
+                </Badge>
+              )}
+            </Group>
 
             {alertasActivas.length === 0 ? (
-              <Paper p="xl" radius="md" bg="green.0" style={{ textAlign: 'center' }}>
+              <Paper p="xl" radius="md" style={{
+                textAlign: 'center',
+                background: 'linear-gradient(135deg, var(--mantine-color-green-0) 0%, var(--mantine-color-teal-0) 100%)'
+              }}>
                 <ThemeIcon size="xl" color="green" variant="light" mx="auto" mb="sm">
                   <IconActivity size={24} />
                 </ThemeIcon>
-                <Text fw={500} c="green">✅ Sin alertas activas</Text>
-                <Text size="xs" c="dimmed">Todos los hospitales funcionan con normalidad</Text>
+                <Text fw={600} c="green" size="lg">Sistema Operativo</Text>
+                <Text size="sm" c="dimmed" mt="xs">
+                  Todos los hospitales funcionan dentro de parámetros normales
+                </Text>
               </Paper>
             ) : (
-              <Stack gap="xs">
-                {alertasActivas.map((alerta) => (
-                  <Paper 
-                    key={alerta.id} 
-                    p="sm" 
-                    radius="sm" 
-                    withBorder
-                    bg={alerta.nivel === 'critical' ? 'red.0' : 'orange.0'}
-                    style={{
-                      borderLeftWidth: 4,
-                      borderLeftColor: alerta.nivel === 'critical' ? '#fa5252' : '#fd7e14',
-                    }}
-                  >
-                    <Group justify="space-between" wrap="nowrap">
-                      <div>
-                        <Text size="sm" fw={600}>{alerta.hospital}</Text>
-                        <Text size="xs" c="dimmed">{alerta.tipo}</Text>
-                      </div>
-                      <Badge 
-                        size="sm" 
-                        color={alerta.nivel === 'critical' ? 'red' : 'orange'}
-                        variant="filled"
-                      >
-                        {alerta.mensaje}
-                      </Badge>
-                    </Group>
-                  </Paper>
-                ))}
+              <Stack gap="md">
+                {alertasActivas.map((alerta) => {
+                  const isCritical = alerta.nivel === 'critical';
+                  const messages: Record<string, string> = {
+                    'Ocupación Crítica': 'Urgencias saturada. Considere activar protocolo de derivación.',
+                    'Ocupación Alta': 'Urgencias cerca de su capacidad máxima. Monitorizar de cerca.',
+                    'Cola Excesiva': 'Alto número de pacientes esperando. Tiempo de espera aumentado.',
+                    'Tiempo Crítico': 'Tiempos de espera excesivos. Pacientes pueden derivarse a otros centros.',
+                  };
+
+                  return (
+                    <Paper
+                      key={alerta.id}
+                      p="md"
+                      radius="md"
+                      withBorder
+                      style={{
+                        background: isCritical
+                          ? 'linear-gradient(135deg, #ffe0e0 0%, #ffcccc 100%)'
+                          : 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
+                        borderLeft: `4px solid ${isCritical ? '#fa5252' : '#fd7e14'}`,
+                      }}
+                    >
+                      <Group justify="space-between" mb="xs">
+                        <Badge
+                          size="lg"
+                          color={isCritical ? 'red' : 'orange'}
+                          variant="filled"
+                        >
+                          {isCritical ? '🚨 CRÍTICO' : '⚠️ ALERTA'}
+                        </Badge>
+                        <Text size="xs" c="dimmed" fw={600}>
+                          {alerta.hospital}
+                        </Text>
+                      </Group>
+                      <Text size="sm" fw={600} mb="xs">
+                        {alerta.tipo}: {alerta.mensaje}
+                      </Text>
+                      <Text size="xs" c="dimmed" style={{ lineHeight: 1.4 }}>
+                        {messages[alerta.tipo] || 'Requiere atención inmediata del equipo de gestión.'}
+                      </Text>
+                    </Paper>
+                  );
+                })}
               </Stack>
             )}
           </Card>
         </Grid.Col>
       </Grid>
 
-      {/* Resumen de hospitales */}
+      {/* Calendario completo de eventos */}
       <Card shadow="sm" padding="lg" radius="md" withBorder>
-        <Title order={4} mb="md">🏥 Estado de la Red Hospitalaria</Title>
-        <SimpleGrid cols={{ base: 1, sm: 3 }}>
+        <Title order={4} mb="md">📅 Calendario de Eventos y Partidos</Title>
+        <EventCalendar 
+          partidos={partidos.map(p => ({
+            nombre: `${p.local} vs ${p.visitante}`,
+            fecha: p.fecha,
+            tipo: 'futbol',
+            ubicacion: p.estadio,
+            asistentes: p.asistentes,
+            factorDemanda: p.factorDemanda,
+            local: p.local,
+            visitante: p.visitante,
+            esLocal: p.esLocal,
+            estadio: p.estadio,
+          }))} 
+          eventos={eventos.map(e => ({
+            nombre: e.nombre,
+            fecha: e.fecha,
+            tipo: e.tipo,
+            ubicacion: e.ubicacion,
+            asistentes: e.asistentes,
+            factorDemanda: e.factorDemanda,
+          }))} 
+        />
+      </Card>
+
+      {/* Estado de la Red Hospitalaria - Componente visual mejorado */}
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Group justify="space-between" mb="md">
+          <div>
+            <Title order={4}>🏥 Estado de la Red Hospitalaria</Title>
+            <Text size="xs" c="dimmed">Métricas en tiempo real de todos los centros</Text>
+          </div>
+          <Badge size="lg" variant="light" color={
+            hospitalIds.some(id => (stats[id]?.nivel_saturacion || 0) > 0.85) ? 'red' :
+            hospitalIds.some(id => (stats[id]?.nivel_saturacion || 0) > 0.70) ? 'orange' : 'green'
+          }>
+            {hospitalIds.filter(id => (stats[id]?.nivel_saturacion || 0) > 0.85).length > 0
+              ? `${hospitalIds.filter(id => (stats[id]?.nivel_saturacion || 0) > 0.85).length} en situación crítica`
+              : 'Red operativa'
+            }
+          </Badge>
+        </Group>
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
           {hospitalIds.map((id) => {
             const hospital = HOSPITALES[id];
             const hospitalStats = stats[id];
-            const saturacion = hospitalStats?.nivel_saturacion || 0;
-            const coords = HOSPITAL_COORDS[id];
+
+            if (!hospitalStats) return null;
 
             return (
-              <Paper key={id} p="md" radius="md" withBorder>
-                <Group justify="space-between" mb="sm">
-                  <Text fw={600}>{hospital.nombre.split(' - ')[0]}</Text>
-                  <RingProgress
-                    size={50}
-                    thickness={5}
-                    sections={[{ value: saturacion * 100, color: getColorBySaturation(saturacion) }]}
-                    label={
-                      <Text size="xs" ta="center" fw={700}>
-                        {Math.round(saturacion * 100)}%
-                      </Text>
-                    }
-                  />
-                </Group>
-                
-                <SimpleGrid cols={2} spacing="xs">
-                  <div>
-                    <Text size="xs" c="dimmed">Boxes</Text>
-                    <Text size="sm" fw={500}>
-                      {hospitalStats?.boxes_ocupados || 0}/{hospital.num_boxes}
-                    </Text>
-                  </div>
-                  <div>
-                    <Text size="xs" c="dimmed">Observación</Text>
-                    <Text size="sm" fw={500}>
-                      {hospitalStats?.observacion_ocupadas || 0}/{hospital.num_camas_observacion}
-                    </Text>
-                  </div>
-                  <div>
-                    <Text size="xs" c="dimmed">En cola</Text>
-                    <Text size="sm" fw={500}>{hospitalStats?.pacientes_en_espera_atencion || 0}</Text>
-                  </div>
-                  <div>
-                    <Text size="xs" c="dimmed">T. espera</Text>
-                    <Text size="sm" fw={500}>{hospitalStats?.tiempo_medio_espera?.toFixed(0) || 0} min</Text>
-                  </div>
-                </SimpleGrid>
-
-                <Divider my="xs" />
-                
-                <Text size="xs" c="dimmed">
-                  📍 {coords.lat.toFixed(4)}, {coords.lon.toFixed(4)}
-                </Text>
-              </Paper>
+              <HospitalMetrics
+                key={id}
+                stats={hospitalStats}
+                hospitalName={hospital.nombre.split(' - ')[0]}
+              />
             );
           })}
         </SimpleGrid>

@@ -10,8 +10,11 @@ services:
       - MQTT_PORT=1883
       - HOSPITALES=chuac hm_modelo san_rafael
       - DURACION=0
-      - VELOCIDAD=60
+      - VELOCIDAD=1.0
       - EMERGENCIAS=true
+      # API Key para partidos de fútbol (opcional)
+      # Obtener gratis en: https://www.api-football.com/ (100 requests/día)
+      - FOOTBALL_API_KEY=${FOOTBALL_API_KEY:-}
     depends_on:
       - mosquitto
     restart: unless-stopped
@@ -96,7 +99,7 @@ services:
     build: ./frontend
     container_name: urgencias-frontend
     ports:
-      - "3002:80"
+      - "3003:80"
     environment:
       - VITE_INFLUXDB_URL=http://influxdb:8086
       - VITE_INFLUXDB_TOKEN=mi-token-secreto-urgencias-dt

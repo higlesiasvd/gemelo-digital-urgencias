@@ -83,7 +83,7 @@ urls: ## Muestra URLs de acceso
 	@echo "$(GREEN)  🌐 Accesos al Sistema$(NC)"
 	@echo "$(GREEN)════════════════════════════════════════════$(NC)"
 	@echo ""
-	@echo "  $(BLUE)🎨 UI Moderna:$(NC)    http://localhost:3002"
+	@echo "  $(BLUE)🎨 UI Moderna:$(NC)    http://localhost:3003"
 	@echo "  $(YELLOW)📊 Grafana:$(NC)      http://localhost:3001  (admin/admin)"
 	@echo "  $(YELLOW)🔴 Node-RED:$(NC)     http://localhost:1880"
 	@echo "  $(YELLOW)💾 InfluxDB:$(NC)     http://localhost:8086  (admin/adminadmin)"
@@ -106,7 +106,7 @@ ui: ## Inicia solo el frontend
 	@echo "$(GREEN)🎨 Iniciando frontend UI...$(NC)"
 	@$(COMPOSE) up -d frontend
 	@echo ""
-	@echo "$(GREEN)✓ Frontend disponible en: http://localhost:3002$(NC)"
+	@echo "$(GREEN)✓ Frontend disponible en: http://localhost:3003$(NC)"
 
 ui-build: ## Reconstruye el frontend
 	@echo "$(GREEN)🔨 Reconstruyendo frontend...$(NC)"

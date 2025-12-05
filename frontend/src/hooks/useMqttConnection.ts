@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import mqtt from 'mqtt';
 import { useHospitalStore } from '@/store/hospitalStore';
 import type { HospitalStats, AlertaPrediccion } from '@/types/hospital';
@@ -9,9 +9,30 @@ const UPDATE_THROTTLE_MS = 2000; // Solo actualizar cada 2 segundos
 export function useMqttConnection() {
   const clientRef = useRef<mqtt.MqttClient | null>(null);
   const lastUpdateRef = useRef<Record<string, number>>({});
-  const { updateStats, updateContexto, addAlert, setConnected } = useHospitalStore();
+  const isConnectedRef = useRef(false);
+  
+  const updateStats = useHospitalStore((state) => state.updateStats);
+  const updateContexto = useHospitalStore((state) => state.updateContexto);
+  const addAlert = useHospitalStore((state) => state.addAlert);
+  const setConnected = useHospitalStore((state) => state.setConnected);
+  const setPublishFunction = useHospitalStore((state) => state.setPublishFunction);
+
+  const publishMessage = useCallback((topic: string, message: object) => {
+    if (clientRef.current && clientRef.current.connected) {
+      clientRef.current.publish(topic, JSON.stringify(message));
+      return true;
+    }
+    return false;
+  }, []);
 
   useEffect(() => {
+    // Evitar múltiples conexiones
+    if (clientRef.current) {
+      return;
+    }
+
+    console.log('🔌 Connecting to MQTT broker:', MQTT_URL);
+    
     // Connect to MQTT broker
     const client = mqtt.connect(MQTT_URL, {
       clientId: `urgencias-ui-${Math.random().toString(16).slice(2, 10)}`,
@@ -22,12 +43,17 @@ export function useMqttConnection() {
     clientRef.current = client;
 
     client.on('connect', () => {
-      console.log('Connected to MQTT broker');
+      console.log('✅ Connected to MQTT broker');
+      isConnectedRef.current = true;
       setConnected(true);
+
+      // Set publish function in store
+      setPublishFunction(publishMessage);
 
       // Subscribe to hospital stats
       client.subscribe('urgencias/+/stats', (err) => {
         if (err) console.error('Error subscribing to stats:', err);
+        else console.log('📡 Subscribed to urgencias/+/stats');
       });
 
       // Subscribe to prediction alerts
@@ -93,23 +119,32 @@ export function useMqttConnection() {
     });
 
     client.on('error', (error) => {
-      console.error('MQTT error:', error);
+      console.error('❌ MQTT error:', error);
+      isConnectedRef.current = false;
       setConnected(false);
     });
 
     client.on('close', () => {
-      console.log('MQTT connection closed');
+      console.log('🔌 MQTT connection closed');
+      isConnectedRef.current = false;
       setConnected(false);
     });
 
+    client.on('reconnect', () => {
+      console.log('🔄 MQTT reconnecting...');
+    });
+
     return () => {
+      console.log('🧹 Cleaning up MQTT connection');
       if (clientRef.current) {
         clientRef.current.end();
+        clientRef.current = null;
       }
     };
-  }, [updateStats, updateContexto, addAlert, setConnected]);
+  }, [updateStats, updateContexto, addAlert, setConnected, setPublishFunction, publishMessage]);
 
   return {
     isConnected: useHospitalStore((state) => state.isConnected),
+    publishMessage,
   };
 }

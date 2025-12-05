@@ -21,6 +21,7 @@ interface HospitalStore {
   selectedHospital: string | null;
   isConnected: boolean;
   lastUpdate: Date | null;
+  publishMessage: ((topic: string, message: object) => boolean) | null;
 
   // Actions
   updateStats: (hospitalId: string, stats: HospitalStats) => void;
@@ -29,6 +30,7 @@ interface HospitalStore {
   clearOldAlerts: (maxAge: number) => void;
   setSelectedHospital: (hospitalId: string | null) => void;
   setConnected: (connected: boolean) => void;
+  setPublishFunction: (fn: (topic: string, message: object) => boolean) => void;
   reset: () => void;
 }
 
@@ -39,6 +41,7 @@ export const useHospitalStore = create<HospitalStore>((set) => ({
   selectedHospital: null,
   isConnected: false,
   lastUpdate: null,
+  publishMessage: null,
 
   updateStats: (hospitalId, stats) =>
     set((state) => ({
@@ -76,6 +79,9 @@ export const useHospitalStore = create<HospitalStore>((set) => ({
   setConnected: (connected) =>
     set({ isConnected: connected }),
 
+  setPublishFunction: (fn) =>
+    set({ publishMessage: fn }),
+
   reset: () =>
     set({
       stats: {},
@@ -83,5 +89,6 @@ export const useHospitalStore = create<HospitalStore>((set) => ({
       selectedHospital: null,
       isConnected: false,
       lastUpdate: null,
+      publishMessage: null,
     }),
 }));

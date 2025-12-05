@@ -42,7 +42,7 @@ cp .env.example .env
 npm run dev
 ```
 
-La aplicación estará disponible en [http://localhost:5173](http://localhost:5173) (dev) o [http://localhost:3002](http://localhost:3002) (Docker)
+La aplicación estará disponible en [http://localhost:5173](http://localhost:5173) (dev) o [http://localhost:3003](http://localhost:3003) (Docker)
 
 ### Scripts Disponibles
 
@@ -62,7 +62,7 @@ npm run lint     # Linter
 docker build -t urgencias-frontend .
 
 # Ejecutar contenedor
-docker run -p 3002:80 urgencias-frontend
+docker run -p 3003:80 urgencias-frontend
 ```
 
 ### Con Docker Compose
@@ -72,7 +72,7 @@ docker run -p 3002:80 urgencias-frontend
 docker-compose up -d frontend
 ```
 
-La UI estará disponible en [http://localhost:3002](http://localhost:3002)
+La UI estará disponible en [http://localhost:3003](http://localhost:3003)
 
 ## 📐 Arquitectura
 

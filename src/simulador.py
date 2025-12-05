@@ -120,14 +120,14 @@ class ConfigHospital:
     lon: float  # Longitud para el mapa
 
 
-# Hospitales de A Coruña
+# Hospitales de A Coruña - Configurados para colas realistas (30-60 min)
 HOSPITALES = {
     "chuac": ConfigHospital(
         id="chuac",
         nombre="CHUAC - Complexo Hospitalario Universitario A Coruña",
         num_boxes=40,
         num_camas_observacion=30,
-        pacientes_dia_base=420,
+        pacientes_dia_base=720,  # Aumentado para colas de 30-60 min (era 420)
         lat=43.3487,
         lon=-8.4066
     ),
@@ -136,7 +136,7 @@ HOSPITALES = {
         nombre="HM Modelo",
         num_boxes=15,
         num_camas_observacion=10,
-        pacientes_dia_base=120,
+        pacientes_dia_base=240,  # Aumentado para colas (era 120)
         lat=43.3623,
         lon=-8.4115
     ),
@@ -145,7 +145,7 @@ HOSPITALES = {
         nombre="Hospital San Rafael",
         num_boxes=12,
         num_camas_observacion=8,
-        pacientes_dia_base=80,
+        pacientes_dia_base=180,  # Aumentado para colas (era 80)
         lat=43.3571,
         lon=-8.4189
     ),
@@ -360,9 +360,10 @@ class HospitalUrgencias:
         else:  # Madrugada
             factor = 0.5
         
-        # Si hay emergencia activa, aumentar llegadas
+        # Si hay emergencia activa, aumentar llegadas significativamente
+        # para forzar saturación y coordinación entre hospitales
         if self.emergencia_activa:
-            factor *= 2.0
+            factor *= 3.0
         
         tasa = pacientes_por_minuto * factor
         return random.expovariate(tasa)
@@ -377,9 +378,10 @@ class HospitalUrgencias:
                 contexto
             )
 
-            # Si hay emergencia activa, reducir tiempo entre llegadas
+            # Si hay emergencia activa, reducir tiempo entre llegadas drásticamente
+            # para forzar saturación y trigger de coordinación hospitalaria
             if self.emergencia_activa:
-                tiempo_espera *= 0.5
+                tiempo_espera *= 0.25
 
             yield self.env.timeout(tiempo_espera)
 
@@ -592,8 +594,13 @@ class HospitalUrgencias:
                 "en_cola": len(self.boxes.queue)
             }))
     
-    def activar_emergencia(self, tipo: str):
-        """Activa modo emergencia (accidente múltiple, brote, evento masivo)"""
+    def activar_emergencia(self, tipo: str, num_pacientes: int = 0):
+        """Activa modo emergencia (accidente múltiple, brote, evento masivo)
+        
+        Args:
+            tipo: Tipo de emergencia
+            num_pacientes: Número de pacientes a generar por el coordinador inteligente
+        """
         self.emergencia_activa = True
         self.tipo_emergencia = tipo
         print(f"🚨 [{self.config.id}] EMERGENCIA ACTIVADA: {tipo}")
@@ -604,9 +611,55 @@ class HospitalUrgencias:
                 json.dumps({
                     "tipo": "emergencia_activada",
                     "emergencia": tipo,
+                    "num_pacientes": num_pacientes,
                     "timestamp": self.env.now
                 })
             )
+        
+        # Generar pacientes de emergencia si se especificó número
+        if num_pacientes > 0:
+            self.env.process(self._generar_pacientes_emergencia(tipo, num_pacientes))
+    
+    def _generar_pacientes_emergencia(self, tipo: str, num_pacientes: int):
+        """Genera pacientes de emergencia en ráfaga"""
+        print(f"🚑 [{self.config.id}] Generando {num_pacientes} pacientes de emergencia...")
+        
+        # Mapear tipo de emergencia a niveles de triaje más probables
+        niveles_emergencia = {
+            "ACCIDENTE_TRAFICO": [NivelTriaje.ROJO, NivelTriaje.NARANJA, NivelTriaje.AMARILLO],
+            "INCENDIO": [NivelTriaje.ROJO, NivelTriaje.NARANJA, NivelTriaje.AMARILLO],
+            "INTOXICACION_MASIVA": [NivelTriaje.NARANJA, NivelTriaje.AMARILLO, NivelTriaje.VERDE],
+            "EVENTO_DEPORTIVO": [NivelTriaje.AMARILLO, NivelTriaje.VERDE, NivelTriaje.AZUL],
+            "GRIPE_MASIVA": [NivelTriaje.AMARILLO, NivelTriaje.VERDE, NivelTriaje.VERDE],
+            "OLA_CALOR": [NivelTriaje.AMARILLO, NivelTriaje.NARANJA, NivelTriaje.VERDE],
+        }
+        
+        niveles = niveles_emergencia.get(tipo, [NivelTriaje.AMARILLO, NivelTriaje.NARANJA, NivelTriaje.VERDE])
+        
+        for i in range(num_pacientes):
+            # Pequeño delay entre pacientes (1-5 minutos simulados)
+            yield self.env.timeout(random.uniform(1, 5))
+            
+            # Crear paciente de emergencia
+            nivel = random.choice(niveles)
+            paciente = Paciente(
+                id=f"EMR-{self.config.id}-{int(self.env.now)}-{i}",
+                nombre=f"Paciente Emergencia {i+1}",
+                nivel_triaje=nivel,
+                patologia=f"Emergencia {tipo}",
+                hora_llegada=self.env.now,
+                hospital_id=self.config.id
+            )
+            
+            self.pacientes_en_sistema.append(paciente)
+            self.stats.pacientes_totales += 1
+            
+            # Iniciar proceso de atención
+            self.env.process(self.proceso_atencion_paciente(paciente))
+            
+            print(f"   🏥 [{self.config.id}] Paciente {i+1}/{num_pacientes} - Triaje: {nivel.value}")
+        
+        print(f"✅ [{self.config.id}] {num_pacientes} pacientes de emergencia ingresados")
     
     def desactivar_emergencia(self):
         """Desactiva modo emergencia"""
@@ -630,18 +683,24 @@ class HospitalUrgencias:
 
 class MQTTManager:
     """Gestiona la conexión MQTT"""
-    
+
     def __init__(self, broker: str = "localhost", port: int = 1883):
         self.broker = broker
         self.port = port
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         self.connected = False
-        
+        self.hospitales = {}  # Referencia a los hospitales para comandos
+
+    def set_hospitales(self, hospitales: Dict[str, 'HospitalUrgencias']):
+        """Configura la referencia a los hospitales para comandos"""
+        self.hospitales = hospitales
+
     def conectar(self):
         """Conecta al broker MQTT"""
         try:
             self.client.on_connect = self._on_connect
             self.client.on_disconnect = self._on_disconnect
+            self.client.on_message = self._on_message  # Añadir callback de mensajes
             self.client.connect(self.broker, self.port, 60)
             self.client.loop_start()
             return True
@@ -649,18 +708,130 @@ class MQTTManager:
             print(f"⚠️  No se pudo conectar a MQTT ({self.broker}:{self.port}): {e}")
             print("   La simulación continuará sin publicar eventos.")
             return False
-    
+
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:
             self.connected = True
             print(f"✅ Conectado a MQTT broker ({self.broker}:{self.port})")
+            # Suscribirse al topic de comandos para todos los hospitales
+            client.subscribe("urgencias/+/comando")
+            # Suscribirse al topic del coordinador central para incidentes globales
+            client.subscribe("urgencias/coordinador/incidente")
+            print(f"📡 Suscrito a urgencias/+/comando para recibir comandos")
+            print(f"📡 Suscrito a urgencias/coordinador/incidente para incidentes globales")
         else:
             print(f"❌ Error de conexión MQTT: {rc}")
+
+    def _on_message(self, client, userdata, msg):
+        """Callback para mensajes MQTT - maneja comandos de incidentes"""
+        try:
+            topic = msg.topic
+            payload = json.loads(msg.payload.decode())
+            
+            # Manejar incidente global del coordinador
+            if topic == "urgencias/coordinador/incidente":
+                print(f"🚨 Comando de incidente global recibido: {payload}")
+                self._procesar_incidente_global(payload)
+                return
+            
+            # Extraer hospital_id del topic (formato: urgencias/{hospital_id}/comando)
+            parts = topic.split('/')
+            if len(parts) >= 3 and parts[2] == 'comando':
+                hospital_id = parts[1]
+                print(f"📨 Comando recibido para {hospital_id}: {payload.get('tipo', 'unknown')}")
+
+                # Procesar comando de activar emergencia (legacy - hospital específico)
+                if payload.get('tipo') == 'activar_emergencia' and hospital_id in self.hospitales:
+                    tipo_emergencia = payload.get('emergencia', 'accidente_multiple')
+                    num_pacientes = payload.get('num_pacientes', 10)
+                    hospital = self.hospitales[hospital_id]
+                    hospital.activar_emergencia(tipo_emergencia, num_pacientes)
+                    print(f"✅ Emergencia '{tipo_emergencia}' activada en {hospital_id}")
+
+        except Exception as e:
+            print(f"⚠️  Error procesando comando MQTT: {e}")
+            import traceback
+            traceback.print_exc()
     
+    def _procesar_incidente_global(self, payload):
+        """Procesa un incidente global usando el coordinador inteligente"""
+        from domain.services.coordinador import CoordinadorCentral, TipoEmergencia, UBICACIONES_INCIDENTES
+        
+        tipo_emergencia_str = payload.get('tipo_emergencia', 'ACCIDENTE_TRAFICO')
+        num_pacientes_total = payload.get('num_pacientes', 20)
+        ubicacion_nombre = payload.get('ubicacion', 'centro')
+        
+        # Mapear string a enum TipoEmergencia
+        tipo_mapping = {
+            'ACCIDENTE_TRAFICO': TipoEmergencia.ACCIDENTE_MULTIPLE,
+            'ACCIDENTE_MULTIPLE': TipoEmergencia.ACCIDENTE_MULTIPLE,
+            'INCENDIO': TipoEmergencia.INCENDIO,
+            'INTOXICACION_MASIVA': TipoEmergencia.INTOXICACION_MASIVA,
+            'EVENTO_DEPORTIVO': TipoEmergencia.EVENTO_MASIVO,
+            'GRIPE_MASIVA': TipoEmergencia.BROTE_VIRICO,
+            'OLA_CALOR': TipoEmergencia.BROTE_VIRICO,  # Mapear a brote vírico
+            'BROTE_VIRICO': TipoEmergencia.BROTE_VIRICO,
+        }
+        
+        tipo_emergencia = tipo_mapping.get(tipo_emergencia_str.upper(), TipoEmergencia.ACCIDENTE_MULTIPLE)
+        
+        # Mapear nombre de ubicación a coordenadas
+        ubicacion_mapping = {
+            'autopista': UBICACIONES_INCIDENTES.get('autopista_a6'),
+            'riazor': UBICACIONES_INCIDENTES.get('riazor'),
+            'centro': UBICACIONES_INCIDENTES.get('centro_ciudad'),
+            'marineda': UBICACIONES_INCIDENTES.get('marineda'),
+        }
+        
+        ubicacion_coords = ubicacion_mapping.get(ubicacion_nombre.lower())
+        
+        print(f"🚨 INCIDENTE GLOBAL: {tipo_emergencia.value}")
+        print(f"   📍 Ubicación: {ubicacion_nombre} -> {ubicacion_coords}")
+        print(f"   👥 Pacientes solicitados: {num_pacientes_total}")
+        
+        # Usar el coordinador existente de la instancia SimuladorUrgencias
+        # El MQTTManager tiene referencia a hospitales pero necesitamos acceder al coordinador
+        if not self.hospitales:
+            print("⚠️  No hay hospitales configurados")
+            return
+        
+        # Crear coordinador temporal para la distribución
+        coordinador = CoordinadorCentral(
+            env=list(self.hospitales.values())[0].env,
+            hospitales=self.hospitales,
+            mqtt_client=self.client
+        )
+        
+        # Obtener distribución inteligente
+        distribucion = coordinador.distribuir_pacientes_incidente(
+            tipo_emergencia=tipo_emergencia,
+            ubicacion=ubicacion_coords
+        )
+        
+        print(f"📊 Distribución calculada:")
+        for hospital_id, num_pacientes in distribucion.items():
+            print(f"   🏥 {hospital_id}: {num_pacientes} pacientes")
+        
+        # Activar emergencia en cada hospital con sus pacientes asignados
+        for hospital_id, num_pacientes in distribucion.items():
+            if hospital_id in self.hospitales and num_pacientes > 0:
+                hospital = self.hospitales[hospital_id]
+                hospital.activar_emergencia(tipo_emergencia.value, num_pacientes)
+        
+        # Publicar resumen de la distribución
+        if self.connected:
+            self.client.publish("urgencias/coordinador/distribucion", json.dumps({
+                "tipo_emergencia": tipo_emergencia.value,
+                "ubicacion": ubicacion_nombre,
+                "total_pacientes": sum(distribucion.values()),
+                "distribucion": [{"hospital": h, "pacientes": p} for h, p in distribucion.items()],
+                "timestamp": datetime.now().isoformat()
+            }))
+
     def _on_disconnect(self, client, userdata, rc, properties=None, reason=None):
         self.connected = False
         print("⚠️  Desconectado de MQTT")
-    
+
     def desconectar(self):
         """Desconecta del broker"""
         self.client.loop_stop()
@@ -727,6 +898,11 @@ class SimuladorUrgencias:
                 print(f"   - Observación: {config.num_camas_observacion}")
                 print(f"   - Pacientes/día estimados: {config.pacientes_dia_base}")
                 print(f"   - GeneradorPacientes: ✅ Activo con APIs gratuitas")
+
+        # Configurar MQTT manager con referencia a hospitales para comandos
+        if mqtt_client:
+            self.mqtt_manager.set_hospitales(self.hospitales)
+            print("📡 MQTT configurado para recibir comandos de incidentes")
 
         # Iniciar proceso de publicación de datos contextuales
         if mqtt_client:

@@ -98,7 +98,7 @@ make demo
 # 3. Acceder a las interfaces
 
 # UI Moderna (React + Mantine) - RECOMENDADO
-open http://localhost:3002
+open http://localhost:3003
 
 # Grafana (Dashboards avanzados)
 open http://localhost:3001  # usuario: admin, password: admin
@@ -152,7 +152,7 @@ open http://localhost:3001  # usuario: admin, password: admin
 | **Simulador**   | Python + SimPy   | -      | Motor de simulación de eventos discretos         |
 | **Coordinador** | Python           | -      | Gestión de derivaciones y emergencias            |
 | **Predictor**   | Python + Prophet | -      | Predicción de demanda y detección de anomalías |
-| **Frontend UI** | React + Mantine  | 3002   | Interfaz de usuario moderna y responsive         |
+| **Frontend UI** | React + Mantine  | 3003   | Interfaz de usuario moderna y responsive         |
 | **Mosquitto**   | MQTT Broker      | 1883   | Mensajería en tiempo real                        |
 | **Node-RED**    | Node.js          | 1880   | Procesamiento de flujos de datos                  |
 | **InfluxDB**    | Time Series DB   | 8086   | Almacenamiento de métricas                       |

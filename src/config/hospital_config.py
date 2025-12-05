@@ -41,40 +41,40 @@ class ConfigTriaje:
     edad_std: float = 20
 
 
-# Configuración basada en datos reales del Sistema Nacional de Salud
+# Configuración basada en datos reales del Sistema Nacional de Salud (tiempos más realistas)
 CONFIG_TRIAJE = {
     NivelTriaje.ROJO: ConfigTriaje(
         nombre="Resucitación", color="rojo",
         tiempo_max_espera=0, probabilidad=0.001,
-        tiempo_atencion_min=60, tiempo_atencion_max=120,
+        tiempo_atencion_min=90, tiempo_atencion_max=180,  # Casos críticos requieren más tiempo
         prob_observacion=0.9, prob_ingreso=0.7,
         edad_media=65, edad_std=18  # Casos críticos suelen ser mayores
     ),
     NivelTriaje.NARANJA: ConfigTriaje(
         nombre="Emergencia", color="naranja",
         tiempo_max_espera=10, probabilidad=0.083,
-        tiempo_atencion_min=45, tiempo_atencion_max=90,
+        tiempo_atencion_min=60, tiempo_atencion_max=120,  # Emergencias requieren más evaluación
         prob_observacion=0.6, prob_ingreso=0.4,
         edad_media=60, edad_std=20
     ),
     NivelTriaje.AMARILLO: ConfigTriaje(
         nombre="Urgente", color="amarillo",
         tiempo_max_espera=60, probabilidad=0.179,
-        tiempo_atencion_min=30, tiempo_atencion_max=60,
+        tiempo_atencion_min=40, tiempo_atencion_max=80,  # Casos urgentes necesitan más tiempo
         prob_observacion=0.3, prob_ingreso=0.15,
         edad_media=52, edad_std=22
     ),
     NivelTriaje.VERDE: ConfigTriaje(
         nombre="Menos urgente", color="verde",
         tiempo_max_espera=120, probabilidad=0.627,
-        tiempo_atencion_min=15, tiempo_atencion_max=30,
+        tiempo_atencion_min=20, tiempo_atencion_max=45,  # Casos leves pero realista
         prob_observacion=0.05, prob_ingreso=0.02,
         edad_media=40, edad_std=25  # Más jóvenes
     ),
     NivelTriaje.AZUL: ConfigTriaje(
         nombre="No urgente", color="azul",
         tiempo_max_espera=240, probabilidad=0.11,
-        tiempo_atencion_min=10, tiempo_atencion_max=20,
+        tiempo_atencion_min=15, tiempo_atencion_max=30,  # Consultas rápidas
         prob_observacion=0.01, prob_ingreso=0.005,
         edad_media=35, edad_std=20  # Más jóvenes
     ),
@@ -179,14 +179,14 @@ class ConfigHospital:
             self.especialidades = ["medicina_general", "traumatologia", "pediatria"]
 
 
-# Hospitales de A Coruña con datos reales
+# Hospitales de A Coruña con datos reales (ajustados para mayor presión en urgencias)
 HOSPITALES = {
     "chuac": ConfigHospital(
         id="chuac",
         nombre="CHUAC - Complexo Hospitalario Universitario A Coruña",
         num_boxes=40,
         num_camas_observacion=30,
-        pacientes_dia_base=420,
+        pacientes_dia_base=550,  # Aumentado de 420 a 550 para más colapso
         lat=43.3487,
         lon=-8.4066,
         tipo="publico",
@@ -198,7 +198,7 @@ HOSPITALES = {
         nombre="HM Modelo",
         num_boxes=15,
         num_camas_observacion=10,
-        pacientes_dia_base=120,
+        pacientes_dia_base=180,  # Aumentado de 120 a 180 para más presión
         lat=43.3623,
         lon=-8.4115,
         tipo="privado",
@@ -209,7 +209,7 @@ HOSPITALES = {
         nombre="Hospital San Rafael",
         num_boxes=12,
         num_camas_observacion=8,
-        pacientes_dia_base=80,
+        pacientes_dia_base=130,  # Aumentado de 80 a 130 para más presión
         lat=43.3571,
         lon=-8.4189,
         tipo="privado",
@@ -222,23 +222,23 @@ HOSPITALES = {
 # PATRONES TEMPORALES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Patrón horario típico (factor multiplicador sobre media)
+# Patrón horario típico (factor multiplicador sobre media) - Ajustado para mayor colapso en horas pico
 PATRON_HORARIO = {
-    0: 0.5, 1: 0.4, 2: 0.3, 3: 0.3, 4: 0.3, 5: 0.4,
-    6: 0.6, 7: 0.8, 8: 1.0, 9: 1.3, 10: 1.5, 11: 1.6,
-    12: 1.5, 13: 1.3, 14: 1.1, 15: 1.2, 16: 1.4, 17: 1.5,
-    18: 1.4, 19: 1.3, 20: 1.2, 21: 1.0, 22: 0.8, 23: 0.6
+    0: 0.6, 1: 0.5, 2: 0.4, 3: 0.4, 4: 0.4, 5: 0.5,
+    6: 0.7, 7: 0.9, 8: 1.2, 9: 1.6, 10: 1.8, 11: 1.9,  # Mañana más intensa
+    12: 1.7, 13: 1.5, 14: 1.3, 15: 1.4, 16: 1.7, 17: 1.8,  # Tarde más intensa
+    18: 1.6, 19: 1.5, 20: 1.4, 21: 1.2, 22: 0.9, 23: 0.7  # Noche más activa
 }
 
-# Patrón semanal (lunes=0, domingo=6)
+# Patrón semanal (lunes=0, domingo=6) - Ajustado para mayor presión durante la semana
 PATRON_SEMANAL = {
-    0: 1.1,  # Lunes - acumulado fin de semana
-    1: 1.0,  # Martes
-    2: 1.0,  # Miércoles
-    3: 1.0,  # Jueves
-    4: 1.1,  # Viernes
-    5: 0.9,  # Sábado
-    6: 0.9   # Domingo
+    0: 1.3,  # Lunes - acumulado fin de semana más intenso
+    1: 1.15,  # Martes - más presión
+    2: 1.1,  # Miércoles - más presión
+    3: 1.1,  # Jueves - más presión
+    4: 1.2,  # Viernes - más presión antes del fin de semana
+    5: 1.0,  # Sábado - aumentado de 0.9
+    6: 0.95   # Domingo - aumentado de 0.9
 }
 
 # Factores estacionales (por mes)
