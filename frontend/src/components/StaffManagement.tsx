@@ -56,7 +56,11 @@ const HOSPITALES = [
   { value: 'san_rafael', label: 'Hospital San Rafael - A Coruña' },
 ];
 
-export function StaffManagement() {
+interface StaffManagementProps {
+  selectedHospital?: string;
+}
+
+export function StaffManagement({ selectedHospital: propHospital }: StaffManagementProps) {
   const [activeTab, setActiveTab] = useState<string | null>('dashboard');
   const [loading, setLoading] = useState(true);
   const [apiConnected, setApiConnected] = useState<boolean | null>(null);
@@ -66,7 +70,8 @@ export function StaffManagement() {
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [solicitudes, setSolicitudes] = useState<SolicitudRefuerzo[]>([]);
 
-  const [selectedHospital, setSelectedHospital] = useState<string>('all');
+  // Usar el hospital del prop si está definido
+  const [selectedHospital, setSelectedHospital] = useState<string>(propHospital || 'all');
   const [selectedRol, setSelectedRol] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -85,6 +90,13 @@ export function StaffManagement() {
   });
 
   const { publishMessage } = useHospitalStore();
+
+  // Sincronizar con el hospital seleccionado desde el padre
+  useEffect(() => {
+    if (propHospital) {
+      setSelectedHospital(propHospital);
+    }
+  }, [propHospital]);
 
   useEffect(() => {
     const checkApiConnection = async () => {

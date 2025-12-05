@@ -362,12 +362,12 @@ export function GemeloDigital() {
 
           {/* Tab What-If */}
           <Tabs.Panel value="whatif" pt="md">
-            <WhatIfSimulator />
+            <WhatIfSimulator selectedHospital={selectedHospital} />
           </Tabs.Panel>
 
           {/* Tab Gestión de Personal */}
           <Tabs.Panel value="staff" pt="md">
-            <StaffManagement />
+            <StaffManagement selectedHospital={selectedHospital} />
           </Tabs.Panel>
         </Tabs>
       </Stack>

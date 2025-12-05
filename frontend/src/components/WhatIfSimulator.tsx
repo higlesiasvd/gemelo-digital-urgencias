@@ -106,7 +106,11 @@ const PRESET_SCENARIOS: Scenario[] = [
   },
 ];
 
-export function WhatIfSimulator() {
+interface WhatIfSimulatorProps {
+  selectedHospital?: string;
+}
+
+export function WhatIfSimulator({ selectedHospital = 'chuac' }: WhatIfSimulatorProps) {
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
   const [customParams, setCustomParams] = useState<Record<string, any>>({});
   const [isSimulating, setIsSimulating] = useState(false);
@@ -117,7 +121,12 @@ export function WhatIfSimulator() {
 
   const selectScenario = (scenario: Scenario) => {
     setActiveScenario(scenario);
-    setCustomParams(scenario.params);
+    // Usar el hospital seleccionado del padre si el escenario tiene hospital
+    const params = { ...scenario.params };
+    if (params.hospital && params.hospital !== 'all') {
+      params.hospital = selectedHospital;
+    }
+    setCustomParams(params);
     setResults(null);
   };
 
