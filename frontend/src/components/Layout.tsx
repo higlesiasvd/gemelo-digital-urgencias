@@ -62,7 +62,7 @@ export function Layout() {
   const navItems = [
     { icon: IconDashboard, label: 'Vista General', path: '/' },
     { icon: IconActivity, label: 'Operacional', path: '/operacional' },
-    { icon: IconBrain, label: 'Predicciones', path: '/predicciones' },
+    { icon: IconBrain, label: 'Gemelo Digital & Predicciones', path: '/predicciones' },
     { icon: IconMapPin, label: 'Mapa y Eventos', path: '/mapa', badge: criticalAlerts },
   ];
 
