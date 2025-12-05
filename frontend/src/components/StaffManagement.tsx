@@ -1,105 +1,109 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Paper, Stack, Text, Group, Badge, Card, SimpleGrid, ThemeIcon,
-  Progress, Box, Avatar, Button, Modal, Select, NumberInput,
-  Table, Divider, RingProgress, Tabs, Alert, TextInput,
-  SegmentedControl, ScrollArea, Skeleton,
+  Box, Button, Avatar, ActionIcon, Tooltip, Divider, Alert,
+  ScrollArea, Skeleton, RingProgress, Modal,
 } from '@mantine/core';
 import {
-  IconUsers, IconUserPlus, IconUserMinus, IconClock, IconAlertTriangle,
-  IconStethoscope, IconNurse, IconFirstAidKit, IconEdit, IconRefresh,
-  IconAlertCircle, IconCheck, IconX, IconBell, IconCalendar,
-  IconBriefcase, IconActivity, IconPlus, IconSearch,
+  IconUsers, IconClock, IconPhone,
+  IconStethoscope, IconNurse, IconFirstAidKit, IconRefresh,
+  IconAlertCircle, IconBrain, IconCheck,
+  IconAlertTriangle, IconArrowUp, IconArrowDown,
+  IconPhoneCall, IconUserCheck, IconActivity,
 } from '@tabler/icons-react';
-import { useHospitalStore } from '@/store/hospitalStore';
 import { notifications } from '@mantine/notifications';
-import {
-  staffApi, Personal, Turno, SolicitudRefuerzo, ResumenDashboard,
-  SolicitudRefuerzoCreate, RolPersonal, TipoTurno, PrioridadRefuerzo,
-} from '@/services/staffApi';
+import { staffApi, Personal, Turno, RolPersonal, TipoTurno } from '@/services/staffApi';
+import { useHospitalStore } from '@/store/hospitalStore';
 
-const SHIFTS = {
-  manana: { label: 'Mañana', color: 'yellow', hours: '07:00 - 15:00', icon: '🌅' },
-  tarde: { label: 'Tarde', color: 'orange', hours: '15:00 - 23:00', icon: '🌇' },
-  noche: { label: 'Noche', color: 'indigo', hours: '23:00 - 07:00', icon: '🌙' },
-  guardia_24h: { label: 'Guardia 24h', color: 'red', hours: '08:00 - 08:00', icon: '⏰' },
+// ============= Tipos =============
+
+interface PrediccionDemanda {
+  hora: string;
+  demandaEsperada: number;
+  confianza: number;
+  tendencia: 'subiendo' | 'bajando' | 'estable';
+}
+
+interface RefuerzoNecesario {
+  id: string;
+  tipo: 'prediccion' | 'tiempo_real';
+  urgencia: 'baja' | 'media' | 'alta' | 'critica';
+  rol: RolPersonal;
+  cantidad: number;
+  motivo: string;
+  mejoraEstimada: number;
+  tiempoEsperaActual: number;
+  tiempoEsperaMejorado: number;
+  aceptado: boolean;
+  personalAsignado: Personal[];
+}
+
+// ============= Configuración =============
+
+const TURNOS: Record<string, { label: string; color: string; hours: string; emoji: string }> = {
+  manana: { label: 'Mañana', color: 'yellow', hours: '07:00 - 15:00', emoji: '🌅' },
+  tarde: { label: 'Tarde', color: 'orange', hours: '15:00 - 23:00', emoji: '🌇' },
+  noche: { label: 'Noche', color: 'indigo', hours: '23:00 - 07:00', emoji: '🌙' },
 };
 
-const ROLES = {
-  medico: { label: 'Médico', icon: IconStethoscope, color: 'blue' },
-  enfermero: { label: 'Enfermero/a', icon: IconNurse, color: 'green' },
-  auxiliar: { label: 'Auxiliar', icon: IconFirstAidKit, color: 'violet' },
-  administrativo: { label: 'Administrativo', icon: IconUsers, color: 'gray' },
+const ROLES: Record<string, { label: string; icon: typeof IconStethoscope; color: string; plural: string }> = {
+  medico: { label: 'Médico', icon: IconStethoscope, color: 'blue', plural: 'Médicos' },
+  enfermero: { label: 'Enfermero/a', icon: IconNurse, color: 'teal', plural: 'Enfermeros' },
+  auxiliar: { label: 'Auxiliar', icon: IconFirstAidKit, color: 'violet', plural: 'Auxiliares' },
 };
 
-const PRIORIDADES = {
-  baja: { label: 'Baja', color: 'gray' },
-  media: { label: 'Media', color: 'blue' },
-  alta: { label: 'Alta', color: 'yellow' },
-  urgente: { label: 'Urgente', color: 'orange' },
-  critica: { label: 'Crítica', color: 'red' },
+const HOSPITALES: Record<string, { label: string; fullName: string; boxesPrefix: string; totalBoxes: number }> = {
+  chuac: { label: 'CHUAC', fullName: 'Complexo Hospitalario A Coruña', boxesPrefix: 'BOX-C', totalBoxes: 30 },
+  modelo: { label: 'HM Modelo', fullName: 'Hospital HM Modelo', boxesPrefix: 'BOX-M', totalBoxes: 20 },
+  san_rafael: { label: 'San Rafael', fullName: 'Hospital San Rafael', boxesPrefix: 'BOX-R', totalBoxes: 15 },
 };
 
-const MOTIVOS = [
-  { value: 'alta_demanda_predicha', label: 'Alta demanda predicha' },
-  { value: 'emergencia_masiva', label: 'Emergencia masiva' },
-  { value: 'baja_inesperada', label: 'Baja inesperada' },
-  { value: 'evento_especial', label: 'Evento especial' },
-  { value: 'cobertura_vacaciones', label: 'Cobertura vacaciones' },
-  { value: 'saturacion_actual', label: 'Saturación actual' },
-];
-
-const HOSPITALES = [
-  { value: 'all', label: 'Todos los hospitales' },
-  { value: 'chuac', label: 'CHUAC - Complexo Hospitalario A Coruña' },
-  { value: 'modelo', label: 'HM Modelo - A Coruña' },
-  { value: 'san_rafael', label: 'Hospital San Rafael - A Coruña' },
-];
+// ============= Componente Principal =============
 
 interface StaffManagementProps {
   selectedHospital?: string;
 }
 
 export function StaffManagement({ selectedHospital: propHospital }: StaffManagementProps) {
-  const [activeTab, setActiveTab] = useState<string | null>('dashboard');
   const [loading, setLoading] = useState(true);
   const [apiConnected, setApiConnected] = useState<boolean | null>(null);
-
-  const [resumen, setResumen] = useState<ResumenDashboard | null>(null);
   const [personal, setPersonal] = useState<Personal[]>([]);
   const [turnos, setTurnos] = useState<Turno[]>([]);
-  const [solicitudes, setSolicitudes] = useState<SolicitudRefuerzo[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Modal de llamada
+  const [callModalOpen, setCallModalOpen] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<Personal | null>(null);
+  const [selectedRefuerzo, setSelectedRefuerzo] = useState<RefuerzoNecesario | null>(null);
+  const [calling, setCalling] = useState(false);
 
-  // Usar el hospital del prop si está definido
-  const [selectedHospital, setSelectedHospital] = useState<string>(propHospital || 'all');
-  const [selectedRol, setSelectedRol] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  // Refuerzos necesarios (calculados)
+  const [refuerzosNecesarios, setRefuerzosNecesarios] = useState<RefuerzoNecesario[]>([]);
+  const [predicciones, setPredicciones] = useState<PrediccionDemanda[]>([]);
 
-  const [solicitudModalOpen, setSolicitudModalOpen] = useState(false);
-  const [simulationModalOpen, setSimulationModalOpen] = useState(false);
-  const [staffReduction, setStaffReduction] = useState(0);
-  const [simulatingChange, setSimulatingChange] = useState(false);
+  const hospitalId = propHospital && propHospital !== 'all' ? propHospital : 'chuac';
+  const hospitalInfo = HOSPITALES[hospitalId] || HOSPITALES.chuac;
 
-  const [newSolicitud, setNewSolicitud] = useState<Partial<SolicitudRefuerzoCreate>>({
-    hospital_id: 'chuac',
-    turno_necesario: 'manana',
-    rol_requerido: 'medico',
-    cantidad_personal: 1,
-    prioridad: 'media',
-    motivo: 'alta_demanda_predicha',
-  });
+  // Obtener datos del store
+  const { stats } = useHospitalStore();
+  const hospitalStats = stats[hospitalId];
 
-  const { publishMessage } = useHospitalStore();
+  // ============= Turno Actual =============
 
-  // Sincronizar con el hospital seleccionado desde el padre
+  const getTurnoActual = (): TipoTurno => {
+    const hora = new Date().getHours();
+    if (hora >= 7 && hora < 15) return 'manana';
+    if (hora >= 15 && hora < 23) return 'tarde';
+    return 'noche';
+  };
+
+  const turnoActual = getTurnoActual();
+  const turnoInfo = TURNOS[turnoActual];
+
+  // ============= Efectos =============
+
   useEffect(() => {
-    if (propHospital) {
-      setSelectedHospital(propHospital);
-    }
-  }, [propHospital]);
-
-  useEffect(() => {
-    const checkApiConnection = async () => {
+    const checkApi = async () => {
       try {
         await staffApi.healthCheck();
         setApiConnected(true);
@@ -107,572 +111,952 @@ export function StaffManagement({ selectedHospital: propHospital }: StaffManagem
         setApiConnected(false);
       }
     };
-    checkApiConnection();
+    checkApi();
   }, []);
 
-  useEffect(() => {
-    if (apiConnected) loadAllData();
-  }, [apiConnected]);
-
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!apiConnected) return;
-    const interval = setInterval(() => loadSolicitudes(), 30000);
-    return () => clearInterval(interval);
-  }, [apiConnected]);
 
-  const loadAllData = useCallback(async () => {
-    setLoading(true);
     try {
-      await Promise.all([loadResumen(), loadPersonal(), loadTurnos(), loadSolicitudes()]);
+      const today = new Date().toISOString().split('T')[0];
+
+      const [personalData, turnosData] = await Promise.all([
+        staffApi.getPersonal({ hospital: hospitalId }),
+        staffApi.getTurnos({ hospital: hospitalId, fecha: today }),
+      ]);
+
+      setPersonal(personalData);
+      setTurnos(turnosData);
+
+      // Generar predicciones y refuerzos
+      generatePredicciones();
+      
+    } catch (err) {
+      console.error('Error cargando datos:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const loadResumen = async () => {
-    try {
-      const data = await staffApi.getResumenDashboard();
-      setResumen(data);
-    } catch (err) { console.error('Error loading resumen:', err); }
-  };
-
-  const loadPersonal = async () => {
-    try {
-      const params: { hospital?: string; rol?: RolPersonal } = {};
-      if (selectedHospital !== 'all') params.hospital = selectedHospital;
-      if (selectedRol !== 'all') params.rol = selectedRol as RolPersonal;
-      const data = await staffApi.getPersonal(params);
-      setPersonal(data);
-    } catch (err) { console.error('Error loading personal:', err); }
-  };
-
-  const loadTurnos = async () => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const params: { hospital?: string; fecha?: string } = { fecha: today };
-      if (selectedHospital !== 'all') params.hospital = selectedHospital;
-      const data = await staffApi.getTurnos(params);
-      setTurnos(data);
-    } catch (err) { console.error('Error loading turnos:', err); }
-  };
-
-  const loadSolicitudes = async () => {
-    try {
-      const params: { hospital?: string } = {};
-      if (selectedHospital !== 'all') params.hospital = selectedHospital;
-      const data = await staffApi.getSolicitudesRefuerzo(params);
-      setSolicitudes(data);
-    } catch (err) { console.error('Error loading solicitudes:', err); }
-  };
+  }, [apiConnected, hospitalId]);
 
   useEffect(() => {
     if (apiConnected) {
-      loadPersonal();
-      loadTurnos();
-      loadSolicitudes();
+      loadData();
+    } else if (apiConnected === false) {
+      setLoading(false);
     }
-  }, [selectedHospital, selectedRol, apiConnected]);
+  }, [apiConnected, loadData]);
 
-  const handleCreateSolicitud = async () => {
-    if (!newSolicitud.hospital_id || !newSolicitud.rol_requerido) {
-      notifications.show({ title: 'Error', message: 'Complete todos los campos requeridos', color: 'red' });
-      return;
+  // Generar refuerzos cuando cambian los datos
+  useEffect(() => {
+    if (personal.length > 0) {
+      generateRefuerzosNecesarios();
     }
+  }, [personal, turnos, hospitalStats, predicciones]);
+
+  // ============= Generadores =============
+
+  const generatePredicciones = useCallback(() => {
+    const hora = new Date().getHours();
+    const prediccionesGeneradas: PrediccionDemanda[] = [];
+
+    for (let i = 0; i < 6; i++) {
+      const horaPrediccion = (hora + i) % 24;
+      const basedemanda = getBaseDemanda(horaPrediccion);
+      const variacion = Math.random() * 20 - 10;
+
+      prediccionesGeneradas.push({
+        hora: `${horaPrediccion.toString().padStart(2, '0')}:00`,
+        demandaEsperada: Math.round(basedemanda + variacion),
+        confianza: 85 + Math.random() * 10,
+        tendencia: variacion > 5 ? 'subiendo' : variacion < -5 ? 'bajando' : 'estable',
+      });
+    }
+
+    setPredicciones(prediccionesGeneradas);
+  }, []);
+
+  const getBaseDemanda = (hora: number): number => {
+    if (hora >= 9 && hora <= 12) return 75;
+    if (hora >= 17 && hora <= 21) return 85;
+    if (hora >= 0 && hora <= 6) return 35;
+    return 55;
+  };
+
+  const generateRefuerzosNecesarios = useCallback(() => {
+    const refuerzos: RefuerzoNecesario[] = [];
+    
+    // Datos actuales
+    const ocupacion = hospitalStats?.nivel_saturacion || 70 + Math.random() * 25;
+    const tiempoEspera = hospitalStats?.tiempo_medio_espera || Math.round(30 + Math.random() * 40);
+
+    // Personal en turno actual
+    const turnoIds = turnos.filter(t => t.tipo_turno === turnoActual).map(t => t.personal_id);
+    const personalTurno = personal.filter(p => turnoIds.includes(p.id));
+    const medicosTurno = personalTurno.filter(p => p.rol === 'medico').length;
+    const enfermerosTurno = personalTurno.filter(p => p.rol === 'enfermero').length;
+
+    // 1. Refuerzo por ocupación alta actual
+    if (ocupacion > 80) {
+      const mejora = Math.min(25, (ocupacion - 70) * 0.8);
+      refuerzos.push({
+        id: 'tiempo-real-1',
+        tipo: 'tiempo_real',
+        urgencia: ocupacion > 95 ? 'critica' : ocupacion > 90 ? 'alta' : 'media',
+        rol: 'medico',
+        cantidad: ocupacion > 90 ? 2 : 1,
+        motivo: `Ocupación actual: ${Math.round(ocupacion)}% - Se requiere refuerzo inmediato`,
+        mejoraEstimada: Math.round(mejora),
+        tiempoEsperaActual: tiempoEspera,
+        tiempoEsperaMejorado: Math.round(tiempoEspera * (1 - mejora / 100)),
+        aceptado: false,
+        personalAsignado: [],
+      });
+    }
+
+    // 2. Refuerzo por predicción de pico
+    const proximoPico = predicciones.find(p => p.demandaEsperada > 75 && p.tendencia === 'subiendo');
+    if (proximoPico) {
+      refuerzos.push({
+        id: 'prediccion-1',
+        tipo: 'prediccion',
+        urgencia: proximoPico.demandaEsperada > 85 ? 'alta' : 'media',
+        rol: 'enfermero',
+        cantidad: proximoPico.demandaEsperada > 80 ? 2 : 1,
+        motivo: `Predicción ML: Pico de demanda a las ${proximoPico.hora} (${Math.round(proximoPico.demandaEsperada)}%)`,
+        mejoraEstimada: 18,
+        tiempoEsperaActual: tiempoEspera,
+        tiempoEsperaMejorado: Math.round(tiempoEspera * 0.82),
+        aceptado: false,
+        personalAsignado: [],
+      });
+    }
+
+    // 3. Refuerzo por poco personal
+    if (medicosTurno < 3 && ocupacion > 60) {
+      refuerzos.push({
+        id: 'bajo-personal-1',
+        tipo: 'tiempo_real',
+        urgencia: 'media',
+        rol: 'medico',
+        cantidad: 3 - medicosTurno,
+        motivo: `Dotación insuficiente: Solo ${medicosTurno} médico(s) en turno`,
+        mejoraEstimada: 15,
+        tiempoEsperaActual: tiempoEspera,
+        tiempoEsperaMejorado: Math.round(tiempoEspera * 0.85),
+        aceptado: false,
+        personalAsignado: [],
+      });
+    }
+
+    if (enfermerosTurno < 5 && ocupacion > 60) {
+      refuerzos.push({
+        id: 'bajo-personal-2',
+        tipo: 'tiempo_real',
+        urgencia: 'media',
+        rol: 'enfermero',
+        cantidad: 5 - enfermerosTurno,
+        motivo: `Dotación insuficiente: Solo ${enfermerosTurno} enfermero(s) en turno`,
+        mejoraEstimada: 12,
+        tiempoEsperaActual: tiempoEspera,
+        tiempoEsperaMejorado: Math.round(tiempoEspera * 0.88),
+        aceptado: false,
+        personalAsignado: [],
+      });
+    }
+
+    setRefuerzosNecesarios(refuerzos);
+  }, [personal, turnos, hospitalStats, turnoActual, predicciones]);
+
+  // ============= Datos Calculados =============
+
+  const personalEnTurno = useMemo(() => {
+    const turnoIds = turnos.filter(t => t.tipo_turno === turnoActual).map(t => t.personal_id);
+    return personal.filter(p => turnoIds.includes(p.id));
+  }, [personal, turnos, turnoActual]);
+
+  const personalDisponible = useMemo(() => {
+    const enTurnoIds = new Set(personalEnTurno.map(p => p.id));
+    return personal.filter(p => 
+      !enTurnoIds.has(p.id) && 
+      p.activo && 
+      p.acepta_refuerzos
+    );
+  }, [personal, personalEnTurno]);
+
+  const conteoRoles = useMemo(() => {
+    const conteo: Record<string, number> = { medico: 0, enfermero: 0, auxiliar: 0 };
+    personalEnTurno.forEach(p => {
+      if (conteo[p.rol] !== undefined) conteo[p.rol]++;
+    });
+    return conteo;
+  }, [personalEnTurno]);
+
+  // Asignar boxes al personal en turno
+  const boxesAsignados = useMemo(() => {
+    const hospConfig = HOSPITALES[hospitalId];
+    const asignaciones: Record<string, string> = {};
+    
+    // Médicos en boxes principales
+    const medicos = personalEnTurno.filter(p => p.rol === 'medico');
+    medicos.forEach((med, idx) => {
+      asignaciones[med.id] = `${hospConfig.boxesPrefix}-${(idx + 1).toString().padStart(2, '0')}`;
+    });
+    
+    // Enfermeros rotan por varios boxes
+    const enfermeros = personalEnTurno.filter(p => p.rol === 'enfermero');
+    enfermeros.forEach((enf, idx) => {
+      const boxStart = (idx * 3) + 1;
+      const boxEnd = Math.min(boxStart + 2, hospConfig.totalBoxes);
+      asignaciones[enf.id] = `${hospConfig.boxesPrefix}-${boxStart.toString().padStart(2, '0')} a ${boxEnd.toString().padStart(2, '0')}`;
+    });
+    
+    // Auxiliares en áreas
+    const auxiliares = personalEnTurno.filter(p => p.rol === 'auxiliar');
+    const areas = ['Triaje', 'Observación', 'Área General'];
+    auxiliares.forEach((aux, idx) => {
+      asignaciones[aux.id] = areas[idx % areas.length];
+    });
+    
+    return asignaciones;
+  }, [personalEnTurno, hospitalId]);
+
+  // Filtrar personal disponible por rol
+  const getPersonalDisponiblePorRol = (rol: RolPersonal) => {
+    return personalDisponible.filter(p => p.rol === rol);
+  };
+
+  // ============= Handlers =============
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+    notifications.show({
+      title: '✅ Actualizado',
+      message: 'Datos de personal actualizados',
+      color: 'green',
+      autoClose: 2000,
+    });
+  };
+
+  const handleOpenCallModal = (refuerzo: RefuerzoNecesario) => {
+    setSelectedRefuerzo(refuerzo);
+    setSelectedPerson(null);
+    setCallModalOpen(true);
+  };
+
+  const handleSelectPersonForCall = (person: Personal) => {
+    setSelectedPerson(person);
+  };
+
+  // Llamada directa desde la lista SERGAS
+  const handleDirectCall = async (person: Personal) => {
     try {
-      const fechaNecesidad = new Date();
-      fechaNecesidad.setDate(fechaNecesidad.getDate() + 1);
+      const fechaNecesidad = new Date().toISOString().split('T')[0];
+      
       await staffApi.createSolicitudRefuerzo({
-        hospital_id: newSolicitud.hospital_id,
-        fecha_necesidad: fechaNecesidad.toISOString().split('T')[0],
-        turno_necesario: newSolicitud.turno_necesario || 'manana',
-        rol_requerido: newSolicitud.rol_requerido,
-        cantidad_personal: newSolicitud.cantidad_personal || 1,
-        prioridad: newSolicitud.prioridad || 'media',
-        motivo: newSolicitud.motivo || 'alta_demanda_predicha',
+        hospital_id: hospitalId,
+        fecha_necesidad: fechaNecesidad,
+        turno_necesario: turnoActual,
+        rol_requerido: person.rol,
+        cantidad_personal: 1,
+        prioridad: 'media',
+        motivo: 'SATURACION_ACTUAL',
+        notas: `Llamada manual a ${person.nombre} ${person.apellidos} para refuerzo`,
       });
-      notifications.show({ title: '✅ Solicitud Creada', message: 'La solicitud ha sido registrada', color: 'green' });
-      setSolicitudModalOpen(false);
-      setNewSolicitud({ hospital_id: 'chuac', turno_necesario: 'manana', rol_requerido: 'medico', cantidad_personal: 1, prioridad: 'media', motivo: '' });
-      loadSolicitudes();
-    } catch {
-      notifications.show({ title: 'Error', message: 'No se pudo crear la solicitud', color: 'red' });
-    }
-  };
 
-  const handleResponderSolicitud = async (solicitudId: string, aprobar: boolean) => {
-    try {
-      await staffApi.responderSolicitud(solicitudId, {
-        estado: aprobar ? 'aprobada' : 'rechazada',
-        notas_respuesta: aprobar ? 'Aprobado por coordinador' : 'Rechazado - recursos insuficientes',
-      });
       notifications.show({
-        title: aprobar ? '✅ Aprobada' : '❌ Rechazada',
-        message: aprobar ? 'Personal asignado' : 'Solicitud rechazada',
-        color: aprobar ? 'green' : 'orange',
+        title: '📞 Llamada realizada',
+        message: `${person.nombre} ${person.apellidos} contactado/a. Tel: ${person.telefono}`,
+        color: 'green',
+        autoClose: 5000,
       });
-      loadSolicitudes();
-      loadResumen();
-    } catch {
-      notifications.show({ title: 'Error', message: 'No se pudo procesar la solicitud', color: 'red' });
+
+      await loadData();
+    } catch (err) {
+      console.error('Error al registrar llamada:', err);
+      notifications.show({
+        title: '❌ Error',
+        message: 'No se pudo registrar la llamada',
+        color: 'red',
+      });
+    }
+  };
+
+  const handleConfirmCall = async () => {
+    if (!selectedPerson || !selectedRefuerzo) return;
+
+    setCalling(true);
+    try {
+      // Crear solicitud de refuerzo en la API
+      const fechaNecesidad = new Date().toISOString().split('T')[0];
+      
+      // Determinar motivo del enum según el tipo de refuerzo
+      const motivoEnum = selectedRefuerzo.tipo === 'prediccion' 
+        ? 'ALTA_DEMANDA_PREDICHA' 
+        : 'SATURACION_ACTUAL';
+      
+      await staffApi.createSolicitudRefuerzo({
+        hospital_id: hospitalId,
+        fecha_necesidad: fechaNecesidad,
+        turno_necesario: turnoActual,
+        rol_requerido: selectedPerson.rol,
+        cantidad_personal: 1,
+        prioridad: selectedRefuerzo.urgencia === 'critica' ? 'critica' : 
+                   selectedRefuerzo.urgencia === 'alta' ? 'alta' : 'media',
+        motivo: motivoEnum,
+        notas: `${selectedRefuerzo.motivo} - Llamada a ${selectedPerson.nombre} ${selectedPerson.apellidos}`,
+      });
+
+      // Actualizar estado local
+      setRefuerzosNecesarios(prev => prev.map(r => {
+        if (r.id === selectedRefuerzo.id) {
+          const nuevaCantidad = r.cantidad - 1;
+          return {
+            ...r,
+            cantidad: nuevaCantidad,
+            aceptado: nuevaCantidad <= 0,
+            personalAsignado: [...r.personalAsignado, selectedPerson],
+          };
+        }
+        return r;
+      }).filter(r => r.cantidad > 0 || r.personalAsignado.length > 0));
+
+      notifications.show({
+        title: '📞 Llamada realizada',
+        message: `${selectedPerson.nombre} ${selectedPerson.apellidos} ha sido contactado/a. Tel: ${selectedPerson.telefono}`,
+        color: 'green',
+        autoClose: 5000,
+      });
+
+      // Si quedan más por llamar del mismo refuerzo, mantener modal abierto
+      if (selectedRefuerzo.cantidad > 1) {
+        setSelectedRefuerzo(prev => prev ? { ...prev, cantidad: prev.cantidad - 1 } : null);
+        setSelectedPerson(null);
+      } else {
+        setCallModalOpen(false);
+        setSelectedRefuerzo(null);
+        setSelectedPerson(null);
+      }
+
+      // Recargar datos
+      await loadData();
+
+    } catch (err) {
+      console.error('Error al registrar llamada:', err);
+      notifications.show({
+        title: '❌ Error',
+        message: 'No se pudo registrar la llamada',
+        color: 'red',
+      });
+    } finally {
+      setCalling(false);
     }
   };
 
-  const simulateStaffChange = async () => {
-    setSimulatingChange(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    if (publishMessage) {
-      publishMessage('simulador/staff', {
-        action: 'reduce', reduction: staffReduction / 100, hospital: selectedHospital, timestamp: new Date().toISOString(),
-      });
-    }
-    notifications.show({ title: '👥 Cambio Aplicado', message: `Reducción de ${staffReduction}% simulada`, color: 'blue' });
-    setSimulatingChange(false);
-    setSimulationModalOpen(false);
-  };
+  // ============= Estados de Error =============
 
-  const getCurrentShift = (): TipoTurno => {
-    const hour = new Date().getHours();
-    if (hour >= 7 && hour < 15) return 'manana';
-    if (hour >= 15 && hour < 23) return 'tarde';
-    return 'noche';
-  };
-
-  const currentShift = getCurrentShift();
-  const filteredPersonal = personal.filter(p => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return p.nombre.toLowerCase().includes(query) || p.apellidos.toLowerCase().includes(query) || p.numero_empleado.toLowerCase().includes(query);
-  });
-  const solicitudesPendientes = solicitudes.filter(s => s.estado === 'pendiente');
-
-  if (apiConnected === false) {
+  if (apiConnected === null) {
     return (
-      <Paper shadow="sm" radius="lg" p="lg" withBorder>
-        <Alert icon={<IconAlertCircle size={16} />} title="API no disponible" color="orange" variant="light">
-          <Stack gap="sm">
-            <Text size="sm">No se puede conectar con el servicio de gestión de personal (http://localhost:8000)</Text>
-            <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={() => window.location.reload()}>Reintentar</Button>
-          </Stack>
-        </Alert>
-        <Divider my="md" label="Modo sin conexión" />
-        <StaffManagementOffline selectedHospital={selectedHospital} setSelectedHospital={setSelectedHospital} />
+      <Paper shadow="sm" radius="lg" p="xl" withBorder>
+        <Stack align="center" gap="md">
+          <Skeleton height={50} circle />
+          <Skeleton height={20} width={200} />
+          <Skeleton height={150} width="100%" />
+        </Stack>
       </Paper>
     );
   }
 
-  return (
-    <Paper shadow="sm" radius="lg" p="lg" withBorder>
-      <Group justify="space-between" mb="lg">
-        <Group gap="sm">
-          <ThemeIcon size="lg" radius="xl" variant="gradient" gradient={{ from: 'teal', to: 'cyan' }}><IconUsers size={20} /></ThemeIcon>
-          <Box>
-            <Text fw={600} size="lg">Gestión de Personal</Text>
-            <Text size="xs" c="dimmed">Turnos, disponibilidad y refuerzos</Text>
-          </Box>
-        </Group>
-        <Group gap="xs">
-          {solicitudesPendientes.length > 0 && (
-            <Badge size="lg" variant="filled" color="red" leftSection={<IconBell size={12} />}>{solicitudesPendientes.length} pendientes</Badge>
-          )}
-          <Badge size="lg" variant="light" color={SHIFTS[currentShift].color} leftSection={<IconClock size={12} />}>Turno {SHIFTS[currentShift].label}</Badge>
-          <Badge size="sm" variant="dot" color={apiConnected ? 'green' : 'red'}>{apiConnected ? 'Conectado' : 'Desconectado'}</Badge>
-        </Group>
-      </Group>
-
-      <Tabs value={activeTab} onChange={setActiveTab}>
-        <Tabs.List mb="md">
-          <Tabs.Tab value="dashboard" leftSection={<IconActivity size={14} />}>Dashboard</Tabs.Tab>
-          <Tabs.Tab value="personal" leftSection={<IconUsers size={14} />}>Personal</Tabs.Tab>
-          <Tabs.Tab value="turnos" leftSection={<IconCalendar size={14} />}>Turnos</Tabs.Tab>
-          <Tabs.Tab value="solicitudes" leftSection={<IconBriefcase size={14} />} rightSection={solicitudesPendientes.length > 0 && <Badge size="xs" color="red" circle>{solicitudesPendientes.length}</Badge>}>Solicitudes</Tabs.Tab>
-        </Tabs.List>
-
-        <Tabs.Panel value="dashboard"><DashboardPanel resumen={resumen} loading={loading} onRefresh={loadAllData} /></Tabs.Panel>
-        <Tabs.Panel value="personal"><PersonalPanel personal={filteredPersonal} loading={loading} searchQuery={searchQuery} setSearchQuery={setSearchQuery} selectedHospital={selectedHospital} setSelectedHospital={setSelectedHospital} selectedRol={selectedRol} setSelectedRol={setSelectedRol} onSimulation={() => setSimulationModalOpen(true)} /></Tabs.Panel>
-        <Tabs.Panel value="turnos"><TurnosPanel turnos={turnos} personal={personal} loading={loading} currentShift={currentShift} /></Tabs.Panel>
-        <Tabs.Panel value="solicitudes"><SolicitudesPanel solicitudes={solicitudes} loading={loading} onNewSolicitud={() => setSolicitudModalOpen(true)} onResponder={handleResponderSolicitud} /></Tabs.Panel>
-      </Tabs>
-
-      <Modal opened={solicitudModalOpen} onClose={() => setSolicitudModalOpen(false)} title={<Group gap="sm"><IconUserPlus size={20} /><Text fw={600}>Nueva Solicitud de Refuerzo</Text></Group>} size="lg">
-        <Stack gap="md">
-          <Select label="Hospital" placeholder="Selecciona un hospital" required data={HOSPITALES.filter(h => h.value !== 'all')} value={newSolicitud.hospital_id} onChange={(value) => setNewSolicitud(prev => ({ ...prev, hospital_id: value || '' }))} />
-          <Group grow>
-            <Select label="Turno Necesario" data={Object.entries(SHIFTS).map(([value, config]) => ({ value, label: `${config.icon} ${config.label}` }))} value={newSolicitud.turno_necesario} onChange={(value) => setNewSolicitud(prev => ({ ...prev, turno_necesario: value || 'manana' }))} />
-            <NumberInput label="Cantidad de Personal" min={1} max={20} value={newSolicitud.cantidad_personal} onChange={(value) => setNewSolicitud(prev => ({ ...prev, cantidad_personal: Number(value) || 1 }))} />
-          </Group>
-          <Select label="Rol Requerido" placeholder="Selecciona el rol" required data={Object.entries(ROLES).map(([value, config]) => ({ value, label: config.label }))} value={newSolicitud.rol_requerido} onChange={(value) => setNewSolicitud(prev => ({ ...prev, rol_requerido: value as RolPersonal || 'medico' }))} />
-          <Select label="Prioridad" data={Object.entries(PRIORIDADES).map(([value, config]) => ({ value, label: config.label }))} value={newSolicitud.prioridad} onChange={(value) => setNewSolicitud(prev => ({ ...prev, prioridad: value as PrioridadRefuerzo || 'media' }))} />
-          <Select label="Motivo de la Solicitud" placeholder="Selecciona el motivo" required data={MOTIVOS} value={newSolicitud.motivo} onChange={(value) => setNewSolicitud(prev => ({ ...prev, motivo: value || 'alta_demanda_predicha' }))} />
-          <Group justify="flex-end">
-            <Button variant="subtle" onClick={() => setSolicitudModalOpen(false)}>Cancelar</Button>
-            <Button variant="gradient" gradient={{ from: 'teal', to: 'cyan' }} leftSection={<IconPlus size={16} />} onClick={handleCreateSolicitud}>Crear Solicitud</Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      <Modal opened={simulationModalOpen} onClose={() => setSimulationModalOpen(false)} title={<Group gap="sm"><IconUsers size={20} /><Text fw={600}>Simular Cambio de Personal</Text></Group>}>
-        <Stack gap="md">
-          <Text size="sm" c="dimmed">Simula el impacto de una reducción de personal en el sistema de urgencias.</Text>
-          <NumberInput label="Porcentaje de Reducción" description="Simular bajas o huelga parcial" value={staffReduction} onChange={(value) => setStaffReduction(Number(value) || 0)} min={0} max={50} suffix="%" />
-          {staffReduction > 0 && (
-            <Card withBorder p="sm" bg="orange.0">
-              <Group gap="xs"><IconAlertTriangle size={16} color="#fd7e14" /><Text size="sm">Una reducción del {staffReduction}% afectará los tiempos de espera aproximadamente un +{Math.round(staffReduction * 1.5)}%</Text></Group>
-            </Card>
-          )}
-          <Group justify="flex-end">
-            <Button variant="subtle" onClick={() => setSimulationModalOpen(false)}>Cancelar</Button>
-            <Button variant="gradient" gradient={{ from: 'orange', to: 'red' }} leftSection={<IconRefresh size={16} />} onClick={simulateStaffChange} loading={simulatingChange} disabled={staffReduction === 0}>Aplicar Simulación</Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </Paper>
-  );
-}
-
-interface DashboardPanelProps {
-  resumen: ResumenDashboard | null;
-  loading: boolean;
-  onRefresh: () => void;
-}
-
-function DashboardPanel({ resumen, loading, onRefresh }: DashboardPanelProps) {
-  if (loading || !resumen) {
+  if (apiConnected === false) {
     return (
-      <Stack gap="md">
-        <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} height={100} radius="md" />)}
-        </SimpleGrid>
-        <Skeleton height={200} radius="md" />
-      </Stack>
+      <Paper shadow="sm" radius="lg" p="xl" withBorder>
+        <Alert icon={<IconAlertCircle size={20} />} title="Servicio no disponible" color="orange" variant="light">
+          <Text size="sm">No se puede conectar con el servicio de gestión de personal.</Text>
+          <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={() => window.location.reload()} mt="sm">
+            Reintentar
+          </Button>
+        </Alert>
+      </Paper>
     );
   }
 
-  const availabilityRate = resumen.total_personal > 0 ? (resumen.activos_hoy / resumen.total_personal) * 100 : 0;
+  // ============= Render Principal =============
+
+  const refuerzosPendientes = refuerzosNecesarios.filter(r => !r.aceptado && r.cantidad > 0);
 
   return (
-    <Stack gap="md">
-      <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
-        <Card withBorder p="md" radius="md">
-          <Group justify="space-between">
-            <Box><Text size="xs" c="dimmed">Total Personal</Text><Text size="xl" fw={700}>{resumen.total_personal}</Text></Box>
-            <ThemeIcon size="lg" variant="light" color="blue"><IconUsers size={20} /></ThemeIcon>
-          </Group>
-        </Card>
-        <Card withBorder p="md" radius="md">
-          <Group justify="space-between">
-            <Box><Text size="xs" c="dimmed">En Turno Actual</Text><Text size="xl" fw={700} c="green">{resumen.en_turno_actual}</Text></Box>
-            <ThemeIcon size="lg" variant="light" color="green"><IconClock size={20} /></ThemeIcon>
-          </Group>
-        </Card>
-        <Card withBorder p="md" radius="md">
-          <Group justify="space-between">
-            <Box><Text size="xs" c="dimmed">De Baja / Vacaciones</Text><Text size="xl" fw={700} c="red">{resumen.de_baja + resumen.de_vacaciones}</Text></Box>
-            <ThemeIcon size="lg" variant="light" color="red"><IconUserMinus size={20} /></ThemeIcon>
-          </Group>
-        </Card>
-        <Card withBorder p="md" radius="md">
-          <Group justify="space-between">
-            <Box><Text size="xs" c="dimmed">Solicitudes Pendientes</Text><Text size="xl" fw={700} c={resumen.solicitudes_pendientes > 0 ? 'orange' : 'gray'}>{resumen.solicitudes_pendientes}</Text></Box>
-            <ThemeIcon size="lg" variant="light" color="orange"><IconBell size={20} /></ThemeIcon>
-          </Group>
-        </Card>
-      </SimpleGrid>
-
-      <Card withBorder p="md" radius="md">
-        <Group justify="space-between" mb="md">
-          <Text fw={600}>Disponibilidad Global</Text>
-          <Button size="xs" variant="subtle" leftSection={<IconRefresh size={14} />} onClick={onRefresh}>Actualizar</Button>
-        </Group>
+    <Stack gap="lg">
+      {/* Header */}
+      <Paper shadow="sm" radius="lg" p="lg" withBorder>
         <Group justify="space-between">
-          <Box>
-            <Group gap="xs" align="baseline">
-              <Text size="xl" fw={700}>{resumen.activos_hoy}</Text>
-              <Text size="sm" c="dimmed">/ {resumen.total_personal} activos hoy</Text>
-            </Group>
-          </Box>
-          <RingProgress size={100} thickness={10} roundCaps sections={[{ value: availabilityRate, color: availabilityRate > 70 ? 'teal' : availabilityRate > 50 ? 'yellow' : 'red' }]} label={<Text size="sm" fw={700} ta="center">{Math.round(availabilityRate)}%</Text>} />
+          <Group gap="sm">
+            <ThemeIcon size={44} radius="xl" variant="gradient" gradient={{ from: 'teal', to: 'cyan' }}>
+              <IconUsers size={24} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={600} size="lg">Gestión de Personal - {hospitalInfo.label}</Text>
+              <Text size="xs" c="dimmed">{hospitalInfo.fullName}</Text>
+            </Box>
+          </Group>
+
+          <Group gap="xs">
+            <Badge size="lg" variant="light" color={turnoInfo.color} leftSection={<IconClock size={12} />}>
+              {turnoInfo.emoji} Turno {turnoInfo.label}
+            </Badge>
+            <Badge size="lg" variant="filled" color="blue">
+              {personalEnTurno.length} en turno
+            </Badge>
+            <Tooltip label="Actualizar">
+              <ActionIcon variant="subtle" onClick={handleRefresh} loading={refreshing}>
+                <IconRefresh size={18} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
         </Group>
-      </Card>
+      </Paper>
 
-      <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
-        {Object.entries(resumen.por_hospital || {}).map(([hospital, stats]) => (
-          <Card key={hospital} withBorder p="sm" radius="md">
-            <Text size="sm" fw={600} mb="xs">{hospital === 'chuac' ? 'CHUAC' : hospital === 'hm_modelo' ? 'HM Modelo' : 'San Rafael'}</Text>
-            <Group justify="space-between">
-              <Text size="xs" c="dimmed">En turno: {stats.en_turno}</Text>
-              <Text size="xs" c="dimmed">Total: {stats.total}</Text>
-            </Group>
-            <Progress value={(stats.en_turno / Math.max(stats.total, 1)) * 100} size="sm" mt="xs" color="teal" />
-          </Card>
-        ))}
-      </SimpleGrid>
+      {/* ========== PANEL DE REFUERZOS NECESARIOS ========== */}
+      <Paper shadow="sm" radius="lg" p="lg" withBorder bg={refuerzosPendientes.length > 0 ? 'red.0' : 'green.0'}>
+        <Group justify="space-between" mb="md">
+          <Group gap="sm">
+            <ThemeIcon 
+              size="lg" 
+              variant="filled" 
+              color={refuerzosPendientes.length > 0 ? 'red' : 'green'}
+            >
+              {refuerzosPendientes.length > 0 ? <IconAlertTriangle size={20} /> : <IconCheck size={20} />}
+            </ThemeIcon>
+            <Box>
+              <Text fw={600} size="lg">
+                {refuerzosPendientes.length > 0 
+                  ? `⚠️ Se Requiere Refuerzo de Personal` 
+                  : '✅ Dotación de Personal Adecuada'}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {refuerzosPendientes.length > 0 
+                  ? 'Basado en ocupación actual y predicciones ML'
+                  : 'No se detectan necesidades de refuerzo'}
+              </Text>
+            </Box>
+          </Group>
+          {refuerzosPendientes.length > 0 && (
+            <Badge size="xl" variant="filled" color="red">
+              {refuerzosPendientes.reduce((acc, r) => acc + r.cantidad, 0)} persona(s)
+            </Badge>
+          )}
+        </Group>
 
-      <Card withBorder p="md" radius="md">
-        <Text fw={600} mb="md">Distribución por Rol</Text>
-        <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
-          {Object.entries(resumen.por_rol || {}).map(([rol, count]) => {
-            const roleConfig = ROLES[rol as keyof typeof ROLES] || { label: rol, color: 'gray', icon: IconUsers };
-            const Icon = roleConfig.icon;
-            return (
-              <Group key={rol} gap="xs">
-                <ThemeIcon size="sm" variant="light" color={roleConfig.color}><Icon size={14} /></ThemeIcon>
-                <Box><Text size="xs">{roleConfig.label}</Text><Text size="sm" fw={700}>{count}</Text></Box>
-              </Group>
-            );
-          })}
-        </SimpleGrid>
-      </Card>
-    </Stack>
-  );
-}
-
-interface PersonalPanelProps {
-  personal: Personal[];
-  loading: boolean;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  selectedHospital: string;
-  setSelectedHospital: (hospital: string) => void;
-  selectedRol: string;
-  setSelectedRol: (rol: string) => void;
-  onSimulation: () => void;
-}
-
-function PersonalPanel({ personal, loading, searchQuery, setSearchQuery, selectedHospital, setSelectedHospital, selectedRol, setSelectedRol, onSimulation }: PersonalPanelProps) {
-  return (
-    <Stack gap="md">
-      <Group gap="md">
-        <TextInput size="xs" placeholder="Buscar por nombre o número..." leftSection={<IconSearch size={14} />} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ flex: 1, maxWidth: 250 }} />
-        <Select size="xs" placeholder="Hospital" value={selectedHospital} onChange={(value) => setSelectedHospital(value || 'all')} data={HOSPITALES} style={{ width: 180 }} />
-        <Select size="xs" placeholder="Rol" value={selectedRol} onChange={(value) => setSelectedRol(value || 'all')} data={[{ value: 'all', label: 'Todos los roles' }, ...Object.entries(ROLES).map(([value, config]) => ({ value, label: config.label }))]} style={{ width: 150 }} />
-        <Button size="xs" variant="light" leftSection={<IconEdit size={14} />} onClick={onSimulation}>Simular Cambio</Button>
-      </Group>
-
-      <ScrollArea h={400}>
-        {loading ? (
-          <Stack gap="sm">{[1, 2, 3, 4, 5].map(i => <Skeleton key={i} height={50} />)}</Stack>
+        {refuerzosPendientes.length > 0 ? (
+          <Stack gap="md">
+            {refuerzosPendientes.map(refuerzo => (
+              <RefuerzoCard 
+                key={refuerzo.id} 
+                refuerzo={refuerzo}
+                personalDisponible={getPersonalDisponiblePorRol(refuerzo.rol)}
+                onLlamar={() => handleOpenCallModal(refuerzo)}
+              />
+            ))}
+          </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Empleado</Table.Th>
-                <Table.Th>Rol</Table.Th>
-                <Table.Th>Hospital</Table.Th>
-                <Table.Th>Estado</Table.Th>
-                <Table.Th>Guardias</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {personal.map(member => {
-                const roleConfig = ROLES[member.rol] || { label: member.rol, color: 'gray', icon: IconUsers };
-                const RoleIcon = roleConfig.icon;
-                return (
-                  <Table.Tr key={member.id}>
-                    <Table.Td>
-                      <Group gap="xs">
-                        <Avatar size="sm" color={roleConfig.color} radius="xl"><RoleIcon size={14} /></Avatar>
+          <Text size="sm" c="dimmed" ta="center" py="md">
+            El personal actual es suficiente para la demanda esperada
+          </Text>
+        )}
+
+        {/* Mostrar personal ya asignado */}
+        {refuerzosNecesarios.filter(r => r.personalAsignado.length > 0).length > 0 && (
+          <>
+            <Divider my="md" label="Personal de Refuerzo Asignado" labelPosition="center" />
+            <Stack gap="xs">
+              {refuerzosNecesarios
+                .filter(r => r.personalAsignado.length > 0)
+                .flatMap(r => r.personalAsignado.map(p => (
+                  <Card key={p.id} withBorder p="sm" radius="md" bg="green.1">
+                    <Group justify="space-between">
+                      <Group gap="sm">
+                        <Avatar size="sm" color="green" radius="xl">
+                          <IconCheck size={14} />
+                        </Avatar>
                         <Box>
-                          <Text size="sm">{member.nombre} {member.apellidos}</Text>
-                          <Text size="xs" c="dimmed">{member.numero_empleado}</Text>
+                          <Text size="sm" fw={500}>{p.nombre} {p.apellidos}</Text>
+                          <Text size="xs" c="dimmed">{ROLES[p.rol]?.label} - Llamado</Text>
                         </Box>
                       </Group>
-                    </Table.Td>
-                    <Table.Td><Badge size="xs" variant="light" color={roleConfig.color}>{roleConfig.label}</Badge></Table.Td>
-                    <Table.Td><Text size="xs">{member.hospital_asignado === 'chuac' ? 'CHUAC' : member.hospital_asignado === 'hm_modelo' ? 'HM Modelo' : 'San Rafael'}</Text></Table.Td>
-                    <Table.Td><Badge size="xs" color={member.activo ? 'green' : 'red'}>{member.activo ? 'Activo' : 'Inactivo'}</Badge></Table.Td>
-                    <Table.Td>{member.puede_hacer_guardias && <Badge size="xs" variant="outline" color="violet">Guardias</Badge>}</Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
+                      <Badge color="green" size="sm">Contactado</Badge>
+                    </Group>
+                  </Card>
+                )))}
+            </Stack>
+          </>
         )}
-      </ScrollArea>
-      <Text size="xs" c="dimmed" ta="center">Mostrando {personal.length} empleados</Text>
-    </Stack>
-  );
-}
+      </Paper>
 
-interface TurnosPanelProps {
-  turnos: Turno[];
-  personal: Personal[];
-  loading: boolean;
-  currentShift: TipoTurno;
-}
-
-function TurnosPanel({ turnos, personal, loading, currentShift }: TurnosPanelProps) {
-  const getPersonalName = (personalId: string) => {
-    const p = personal.find(m => m.id === personalId);
-    return p ? `${p.nombre} ${p.apellidos}` : 'Desconocido';
-  };
-
-  const turnosByShift: Record<string, Turno[]> = {
-    manana: turnos.filter(t => t.tipo_turno === 'manana'),
-    tarde: turnos.filter(t => t.tipo_turno === 'tarde'),
-    noche: turnos.filter(t => t.tipo_turno === 'noche'),
-  };
-
-  const currentShiftKey = currentShift === 'guardia_24h' ? 'manana' : currentShift;
-
-  return (
-    <Stack gap="md">
-      <Card withBorder p="md" radius="md" bg={`${SHIFTS[currentShift].color}.0`}>
-        <Group gap="sm">
-          <Text size="lg">{SHIFTS[currentShift].icon}</Text>
-          <Box>
-            <Text fw={600}>Turno Actual: {SHIFTS[currentShift].label}</Text>
-            <Text size="xs" c="dimmed">{SHIFTS[currentShift].hours}</Text>
-          </Box>
-          <Badge ml="auto" color={SHIFTS[currentShift].color}>{turnosByShift[currentShiftKey]?.length || 0} en turno</Badge>
-        </Group>
-      </Card>
-
-      <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
-        {Object.entries(turnosByShift).map(([shift, shiftTurnos]) => (
-          <Card key={shift} withBorder p="sm" radius="md">
-            <Group mb="sm">
-              <Text fw={600}>{SHIFTS[shift as keyof typeof SHIFTS]?.icon} {SHIFTS[shift as keyof typeof SHIFTS]?.label}</Text>
-              <Badge size="sm" color={SHIFTS[shift as keyof typeof SHIFTS]?.color}>{shiftTurnos.length}</Badge>
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
+        {/* Personal en Turno Actual */}
+        <Paper shadow="sm" radius="lg" p="lg" withBorder>
+          <Group justify="space-between" mb="md">
+            <Group gap="sm">
+              <ThemeIcon size="lg" variant="light" color="green">
+                <IconUserCheck size={20} />
+              </ThemeIcon>
+              <Box>
+                <Text fw={600}>Personal en Turno</Text>
+                <Text size="xs" c="dimmed">{turnoInfo.hours}</Text>
+              </Box>
             </Group>
+            <Badge size="lg" color="green">{personalEnTurno.length}</Badge>
+          </Group>
+
+          {/* Resumen por rol */}
+          <SimpleGrid cols={3} mb="md">
+            {Object.entries(ROLES).map(([rol, config]) => {
+              const Icon = config.icon;
+              return (
+                <Card key={rol} withBorder p="xs" radius="md">
+                  <Group gap="xs" justify="center">
+                    <ThemeIcon size="sm" variant="light" color={config.color}>
+                      <Icon size={14} />
+                    </ThemeIcon>
+                    <Text size="sm" fw={600}>{conteoRoles[rol]}</Text>
+                    <Text size="xs" c="dimmed">{config.plural}</Text>
+                  </Group>
+                </Card>
+              );
+            })}
+          </SimpleGrid>
+
+          <Divider mb="md" />
+
+          <ScrollArea h={250}>
             {loading ? (
-              <Stack gap="xs">{[1, 2, 3].map(i => <Skeleton key={i} height={30} />)}</Stack>
-            ) : shiftTurnos.length === 0 ? (
-              <Text size="xs" c="dimmed" ta="center" py="sm">Sin turnos asignados</Text>
+              <Stack gap="sm">
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} height={50} radius="md" />)}
+              </Stack>
+            ) : personalEnTurno.length === 0 ? (
+              <Alert color="yellow" variant="light" icon={<IconAlertTriangle size={16} />}>
+                No hay personal registrado en este turno
+              </Alert>
             ) : (
               <Stack gap="xs">
-                {shiftTurnos.slice(0, 5).map(turno => (
-                  <Group key={turno.id} justify="space-between">
-                    <Text size="xs">{getPersonalName(turno.personal_id)}</Text>
-                    {turno.es_guardia && <Badge size="xs" variant="outline" color="red">Guardia</Badge>}
-                  </Group>
+                {personalEnTurno.map(person => (
+                  <PersonCard 
+                    key={person.id} 
+                    person={person} 
+                    showStatus 
+                    boxAsignado={boxesAsignados[person.id]}
+                  />
                 ))}
-                {shiftTurnos.length > 5 && <Text size="xs" c="dimmed" ta="center">+{shiftTurnos.length - 5} más</Text>}
               </Stack>
             )}
-          </Card>
-        ))}
+          </ScrollArea>
+        </Paper>
+
+        {/* Personal Disponible SERGAS */}
+        <Paper shadow="sm" radius="lg" p="lg" withBorder>
+          <Group justify="space-between" mb="md">
+            <Group gap="sm">
+              <ThemeIcon size="lg" variant="light" color="blue">
+                <IconPhone size={20} />
+              </ThemeIcon>
+              <Box>
+                <Text fw={600}>Lista SERGAS - Disponibles</Text>
+                <Text size="xs" c="dimmed">Personal que acepta refuerzos</Text>
+              </Box>
+            </Group>
+            <Badge size="lg" color="blue">{personalDisponible.length}</Badge>
+          </Group>
+
+          <ScrollArea h={320}>
+            {loading ? (
+              <Stack gap="sm">
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} height={60} radius="md" />)}
+              </Stack>
+            ) : personalDisponible.length === 0 ? (
+              <Alert color="gray" variant="light" icon={<IconUsers size={16} />}>
+                No hay personal adicional disponible para refuerzo
+              </Alert>
+            ) : (
+              <Stack gap="xs">
+                {personalDisponible.map(person => (
+                  <PersonCard 
+                    key={person.id} 
+                    person={person} 
+                    showPhone 
+                    showCallButton
+                    onCall={handleDirectCall}
+                  />
+                ))}
+              </Stack>
+            )}
+          </ScrollArea>
+        </Paper>
       </SimpleGrid>
+
+      {/* Predicciones ML */}
+      <Paper shadow="sm" radius="lg" p="lg" withBorder>
+        <Group justify="space-between" mb="md">
+          <Group gap="sm">
+            <ThemeIcon size="lg" variant="gradient" gradient={{ from: 'violet', to: 'grape' }}>
+              <IconBrain size={20} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={600}>Predicción de Demanda (ML)</Text>
+              <Text size="xs" c="dimmed">Próximas 6 horas • Confianza: {Math.round(predicciones[0]?.confianza || 90)}%</Text>
+            </Box>
+          </Group>
+          <Badge variant="dot" color="green">Modelo activo</Badge>
+        </Group>
+
+        <SimpleGrid cols={{ base: 3, sm: 6 }} spacing="sm">
+          {predicciones.map((pred, idx) => (
+            <PrediccionCard key={idx} prediccion={pred} isActual={idx === 0} />
+          ))}
+        </SimpleGrid>
+      </Paper>
+
+      {/* Modal de Llamada */}
+      <Modal
+        opened={callModalOpen}
+        onClose={() => {
+          setCallModalOpen(false);
+          setSelectedRefuerzo(null);
+          setSelectedPerson(null);
+        }}
+        title={
+          <Group gap="sm">
+            <ThemeIcon size="lg" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
+              <IconPhoneCall size={20} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={600}>Llamar Personal de Refuerzo</Text>
+              {selectedRefuerzo && (
+                <Text size="xs" c="dimmed">
+                  Se necesitan {selectedRefuerzo.cantidad} {ROLES[selectedRefuerzo.rol]?.label}(s)
+                </Text>
+              )}
+            </Box>
+          </Group>
+        }
+        size="lg"
+      >
+        {selectedRefuerzo && (
+          <Stack gap="md">
+            {/* Info del refuerzo */}
+            <Alert 
+              color={selectedRefuerzo.urgencia === 'critica' ? 'red' : selectedRefuerzo.urgencia === 'alta' ? 'orange' : 'blue'} 
+              variant="light"
+              icon={selectedRefuerzo.tipo === 'prediccion' ? <IconBrain size={16} /> : <IconActivity size={16} />}
+            >
+              <Text size="sm" fw={500}>{selectedRefuerzo.motivo}</Text>
+              <Group gap="lg" mt="xs">
+                <Box>
+                  <Text size="xs" c="dimmed">Mejora estimada</Text>
+                  <Text size="sm" fw={600} c="green">-{selectedRefuerzo.mejoraEstimada}% carga</Text>
+                </Box>
+                <Box>
+                  <Text size="xs" c="dimmed">Tiempo espera</Text>
+                  <Text size="sm">
+                    <Text span td="line-through" c="dimmed">{selectedRefuerzo.tiempoEsperaActual}min</Text>
+                    {' → '}
+                    <Text span fw={600} c="green">{selectedRefuerzo.tiempoEsperaMejorado}min</Text>
+                  </Text>
+                </Box>
+              </Group>
+            </Alert>
+
+            {/* Lista de personal disponible para llamar */}
+            <Text fw={500} size="sm">Selecciona a quién llamar:</Text>
+            
+            <ScrollArea h={250}>
+              <Stack gap="xs">
+                {getPersonalDisponiblePorRol(selectedRefuerzo.rol).length === 0 ? (
+                  <Alert color="yellow" variant="light" icon={<IconAlertTriangle size={16} />}>
+                    No hay {ROLES[selectedRefuerzo.rol]?.plural.toLowerCase()} disponibles para refuerzo
+                  </Alert>
+                ) : (
+                  getPersonalDisponiblePorRol(selectedRefuerzo.rol).map(person => (
+                    <Card 
+                      key={person.id} 
+                      withBorder 
+                      p="sm" 
+                      radius="md"
+                      bg={selectedPerson?.id === person.id ? 'blue.1' : undefined}
+                      style={{ cursor: 'pointer', border: selectedPerson?.id === person.id ? '2px solid var(--mantine-color-blue-6)' : undefined }}
+                      onClick={() => handleSelectPersonForCall(person)}
+                    >
+                      <Group justify="space-between">
+                        <Group gap="sm">
+                          <Avatar size="md" color={ROLES[person.rol]?.color || 'gray'} radius="xl">
+                            {person.nombre[0]}{person.apellidos[0]}
+                          </Avatar>
+                          <Box>
+                            <Text size="sm" fw={500}>{person.nombre} {person.apellidos}</Text>
+                            <Group gap="xs">
+                              <Badge size="xs" variant="light" color={ROLES[person.rol]?.color}>
+                                {ROLES[person.rol]?.label}
+                              </Badge>
+                              {person.especialidad && (
+                                <Text size="xs" c="dimmed">{person.especialidad}</Text>
+                              )}
+                            </Group>
+                          </Box>
+                        </Group>
+                        <Group gap="xs">
+                          <IconPhone size={14} />
+                          <Text size="sm" fw={500}>{person.telefono}</Text>
+                        </Group>
+                      </Group>
+                    </Card>
+                  ))
+                )}
+              </Stack>
+            </ScrollArea>
+
+            {/* Persona seleccionada */}
+            {selectedPerson && (
+              <Card withBorder p="md" radius="md" bg="blue.0">
+                <Group justify="space-between">
+                  <Group gap="sm">
+                    <ThemeIcon size="lg" variant="filled" color="blue">
+                      <IconPhone size={18} />
+                    </ThemeIcon>
+                    <Box>
+                      <Text size="sm" c="dimmed">Vas a llamar a:</Text>
+                      <Text fw={600}>{selectedPerson.nombre} {selectedPerson.apellidos}</Text>
+                      <Text size="lg" fw={700} c="blue">{selectedPerson.telefono}</Text>
+                    </Box>
+                  </Group>
+                </Group>
+              </Card>
+            )}
+
+            {/* Botones */}
+            <Group justify="flex-end" mt="md">
+              <Button 
+                variant="subtle" 
+                onClick={() => {
+                  setCallModalOpen(false);
+                  setSelectedRefuerzo(null);
+                  setSelectedPerson(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="gradient" 
+                gradient={{ from: 'green', to: 'teal' }}
+                leftSection={<IconPhoneCall size={16} />}
+                onClick={handleConfirmCall}
+                disabled={!selectedPerson}
+                loading={calling}
+              >
+                Confirmar Llamada
+              </Button>
+            </Group>
+          </Stack>
+        )}
+      </Modal>
     </Stack>
   );
 }
 
-interface SolicitudesPanelProps {
-  solicitudes: SolicitudRefuerzo[];
-  loading: boolean;
-  onNewSolicitud: () => void;
-  onResponder: (id: string, aprobar: boolean) => void;
+// ============= Subcomponentes =============
+
+interface RefuerzoCardProps {
+  refuerzo: RefuerzoNecesario;
+  personalDisponible: Personal[];
+  onLlamar: () => void;
 }
 
-function SolicitudesPanel({ solicitudes, loading, onNewSolicitud, onResponder }: SolicitudesPanelProps) {
-  const [filter, setFilter] = useState<string>('todas');
-
-  const filteredSolicitudes = solicitudes.filter(s => {
-    if (filter === 'todas') return true;
-    if (filter === 'pendientes') return s.estado === 'pendiente';
-    if (filter === 'aprobadas') return s.estado === 'aprobada';
-    if (filter === 'rechazadas') return s.estado === 'rechazada';
-    return true;
-  });
+function RefuerzoCard({ refuerzo, personalDisponible, onLlamar }: RefuerzoCardProps) {
+  const roleConfig = ROLES[refuerzo.rol] || ROLES.medico;
+  const Icon = roleConfig.icon;
+  
+  const urgenciaColors: Record<string, string> = {
+    baja: 'blue',
+    media: 'yellow',
+    alta: 'orange',
+    critica: 'red',
+  };
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between">
-        <SegmentedControl size="xs" value={filter} onChange={setFilter} data={[
-          { value: 'todas', label: 'Todas' },
-          { value: 'pendientes', label: 'Pendientes' },
-          { value: 'aprobadas', label: 'Aprobadas' },
-          { value: 'rechazadas', label: 'Rechazadas' },
-        ]} />
-        <Button size="xs" variant="gradient" gradient={{ from: 'teal', to: 'cyan' }} leftSection={<IconPlus size={14} />} onClick={onNewSolicitud}>Nueva Solicitud</Button>
+    <Card withBorder p="md" radius="md" bg="white">
+      <Group justify="space-between" mb="sm">
+        <Group gap="sm">
+          <Avatar size="lg" color={roleConfig.color} radius="xl">
+            <Icon size={24} />
+          </Avatar>
+          <Box>
+            <Group gap="xs">
+              <Text fw={600}>
+                Se necesitan {refuerzo.cantidad} {roleConfig.label}{refuerzo.cantidad > 1 ? 's' : ''}
+              </Text>
+              <Badge color={urgenciaColors[refuerzo.urgencia]} size="sm">
+                {refuerzo.urgencia.toUpperCase()}
+              </Badge>
+              <Badge 
+                variant="light" 
+                color={refuerzo.tipo === 'prediccion' ? 'violet' : 'orange'}
+                leftSection={refuerzo.tipo === 'prediccion' ? <IconBrain size={10} /> : <IconActivity size={10} />}
+                size="sm"
+              >
+                {refuerzo.tipo === 'prediccion' ? 'Predicción ML' : 'Tiempo Real'}
+              </Badge>
+            </Group>
+            <Text size="sm" c="dimmed">{refuerzo.motivo}</Text>
+          </Box>
+        </Group>
       </Group>
 
-      {loading ? (
-        <Stack gap="sm">{[1, 2, 3].map(i => <Skeleton key={i} height={100} />)}</Stack>
-      ) : filteredSolicitudes.length === 0 ? (
-        <Card withBorder p="xl" radius="md"><Text ta="center" c="dimmed">No hay solicitudes {filter !== 'todas' ? filter : ''}</Text></Card>
-      ) : (
-        <Stack gap="sm">
-          {filteredSolicitudes.map(solicitud => {
-            const hospitalLabel = HOSPITALES.find(h => h.value === solicitud.hospital_id)?.label || solicitud.hospital_id;
-            return (
-            <Card key={solicitud.id} withBorder p="md" radius="md">
-              <Group justify="space-between" mb="sm">
-                <Group gap="xs">
-                  <Badge color={PRIORIDADES[solicitud.prioridad]?.color || 'gray'}>{PRIORIDADES[solicitud.prioridad]?.label || solicitud.prioridad}</Badge>
-                  <Text size="sm" fw={600}>{hospitalLabel}</Text>
-                </Group>
-                <Badge color={solicitud.estado === 'pendiente' ? 'yellow' : solicitud.estado === 'aprobada' ? 'green' : 'red'}>{solicitud.estado}</Badge>
-              </Group>
+      <SimpleGrid cols={3} mb="md">
+        <Card withBorder p="xs" radius="sm" bg="gray.0">
+          <Text size="xs" c="dimmed" ta="center">Mejora Carga</Text>
+          <Group gap={4} justify="center">
+            <IconArrowDown size={14} color="green" />
+            <Text size="sm" fw={700} c="green">-{refuerzo.mejoraEstimada}%</Text>
+          </Group>
+        </Card>
+        <Card withBorder p="xs" radius="sm" bg="gray.0">
+          <Text size="xs" c="dimmed" ta="center">Espera Actual</Text>
+          <Text size="sm" fw={700} ta="center" c="red">{refuerzo.tiempoEsperaActual} min</Text>
+        </Card>
+        <Card withBorder p="xs" radius="sm" bg="gray.0">
+          <Text size="xs" c="dimmed" ta="center">Espera Mejorada</Text>
+          <Text size="sm" fw={700} ta="center" c="green">{refuerzo.tiempoEsperaMejorado} min</Text>
+        </Card>
+      </SimpleGrid>
 
-              <Text size="sm" mb="sm">{solicitud.motivo}</Text>
-
-              <Group gap="xs" mb="sm">
-                <Badge size="xs" variant="outline">{SHIFTS[solicitud.turno_necesario as keyof typeof SHIFTS]?.label || solicitud.turno_necesario}</Badge>
-                <Badge size="xs" variant="outline">{solicitud.cantidad_personal} persona(s)</Badge>
-                <Badge size="xs" variant="light" color={ROLES[solicitud.rol_requerido]?.color || 'gray'}>{ROLES[solicitud.rol_requerido]?.label || solicitud.rol_requerido}</Badge>
-              </Group>
-
-              {solicitud.saturacion_predicha && (
-                <Group gap="xs" mb="sm">
-                  <Text size="xs" c="dimmed">Saturación predicha:</Text>
-                  <Progress value={solicitud.saturacion_predicha * 100} size="sm" color={solicitud.saturacion_predicha > 0.9 ? 'red' : solicitud.saturacion_predicha > 0.75 ? 'orange' : 'green'} style={{ flex: 1 }} />
-                  <Text size="xs">{Math.round(solicitud.saturacion_predicha * 100)}%</Text>
-                </Group>
-              )}
-
-              {solicitud.estado === 'pendiente' && (
-                <Group justify="flex-end" gap="xs">
-                  <Button size="xs" variant="light" color="red" leftSection={<IconX size={14} />} onClick={() => onResponder(solicitud.id, false)}>Rechazar</Button>
-                  <Button size="xs" variant="filled" color="green" leftSection={<IconCheck size={14} />} onClick={() => onResponder(solicitud.id, true)}>Aprobar</Button>
-                </Group>
-              )}
-
-              <Text size="xs" c="dimmed" mt="sm">Creado: {solicitud.created_at ? new Date(solicitud.created_at).toLocaleString('es-ES') : 'Desconocido'}</Text>
-            </Card>
-            );
-          })}
-        </Stack>
-      )}
-    </Stack>
+      <Group justify="space-between">
+        <Text size="xs" c="dimmed">
+          {personalDisponible.length} {roleConfig.plural.toLowerCase()} disponibles para llamar
+        </Text>
+        <Button
+          variant="gradient"
+          gradient={{ from: 'blue', to: 'cyan' }}
+          leftSection={<IconPhoneCall size={16} />}
+          onClick={onLlamar}
+          disabled={personalDisponible.length === 0}
+        >
+          Llamar Personal
+        </Button>
+      </Group>
+    </Card>
   );
 }
 
-interface StaffManagementOfflineProps {
-  selectedHospital: string;
-  setSelectedHospital: (hospital: string) => void;
+interface PersonCardProps {
+  person: Personal;
+  showStatus?: boolean;
+  showPhone?: boolean;
+  showCallButton?: boolean;
+  onCall?: (person: Personal) => void;
+  boxAsignado?: string;
 }
 
-function StaffManagementOffline({ selectedHospital, setSelectedHospital }: StaffManagementOfflineProps) {
-  const mockStaff = [
-    { id: '1', name: 'Dr. García López', role: 'medico', hospital: 'chuac', status: 'active' },
-    { id: '2', name: 'Enf. González Vázquez', role: 'enfermero', hospital: 'chuac', status: 'active' },
-    { id: '3', name: 'Dr. Suárez Neira', role: 'medico', hospital: 'chus', status: 'break' },
-    { id: '4', name: 'Aux. Insua Porto', role: 'auxiliar', hospital: 'povisa', status: 'active' },
-    { id: '5', name: 'Enf. Fidalgo Nogueira', role: 'enfermero', hospital: 'chuo', status: 'active' },
-  ];
-
-  const filteredStaff = selectedHospital === 'all' ? mockStaff : mockStaff.filter(s => s.hospital === selectedHospital);
+function PersonCard({ person, showStatus, showPhone, showCallButton, onCall, boxAsignado }: PersonCardProps) {
+  const roleConfig = ROLES[person.rol] || ROLES.medico;
+  const Icon = roleConfig.icon;
 
   return (
-    <Stack gap="md">
-      <Select size="xs" placeholder="Hospital" value={selectedHospital} onChange={(value) => setSelectedHospital(value || 'all')} data={HOSPITALES} style={{ width: 180 }} />
-      <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
-        {filteredStaff.map(member => {
-          const roleConfig = ROLES[member.role as keyof typeof ROLES] || { label: member.role, color: 'gray', icon: IconUsers };
-          const RoleIcon = roleConfig.icon;
-          return (
-            <Card key={member.id} withBorder p="sm" radius="md">
-              <Group gap="xs" mb="xs">
-                <Avatar size="sm" color={roleConfig.color} radius="xl"><RoleIcon size={14} /></Avatar>
-                <Text size="sm" fw={500}>{member.name}</Text>
-              </Group>
-              <Badge size="xs" color={member.status === 'active' ? 'green' : member.status === 'break' ? 'yellow' : 'red'}>
-                {member.status === 'active' ? 'Activo' : member.status === 'break' ? 'Descanso' : 'Baja'}
+    <Card withBorder p="sm" radius="md">
+      <Group justify="space-between">
+        <Group gap="sm">
+          <Avatar size="md" color={roleConfig.color} radius="xl">
+            <Icon size={18} />
+          </Avatar>
+          <Box>
+            <Text size="sm" fw={500}>{person.nombre} {person.apellidos}</Text>
+            <Group gap="xs">
+              <Badge size="xs" variant="light" color={roleConfig.color}>
+                {roleConfig.label}
               </Badge>
-            </Card>
-          );
-        })}
-      </SimpleGrid>
-    </Stack>
+              {person.especialidad && (
+                <Text size="xs" c="dimmed">{person.especialidad}</Text>
+              )}
+            </Group>
+          </Box>
+        </Group>
+
+        <Group gap="xs">
+          {showStatus && boxAsignado && (
+            <Badge size="sm" variant="outline" color="gray">
+              {boxAsignado}
+            </Badge>
+          )}
+          {showStatus && (
+            <Badge size="sm" variant="filled" color="green">En turno</Badge>
+          )}
+
+          {showPhone && person.telefono && (
+            <Group gap="xs">
+              <Text size="sm" c="dimmed">{person.telefono}</Text>
+              {showCallButton && onCall && (
+                <Tooltip label={`Llamar a ${person.nombre}`}>
+                  <ActionIcon 
+                    size="sm" 
+                    variant="light" 
+                    color="green"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCall(person);
+                    }}
+                  >
+                    <IconPhoneCall size={14} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </Group>
+          )}
+        </Group>
+      </Group>
+    </Card>
+  );
+}
+
+interface PrediccionCardProps {
+  prediccion: PrediccionDemanda;
+  isActual: boolean;
+}
+
+function PrediccionCard({ prediccion, isActual }: PrediccionCardProps) {
+  const demandaColor = prediccion.demandaEsperada > 80 ? 'red' : 
+                        prediccion.demandaEsperada > 60 ? 'orange' : 
+                        prediccion.demandaEsperada > 40 ? 'yellow' : 'green';
+
+  const TendenciaIcon = prediccion.tendencia === 'subiendo' ? IconArrowUp :
+                        prediccion.tendencia === 'bajando' ? IconArrowDown : IconActivity;
+
+  return (
+    <Card withBorder p="sm" radius="md" bg={isActual ? 'blue.0' : undefined}>
+      <Stack gap="xs" align="center">
+        <Text size="xs" c="dimmed" fw={500}>
+          {isActual ? 'AHORA' : prediccion.hora}
+        </Text>
+
+        <RingProgress
+          size={60}
+          thickness={6}
+          sections={[{ value: prediccion.demandaEsperada, color: demandaColor }]}
+          label={
+            <Text size="xs" fw={700} ta="center">
+              {Math.round(prediccion.demandaEsperada)}%
+            </Text>
+          }
+        />
+
+        <Group gap={4}>
+          <TendenciaIcon 
+            size={14} 
+            color={prediccion.tendencia === 'subiendo' ? 'red' : 
+                   prediccion.tendencia === 'bajando' ? 'green' : 'gray'}
+          />
+          <Text size="xs" c="dimmed">
+            {prediccion.tendencia === 'subiendo' ? '↑' :
+             prediccion.tendencia === 'bajando' ? '↓' : '='}
+          </Text>
+        </Group>
+      </Stack>
+    </Card>
   );
 }

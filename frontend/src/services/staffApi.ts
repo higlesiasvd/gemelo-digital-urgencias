@@ -11,6 +11,7 @@ export type RolPersonal = 'medico' | 'enfermero' | 'auxiliar' | 'administrativo'
 export type TipoTurno = 'manana' | 'tarde' | 'noche' | 'guardia_24h';
 export type EstadoDisponibilidad = 'disponible' | 'trabajando' | 'descanso' | 'baja' | 'vacaciones';
 export type PrioridadRefuerzo = 'baja' | 'media' | 'alta' | 'urgente' | 'critica';
+export type MotivoRefuerzo = 'ALTA_DEMANDA_PREDICHA' | 'EMERGENCIA_MASIVA' | 'BAJA_INESPERADA' | 'EVENTO_ESPECIAL' | 'COBERTURA_VACACIONES' | 'SATURACION_ACTUAL';
 
 export interface Personal {
   id: string;
@@ -19,13 +20,17 @@ export interface Personal {
   apellidos: string;
   rol: RolPersonal;
   especialidad?: string;
-  hospital_asignado: string;
+  hospital_id?: string;
+  hospital_asignado?: string;
+  unidad?: string;
   email?: string;
   telefono?: string;
   activo: boolean;
-  fecha_contratacion: string;
-  horas_semanales_contrato: number;
-  puede_hacer_guardias: boolean;
+  fecha_alta?: string;
+  fecha_contratacion?: string;
+  horas_semanales_contrato?: number;
+  puede_hacer_guardias?: boolean;
+  acepta_refuerzos?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -371,9 +376,9 @@ class StaffApiClient {
       notas_respuesta?: string;
     }
   ): Promise<SolicitudRefuerzo> {
-    return this.request<SolicitudRefuerzo>(`/api/refuerzos/${id}/estado`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
+    // El backend espera nuevo_estado como query parameter
+    return this.request<SolicitudRefuerzo>(`/api/refuerzos/${id}/estado?nuevo_estado=${data.estado}`, {
+      method: 'PATCH',
     });
   }
 

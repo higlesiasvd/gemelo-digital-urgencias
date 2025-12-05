@@ -165,7 +165,7 @@ export function Chatbot({ isOpen, onClose }: ChatbotProps) {
             ...styles,
             position: 'fixed',
             bottom: 90,
-            right: 20,
+            left: 20,
             width: 420,
             height: 600,
             maxHeight: 'calc(100vh - 120px)',
