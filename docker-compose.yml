@@ -106,8 +106,28 @@ services:
       - VITE_INFLUXDB_ORG=urgencias
       - VITE_INFLUXDB_BUCKET=hospitales
       - VITE_MQTT_URL=ws://mosquitto:9001
+      - VITE_MCP_URL=http://mcp-server:8080
     depends_on:
       - influxdb
+      - mosquitto
+      - mcp-server
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # MCP Server - Chatbot API con IA (Groq Llama 70B)
+  # ═══════════════════════════════════════════════════════════════════
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    container_name: urgencias-mcp
+    ports:
+      - "8080:8080"
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - GROQ_API_KEY=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
+    depends_on:
       - mosquitto
     restart: unless-stopped
 

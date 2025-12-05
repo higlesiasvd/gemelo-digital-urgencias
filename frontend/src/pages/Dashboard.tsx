@@ -6,6 +6,7 @@ import { IconFlame, IconAmbulance, IconBed, IconUsers, IconActivity, IconMapPin,
 import { notifications } from '@mantine/notifications';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import dayjs from 'dayjs';
+import { IncidentCoordinator } from '@/components/IncidentCoordinator';
 
 export function Dashboard() {
   const { stats, lastUpdate, alerts, publishMessage } = useHospitalStore();
@@ -117,6 +118,9 @@ export function Dashboard() {
 
   return (
     <Stack gap="lg">
+      {/* Panel visual del coordinador de incidentes */}
+      <IncidentCoordinator />
+
       <Group justify="space-between" align="center">
         <div>
           <Title order={1}>Vista General del Sistema</Title>

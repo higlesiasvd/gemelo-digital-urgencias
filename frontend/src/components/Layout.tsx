@@ -13,6 +13,7 @@ import {
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useHospitalStore } from '@/store/hospitalStore';
 import { notifications } from '@mantine/notifications';
+import { Chatbot, ChatbotButton } from './Chatbot';
 
 // Coordenadas de ubicaciones de incidentes
 const UBICACIONES_COORDS: Record<string, [number, number]> = {
@@ -45,6 +46,7 @@ export function Layout() {
   const [selectedLocation, setSelectedLocation] = useState<string>('centro');
   const [numPacientes, setNumPacientes] = useState<number>(15);
   const [simulatingIncident, setSimulatingIncident] = useState(false);
+  const [chatbotOpen, setChatbotOpen] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -246,7 +248,7 @@ export function Layout() {
         <Box
           style={{
             position: 'fixed',
-            bottom: 20,
+            bottom: 100,
             right: 20,
             zIndex: 1000,
           }}
@@ -316,6 +318,10 @@ export function Layout() {
       <AppShell.Main>
         <Outlet />
       </AppShell.Main>
+
+      {/* Chatbot flotante */}
+      <Chatbot isOpen={chatbotOpen} onClose={() => setChatbotOpen(false)} />
+      {!chatbotOpen && <ChatbotButton onClick={() => setChatbotOpen(true)} />}
     </AppShell>
   );
 }
