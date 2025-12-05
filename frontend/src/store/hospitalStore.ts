@@ -14,6 +14,16 @@ export interface ContextoExterno {
   eventos_proximos?: string[];
 }
 
+// Incidente activo
+export interface IncidenteActivo {
+  tipo: string;
+  ubicacion: string;
+  ubicacionCoords: [number, number];
+  numPacientes: number;
+  timestamp: Date;
+  distribucion: { hospital: string; pacientes: number }[];
+}
+
 interface HospitalStore {
   stats: Record<string, HospitalStats>;
   alerts: AlertaPrediccion[];
@@ -22,6 +32,7 @@ interface HospitalStore {
   isConnected: boolean;
   lastUpdate: Date | null;
   publishMessage: ((topic: string, message: object) => boolean) | null;
+  incidenteActivo: IncidenteActivo | null;
 
   // Actions
   updateStats: (hospitalId: string, stats: HospitalStats) => void;
@@ -31,6 +42,7 @@ interface HospitalStore {
   setSelectedHospital: (hospitalId: string | null) => void;
   setConnected: (connected: boolean) => void;
   setPublishFunction: (fn: (topic: string, message: object) => boolean) => void;
+  setIncidenteActivo: (incidente: IncidenteActivo | null) => void;
   reset: () => void;
 }
 
@@ -42,6 +54,7 @@ export const useHospitalStore = create<HospitalStore>((set) => ({
   isConnected: false,
   lastUpdate: null,
   publishMessage: null,
+  incidenteActivo: null,
 
   updateStats: (hospitalId, stats) =>
     set((state) => ({
@@ -82,6 +95,9 @@ export const useHospitalStore = create<HospitalStore>((set) => ({
   setPublishFunction: (fn) =>
     set({ publishMessage: fn }),
 
+  setIncidenteActivo: (incidente) =>
+    set({ incidenteActivo: incidente }),
+
   reset: () =>
     set({
       stats: {},
@@ -90,5 +106,6 @@ export const useHospitalStore = create<HospitalStore>((set) => ({
       isConnected: false,
       lastUpdate: null,
       publishMessage: null,
+      incidenteActivo: null,
     }),
 }));

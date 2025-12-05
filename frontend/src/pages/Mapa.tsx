@@ -57,6 +57,46 @@ const createHospitalIcon = (color: string) => {
   });
 };
 
+// Icono de incidente/emergencia
+const createIncidentIcon = (tipo: string) => {
+  const iconEmoji = tipo.includes('INCENDIO') ? '🔥' : 
+                    tipo.includes('TRAFICO') || tipo.includes('ACCIDENTE') ? '🚗' :
+                    tipo.includes('INTOXICACION') ? '☢️' :
+                    tipo.includes('DEPORTIVO') ? '⚽' :
+                    tipo.includes('GRIPE') ? '🦠' : '🚨';
+  
+  return L.divIcon({
+    className: 'custom-incident-marker',
+    html: `
+      <div style="
+        background-color: #ff0000;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 4px solid #ffcc00;
+        box-shadow: 0 0 20px rgba(255,0,0,0.8), 0 0 40px rgba(255,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 20px;
+        animation: pulse-incident 1.5s infinite;
+      ">${iconEmoji}</div>
+      <style>
+        @keyframes pulse-incident {
+          0% { transform: scale(1); box-shadow: 0 0 20px rgba(255,0,0,0.8), 0 0 40px rgba(255,0,0,0.5); }
+          50% { transform: scale(1.15); box-shadow: 0 0 30px rgba(255,0,0,1), 0 0 60px rgba(255,0,0,0.7); }
+          100% { transform: scale(1); box-shadow: 0 0 20px rgba(255,0,0,0.8), 0 0 40px rgba(255,0,0,0.5); }
+        }
+      </style>
+    `,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -20],
+  });
+};
+
 // Coordenadas reales de Grafana
 const HOSPITAL_COORDS: Record<string, { lat: number; lon: number; color: string }> = {
   chuac: { lat: 43.34427, lon: -8.38932, color: '#228be6' },
@@ -96,7 +136,7 @@ interface EventoData {
 }
 
 export function Mapa() {
-  const { stats, contexto } = useHospitalStore();
+  const { stats, contexto, incidenteActivo, setIncidenteActivo } = useHospitalStore();
   const hospitalIds = Object.keys(HOSPITALES);
   
   // Estados para datos de APIs (simulados basados en el contexto del simulador)
@@ -527,6 +567,65 @@ export function Mapa() {
                     </div>
                   );
                 })}
+
+                {/* Marcador de incidente activo */}
+                {incidenteActivo && incidenteActivo.ubicacionCoords && (
+                  <>
+                    {/* Círculo de zona de impacto del incidente */}
+                    <Circle
+                      center={incidenteActivo.ubicacionCoords}
+                      radius={1200}
+                      pathOptions={{
+                        color: '#ff0000',
+                        fillColor: '#ff0000',
+                        fillOpacity: 0.15,
+                        weight: 3,
+                        dashArray: '10, 5',
+                      }}
+                    />
+                    
+                    {/* Marcador del incidente */}
+                    <Marker
+                      position={incidenteActivo.ubicacionCoords}
+                      icon={createIncidentIcon(incidenteActivo.tipo)}
+                    >
+                      <Popup>
+                        <div style={{ minWidth: 220 }}>
+                          <div style={{
+                            background: 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)',
+                            color: 'white',
+                            padding: '8px 12px',
+                            borderRadius: '6px 6px 0 0',
+                            margin: '-14px -20px 10px -20px',
+                            textAlign: 'center',
+                          }}>
+                            <strong>🚨 INCIDENTE ACTIVO</strong>
+                          </div>
+                          <table style={{ width: '100%', fontSize: 12 }}>
+                            <tbody>
+                              <tr>
+                                <td style={{ padding: '4px 0' }}>Tipo:</td>
+                                <td><strong>{incidenteActivo.tipo.replace(/_/g, ' ')}</strong></td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '4px 0' }}>Ubicación:</td>
+                                <td><strong>{incidenteActivo.ubicacion}</strong></td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '4px 0' }}>Pacientes:</td>
+                                <td><strong style={{ color: '#cc0000' }}>{incidenteActivo.numPacientes}</strong></td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '4px 0' }}>Hora:</td>
+                                <td><strong>{incidenteActivo.timestamp.toLocaleTimeString()}</strong></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  </>
+                )}
               </MapContainer>
             </div>
 
@@ -536,6 +635,17 @@ export function Mapa() {
               <Badge color="yellow" variant="filled">Atención 50-70%</Badge>
               <Badge color="orange" variant="filled">Alerta 70-85%</Badge>
               <Badge color="red" variant="filled">Crítico &gt;85%</Badge>
+              {incidenteActivo && (
+                <Badge 
+                  color="red" 
+                  variant="outline" 
+                  style={{ animation: 'pulse 1.5s infinite', cursor: 'pointer' }}
+                  onClick={() => setIncidenteActivo(null)}
+                  title="Click para cerrar incidente"
+                >
+                  🚨 Incidente Activo ✕
+                </Badge>
+              )}
             </Group>
           </Card>
         </Grid.Col>

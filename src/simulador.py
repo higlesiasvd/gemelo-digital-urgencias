@@ -640,26 +640,29 @@ class HospitalUrgencias:
             # Pequeño delay entre pacientes (1-5 minutos simulados)
             yield self.env.timeout(random.uniform(1, 5))
             
-            # Crear paciente de emergencia
+            # Crear paciente de emergencia con los campos correctos
             nivel = random.choice(niveles)
+            self.paciente_counter += 1
             paciente = Paciente(
-                id=f"EMR-{self.config.id}-{int(self.env.now)}-{i}",
-                nombre=f"Paciente Emergencia {i+1}",
+                id=self.paciente_counter,
+                hospital_id=self.config.id,
                 nivel_triaje=nivel,
                 patologia=f"Emergencia {tipo}",
                 hora_llegada=self.env.now,
-                hospital_id=self.config.id
+                edad=random.randint(18, 75)
             )
             
-            self.pacientes_en_sistema.append(paciente)
-            self.stats.pacientes_totales += 1
+            self.pacientes_activos[paciente.id] = paciente
+            
+            # Publicar evento de llegada
+            self.publicar_evento("llegada_emergencia", paciente)
             
             # Iniciar proceso de atención
             self.env.process(self.proceso_atencion_paciente(paciente))
             
-            print(f"   🏥 [{self.config.id}] Paciente {i+1}/{num_pacientes} - Triaje: {nivel.value}")
+            print(f"   🏥 [{self.config.id}] Paciente {i+1}/{num_pacientes} - Triaje: {nivel.value}", flush=True)
         
-        print(f"✅ [{self.config.id}] {num_pacientes} pacientes de emergencia ingresados")
+        print(f"✅ [{self.config.id}] {num_pacientes} pacientes de emergencia ingresados", flush=True)
     
     def desactivar_emergencia(self):
         """Desactiva modo emergencia"""
@@ -724,13 +727,16 @@ class MQTTManager:
 
     def _on_message(self, client, userdata, msg):
         """Callback para mensajes MQTT - maneja comandos de incidentes"""
+        import sys
         try:
             topic = msg.topic
+            print(f"📥 Mensaje MQTT recibido en topic: {topic}", flush=True)
             payload = json.loads(msg.payload.decode())
             
             # Manejar incidente global del coordinador
             if topic == "urgencias/coordinador/incidente":
-                print(f"🚨 Comando de incidente global recibido: {payload}")
+                print(f"🚨 Comando de incidente global recibido: {payload}", flush=True)
+                sys.stdout.flush()
                 self._procesar_incidente_global(payload)
                 return
             
@@ -738,7 +744,7 @@ class MQTTManager:
             parts = topic.split('/')
             if len(parts) >= 3 and parts[2] == 'comando':
                 hospital_id = parts[1]
-                print(f"📨 Comando recibido para {hospital_id}: {payload.get('tipo', 'unknown')}")
+                print(f"📨 Comando recibido para {hospital_id}: {payload.get('tipo', 'unknown')}", flush=True)
 
                 # Procesar comando de activar emergencia (legacy - hospital específico)
                 if payload.get('tipo') == 'activar_emergencia' and hospital_id in self.hospitales:
@@ -746,10 +752,10 @@ class MQTTManager:
                     num_pacientes = payload.get('num_pacientes', 10)
                     hospital = self.hospitales[hospital_id]
                     hospital.activar_emergencia(tipo_emergencia, num_pacientes)
-                    print(f"✅ Emergencia '{tipo_emergencia}' activada en {hospital_id}")
+                    print(f"✅ Emergencia '{tipo_emergencia}' activada en {hospital_id}", flush=True)
 
         except Exception as e:
-            print(f"⚠️  Error procesando comando MQTT: {e}")
+            print(f"⚠️  Error procesando comando MQTT: {e}", flush=True)
             import traceback
             traceback.print_exc()
     

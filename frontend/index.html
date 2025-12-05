@@ -11,6 +11,22 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <style>
+      /* Animaciones globales para incidentes */
+      @keyframes pulse-incident {
+        0% { transform: scale(1); box-shadow: 0 0 20px rgba(255,0,0,0.8), 0 0 40px rgba(255,0,0,0.5); }
+        50% { transform: scale(1.15); box-shadow: 0 0 30px rgba(255,0,0,1), 0 0 60px rgba(255,0,0,0.7); }
+        100% { transform: scale(1); box-shadow: 0 0 20px rgba(255,0,0,0.8), 0 0 40px rgba(255,0,0,0.5); }
+      }
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+      .custom-incident-marker > div {
+        animation: pulse-incident 1.5s infinite;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
