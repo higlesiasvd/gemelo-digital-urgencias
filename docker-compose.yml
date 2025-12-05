@@ -1,5 +1,95 @@
 services:
   # ═══════════════════════════════════════════════════════════════════
+  # POSTGRESQL - Base de datos relacional para personal y configuración
+  # ═══════════════════════════════════════════════════════════════════
+  postgres:
+    image: postgres:16-alpine
+    container_name: urgencias-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=urgencias_db
+      - POSTGRES_USER=urgencias
+      - POSTGRES_PASSWORD=urgencias_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U urgencias -d urgencias_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # ZOOKEEPER - Coordinador para Kafka
+  # ═══════════════════════════════════════════════════════════════════
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: urgencias-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    healthcheck:
+      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # KAFKA - Pipeline de mensajería para eventos del sistema
+  # ═══════════════════════════════════════════════════════════════════
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: urgencias-kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Configuración de retención
+      KAFKA_LOG_RETENTION_HOURS: 168  # 7 días
+      KAFKA_LOG_RETENTION_BYTES: 1073741824  # 1GB por partición
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    depends_on:
+      zookeeper:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # KAFKA UI - Interfaz web para monitorizar Kafka (opcional)
+  # ═══════════════════════════════════════════════════════════════════
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: urgencias-kafka-ui
+    ports:
+      - "8085:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: urgencias-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      - kafka
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
   # SIMULADOR - Python + SimPy (3 hospitales + coordinador)
   # ═══════════════════════════════════════════════════════════════════
   simulador:
@@ -36,6 +126,39 @@ services:
     volumes:
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════
+  # API REST - Gestión de Personal y Refuerzos
+  # ═══════════════════════════════════════════════════════════════════
+  personal-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: urgencias-personal-api
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=urgencias_db
+      - POSTGRES_USER=urgencias
+      - POSTGRES_PASSWORD=urgencias_pass
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      mosquitto:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════
@@ -107,10 +230,12 @@ services:
       - VITE_INFLUXDB_BUCKET=hospitales
       - VITE_MQTT_URL=ws://mosquitto:9001
       - VITE_MCP_URL=http://mcp-server:8080
+      - VITE_STAFF_API_URL=http://localhost:8000
     depends_on:
       - influxdb
       - mosquitto
       - mcp-server
+      - personal-api
     restart: unless-stopped
 
   # ═══════════════════════════════════════════════════════════════════
@@ -137,6 +262,10 @@ volumes:
   influxdb_data:
   grafana_data:
   nodered_data:
+  postgres_data:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:
 
 networks:
   default:

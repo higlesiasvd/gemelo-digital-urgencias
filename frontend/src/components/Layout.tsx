@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { AppShell, Burger, Group, Text, NavLink, Badge, Indicator, Button, Modal, Stack, Select, Slider, Box, Alert, SimpleGrid, Card } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-  IconDashboard,
-  IconBrain,
   IconMapPin,
   IconActivity,
   IconFlame,
   IconInfoCircle,
   IconMapPinFilled,
+  IconBrain,
 } from '@tabler/icons-react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useHospitalStore } from '@/store/hospitalStore';
@@ -60,9 +59,8 @@ export function Layout() {
   }).length;
 
   const navItems = [
-    { icon: IconDashboard, label: 'Vista General', path: '/' },
-    { icon: IconActivity, label: 'Operacional', path: '/operacional' },
-    { icon: IconBrain, label: 'Gemelo Digital & Predicciones', path: '/predicciones' },
+    { icon: IconActivity, label: 'Operacional', path: '/' },
+    { icon: IconBrain, label: 'Gemelo Digital', path: '/gemelo-digital' },
     { icon: IconMapPin, label: 'Mapa y Eventos', path: '/mapa', badge: criticalAlerts },
   ];
 

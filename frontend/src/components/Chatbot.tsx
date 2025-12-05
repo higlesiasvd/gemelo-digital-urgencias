@@ -359,7 +359,7 @@ export function Chatbot({ isOpen, onClose }: ChatbotProps) {
 // Botón flotante para abrir el chatbot
 export function ChatbotButton({ onClick }: { onClick: () => void }) {
   return (
-    <Tooltip label="Asistente de Urgencias" position="left">
+    <Tooltip label="Asistente de Urgencias" position="right">
       <ActionIcon
         size={60}
         radius="xl"
@@ -369,7 +369,7 @@ export function ChatbotButton({ onClick }: { onClick: () => void }) {
         style={{
           position: 'fixed',
           bottom: 20,
-          right: 20,
+          left: 20,
           boxShadow: '0 4px 20px rgba(34, 139, 230, 0.4)',
           zIndex: 999,
           transition: 'transform 0.2s ease',

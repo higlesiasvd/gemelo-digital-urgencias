@@ -1,0 +1,28 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# REQUIREMENTS - API DE GESTIÓN DE PERSONAL
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# FastAPI y servidor
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Base de datos PostgreSQL
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+alembic>=1.12.0
+
+# Kafka
+kafka-python>=2.0.2
+
+# Validación
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Utilidades
+python-dotenv>=1.0.0
+httpx>=0.25.0
+numpy>=1.24.0
+
+# MQTT (para integración con el simulador)
+paho-mqtt>=1.6.1
