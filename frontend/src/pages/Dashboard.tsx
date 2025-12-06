@@ -7,6 +7,7 @@ import { notifications } from '@mantine/notifications';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import dayjs from 'dayjs';
 import { IncidentCoordinator } from '@/components/IncidentCoordinator';
+import { DerivacionesPanel } from '@/components/DerivacionesPanel';
 
 export function Dashboard() {
   const { stats, lastUpdate, alerts, publishMessage } = useHospitalStore();
@@ -18,7 +19,7 @@ export function Dashboard() {
   const [historicalData, setHistoricalData] = useState<Array<{
     timestamp: string;
     chuac: number;
-    hm_modelo: number;
+    modelo: number;
     san_rafael: number;
     total_queue: number;
   }>>([]);
@@ -31,7 +32,7 @@ export function Dashboard() {
     const newDataPoint = {
       timestamp: now.format('HH:mm:ss'),
       chuac: stats['chuac']?.boxes_ocupados || 0,
-      hm_modelo: stats['hm_modelo']?.boxes_ocupados || 0,
+      modelo: stats['modelo']?.boxes_ocupados || 0,
       san_rafael: stats['san_rafael']?.boxes_ocupados || 0,
       total_queue: Object.values(stats).reduce((acc, s) => acc + (s.pacientes_en_espera_atencion || 0), 0),
     };
@@ -120,6 +121,9 @@ export function Dashboard() {
     <Stack gap="lg">
       {/* Panel visual del coordinador de incidentes */}
       <IncidentCoordinator />
+      
+      {/* Panel de derivaciones entre hospitales */}
+      <DerivacionesPanel />
 
       <Group justify="space-between" align="center">
         <div>
@@ -332,7 +336,7 @@ export function Dashboard() {
               <Tooltip />
               <Legend />
               <Area type="monotone" dataKey="chuac" stroke="#8884d8" fillOpacity={1} fill="url(#colorChuac)" name="CHUAC" />
-              <Area type="monotone" dataKey="hm_modelo" stroke="#82ca9d" fillOpacity={1} fill="url(#colorHM)" name="HM Modelo" />
+              <Area type="monotone" dataKey="modelo" stroke="#82ca9d" fillOpacity={1} fill="url(#colorHM)" name="HM Modelo" />
               <Area type="monotone" dataKey="san_rafael" stroke="#ffc658" fillOpacity={1} fill="url(#colorSR)" name="San Rafael" />
             </AreaChart>
           </ResponsiveContainer>

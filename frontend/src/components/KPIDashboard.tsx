@@ -58,7 +58,7 @@ interface HospitalMetrics {
 const generateMetrics = (stats: Record<string, any>): HospitalMetrics[] => {
   const hospitals = [
     { id: 'chuac', name: 'CHUAC' },
-    { id: 'hm_modelo', name: 'HM Modelo' },
+    { id: 'modelo', name: 'HM Modelo' },
     { id: 'san_rafael', name: 'San Rafael' },
   ];
   
@@ -91,7 +91,7 @@ const generateHistoricalData = () => {
     data.push({
       date: date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }),
       chuac: Math.round(60 + Math.random() * 30),
-      hm_modelo: Math.round(50 + Math.random() * 25),
+      modelo: Math.round(50 + Math.random() * 25),
       san_rafael: Math.round(45 + Math.random() * 20),
     });
   }
@@ -257,7 +257,7 @@ export function KPIDashboard() {
               <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
               <Legend />
               <Line type="monotone" dataKey="chuac" name="CHUAC" stroke="#228be6" strokeWidth={2} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="hm_modelo" name="HM Modelo" stroke="#40c057" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="modelo" name="HM Modelo" stroke="#40c057" strokeWidth={2} dot={{ r: 3 }} />
               <Line type="monotone" dataKey="san_rafael" name="San Rafael" stroke="#be4bdb" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>

@@ -1,9 +1,49 @@
-"""Servicios de dominio - Lógica de negocio compleja."""
+"""
+═══════════════════════════════════════════════════════════════════════════════
+SERVICIOS DE DOMINIO - Lógica de negocio compleja
+═══════════════════════════════════════════════════════════════════════════════
 
-# Nota: No importamos GeneradorPacientes aquí para evitar dependencias
-# circulares y permitir que la API funcione de forma aislada.
-# Los servicios deben importarse directamente cuando se necesiten:
-#   from src.domain.services.generador_pacientes import GeneradorPacientes
-#   from src.domain.services.gestion_personal import GestionPersonalService
+Servicios disponibles:
+- simulador: Simulador de urgencias (simplificado)
+- estado_sistema: Estado unificado para UI
+- predictor: Predictor de demanda
+- gestion_personal: Gestión de personal sanitario
+"""
 
-__all__ = []
+# Importaciones principales para uso externo
+from src.domain.services.simulador import (
+    SimuladorUrgencias,
+    HospitalUrgencias,
+    CoordinadorDerivaciones,
+    GeneradorIncidentes,
+    Paciente,
+    NivelTriaje,
+    EstadoPaciente,
+    HOSPITALES,
+)
+
+from src.domain.services.estado_sistema import (
+    PublicadorEstadoUI,
+    AdaptadorSimuladorUI,
+    EstadoHospitalUI,
+    DerivacionUI,
+    IncidenteUI,
+)
+
+__all__ = [
+    # Simulador v2
+    "SimuladorUrgencias",
+    "HospitalUrgencias",
+    "CoordinadorDerivaciones",
+    "GeneradorIncidentes",
+    "Paciente",
+    "NivelTriaje",
+    "EstadoPaciente",
+    "HOSPITALES",
+    # Estado UI
+    "PublicadorEstadoUI",
+    "AdaptadorSimuladorUI",
+    "EstadoHospitalUI",
+    "DerivacionUI",
+    "IncidenteUI",
+]

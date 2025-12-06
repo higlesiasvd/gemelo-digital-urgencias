@@ -30,7 +30,7 @@ import { useHospitalStore } from '@/store/hospitalStore';
 // Coordenadas de hospitales para calcular distancias
 const HOSPITAL_COORDS: Record<string, { lat: number; lon: number; nombre: string; color: string }> = {
   chuac: { lat: 43.34427, lon: -8.38932, nombre: 'CHUAC', color: '#228be6' },
-  hm_modelo: { lat: 43.3669, lon: -8.4189, nombre: 'HM Modelo', color: '#40c057' },
+  modelo: { lat: 43.3651, lon: -8.4016, nombre: 'HM Modelo', color: '#40c057' },
   san_rafael: { lat: 43.34521, lon: -8.3879, nombre: 'San Rafael', color: '#fab005' },
 };
 

@@ -13,13 +13,13 @@ import sys
 import os
 
 # Añadir el directorio src al path para importar los módulos
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-from predictor import (
+from src.domain.services.predictor import (
     PredictorDemanda,
     ServicioPrediccion,
     DetectorEmergencias,

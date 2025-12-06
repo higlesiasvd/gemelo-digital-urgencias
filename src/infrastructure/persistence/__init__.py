@@ -2,12 +2,17 @@
 Módulo de persistencia - PostgreSQL
 """
 
+from src.infrastructure.persistence.database import Base
+
 from .models import (
-    Base,
+    HospitalModel,
+    ConfiguracionPersonalHospitalModel,
     PersonalModel,
     TurnoModel,
     DisponibilidadModel,
     SolicitudRefuerzoModel,
+    ListaSergasModel,
+    AsignacionTemporalModel,
     EventoPrediccionModel,
     ConfiguracionUmbralesModel,
     RolPersonalDB,
@@ -20,20 +25,35 @@ from .models import (
 
 from .database import (
     init_database,
+    init_db,
     get_db_session,
     get_db,
+    get_session,
     check_database_connection,
     get_database_url,
+)
+
+from .repositories import (
+    SQLAlchemyHospitalRepository,
+    SQLAlchemyPersonalRepository,
+    SQLAlchemyTurnoRepository,
+    SQLAlchemyDisponibilidadRepository,
+    SQLAlchemyRefuerzoRepository,
+    SQLAlchemyListaSergasRepository,
 )
 
 __all__ = [
     # Base
     "Base",
     # Modelos
+    "HospitalModel",
+    "ConfiguracionPersonalHospitalModel",
     "PersonalModel",
     "TurnoModel", 
     "DisponibilidadModel",
     "SolicitudRefuerzoModel",
+    "ListaSergasModel",
+    "AsignacionTemporalModel",
     "EventoPrediccionModel",
     "ConfiguracionUmbralesModel",
     # Enums
@@ -45,8 +65,17 @@ __all__ = [
     "MotivoRefuerzoDB",
     # Database
     "init_database",
+    "init_db",
     "get_db_session",
     "get_db",
+    "get_session",
     "check_database_connection",
     "get_database_url",
+    # Repositories
+    "SQLAlchemyHospitalRepository",
+    "SQLAlchemyPersonalRepository",
+    "SQLAlchemyTurnoRepository",
+    "SQLAlchemyDisponibilidadRepository",
+    "SQLAlchemyRefuerzoRepository",
+    "SQLAlchemyListaSergasRepository",
 ]

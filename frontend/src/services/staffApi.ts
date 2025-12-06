@@ -3,6 +3,7 @@
  * Conecta con el servicio FastAPI de gestión de personal
  */
 
+// URL de la API - usa localhost:8000 por defecto
 const API_BASE_URL = import.meta.env.VITE_STAFF_API_URL || 'http://localhost:8000';
 
 // ============= Tipos =============
@@ -249,12 +250,13 @@ class StaffApiClient {
     const searchParams = new URLSearchParams();
     if (params?.hospital) searchParams.append('hospital_id', params.hospital);
     if (params?.rol) searchParams.append('rol', params.rol);
-    if (params?.activo !== undefined) searchParams.append('activo', String(params.activo));
+    if (params?.activo !== undefined) searchParams.append('solo_activos', String(params.activo));
     if (params?.skip) searchParams.append('skip', String(params.skip));
     if (params?.limit) searchParams.append('limit', String(params.limit));
     
     const query = searchParams.toString();
-    return this.request<Personal[]>(`/api/personal${query ? `?${query}` : ''}`);
+    const response = await this.request<{ personal: Personal[]; total: number }>(`/api/v1/personal${query ? `?${query}` : ''}`);
+    return response.personal;
   }
 
   async getPersonalById(id: string): Promise<Personal> {

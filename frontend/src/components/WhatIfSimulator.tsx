@@ -186,7 +186,7 @@ export function WhatIfSimulator({ selectedHospital = 'chuac' }: WhatIfSimulatorP
       
       return {
         hospital: hospitalId === 'chuac' ? 'CHUAC' : 
-                 hospitalId === 'hm_modelo' ? 'HM Modelo' : 'San Rafael',
+                 hospitalId === 'modelo' ? 'HM Modelo' : 'San Rafael',
         currentOccupancy: Math.round(currentOccupancy),
         projectedOccupancy: Math.round(projectedOccupancy),
         currentWaitTime: Math.round(currentWaitTime),
@@ -296,7 +296,7 @@ export function WhatIfSimulator({ selectedHospital = 'chuac' }: WhatIfSimulatorP
               data={[
                 { value: 'all', label: 'Todos los hospitales' },
                 { value: 'chuac', label: 'CHUAC' },
-                { value: 'hm_modelo', label: 'HM Modelo' },
+                { value: 'modelo', label: 'HM Modelo' },
                 { value: 'san_rafael', label: 'San Rafael' },
               ]}
             />

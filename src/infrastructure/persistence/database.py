@@ -14,7 +14,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool
 
-from .models import Base
+from sqlalchemy.orm import declarative_base
+
+# Base para modelos
+Base = declarative_base()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -185,3 +188,18 @@ def recreate_all_tables() -> None:
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     print("🔄 Todas las tablas han sido recreadas")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ALIASES PARA COMPATIBILIDAD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_session() -> Session:
+    """Alias para obtener una sesión de base de datos"""
+    session_factory = get_session_factory()
+    return session_factory()
+
+
+def init_db(echo: bool = False) -> None:
+    """Alias para inicializar la base de datos"""
+    init_database(echo)

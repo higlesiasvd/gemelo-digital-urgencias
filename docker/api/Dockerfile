@@ -1,0 +1,35 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOCKERFILE - API DE GESTIÓN DE PERSONAL
+# ═══════════════════════════════════════════════════════════════════════════════
+# Servicio FastAPI para gestión de personal sanitario con PostgreSQL y Kafka
+# ═══════════════════════════════════════════════════════════════════════════════
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requirements
+COPY requirements-api.txt .
+
+# Instalar dependencias Python
+RUN pip install --no-cache-dir -r requirements-api.txt
+
+# Copiar código fuente
+COPY src/ ./src/
+
+# Variables de entorno
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV DOCKER_CONTAINER=1
+
+# Puerto
+EXPOSE 8000
+
+# Comando de inicio - Usa la nueva estructura DDD
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

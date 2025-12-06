@@ -56,7 +56,7 @@ export class InfluxDBService {
   }
 
   async getAllHospitalsStats(): Promise<HospitalStats[]> {
-    const hospitalIds = ['chuac', 'hm_modelo', 'san_rafael'];
+    const hospitalIds = ['chuac', 'modelo', 'san_rafael'];
     const promises = hospitalIds.map((id) => this.getHospitalStats(id));
     const results = await Promise.all(promises);
     return results.filter((stat): stat is HospitalStats => stat !== null);

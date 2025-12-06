@@ -49,13 +49,13 @@ interface HistoricalEvent {
 // Generar eventos históricos simulados
 const generateHistoricalEvents = (hoursBack: number = 24): HistoricalEvent[] => {
   const events: HistoricalEvent[] = [];
-  const hospitals = ['chuac', 'hm_modelo', 'san_rafael'];
+  const hospitals = ['chuac', 'modelo', 'san_rafael'];
   const eventTypes: Array<'arrival' | 'departure' | 'emergency' | 'saturation' | 'incident' | 'staff'> = 
     ['arrival', 'arrival', 'arrival', 'departure', 'departure', 'emergency', 'saturation', 'incident', 'staff'];
   
   const hospitalNames: Record<string, string> = {
     chuac: 'CHUAC',
-    hm_modelo: 'HM Modelo',
+    modelo: 'HM Modelo',
     san_rafael: 'San Rafael',
   };
   

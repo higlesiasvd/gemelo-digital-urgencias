@@ -4,14 +4,14 @@ Tests unitarios para servicios externos
 
 import unittest
 import sys
-sys.path.insert(0, 'src')
+import os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from infrastructure.external_services import (
+from src.infrastructure.external_services import (
     WeatherService,
     HolidaysService,
     EventsService,
 )
-from infrastructure.external_services.football_service import FootballService
+from src.infrastructure.external_services.football_service import FootballService
 from datetime import date, datetime
 
 

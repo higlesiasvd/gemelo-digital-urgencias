@@ -89,7 +89,7 @@ const generateAlerts = (stats: Record<string, any>): Alert[] => {
   Object.entries(stats).forEach(([hospitalId, data]) => {
     const occupancy = (data.boxes_ocupados / data.boxes_totales) * 100;
     const hospitalName = hospitalId === 'chuac' ? 'CHUAC' : 
-                        hospitalId === 'hm_modelo' ? 'HM Modelo' : 'San Rafael';
+                        hospitalId === 'modelo' ? 'HM Modelo' : 'San Rafael';
     
     // Alerta de saturación próxima
     if (occupancy > 75 && occupancy < 90) {

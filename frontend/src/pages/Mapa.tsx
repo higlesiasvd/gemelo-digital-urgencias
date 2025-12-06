@@ -100,7 +100,7 @@ const createIncidentIcon = (tipo: string) => {
 // Coordenadas reales de Grafana
 const HOSPITAL_COORDS: Record<string, { lat: number; lon: number; color: string }> = {
   chuac: { lat: 43.34427, lon: -8.38932, color: '#228be6' },
-  hm_modelo: { lat: 43.3669, lon: -8.4189, color: '#40c057' },
+  modelo: { lat: 43.3651, lon: -8.4016, color: '#40c057' },
   san_rafael: { lat: 43.34521, lon: -8.3879, color: '#fab005' },
 };
 
