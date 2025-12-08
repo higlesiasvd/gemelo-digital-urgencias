@@ -573,6 +573,7 @@ HOSPITAL_CONFIGS = {
 
 KAFKA_TOPICS = {
     "patient-arrivals": PatientArrival,
+    "incident-patients": PatientArrival,  # External patients from incidents
     "triage-results": TriageResult,
     "consultation-events": ConsultationEvent,
     "diversion-alerts": DiversionAlert,

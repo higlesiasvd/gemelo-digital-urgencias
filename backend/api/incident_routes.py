@@ -290,9 +290,9 @@ async def generate_incident(request: GenerateIncidentRequest):
             patologia=patologia,
         )
         
-        # Enviar a Kafka
+        # Enviar a Kafka topic para incidentes (consumido por el simulador)
         try:
-            kafka.produce("patient-arrivals", arrival)
+            kafka.produce("incident-patients", arrival)
         except Exception as e:
             logger.error(f"Error enviando paciente a Kafka: {e}")
         
