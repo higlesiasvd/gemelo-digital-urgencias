@@ -84,6 +84,18 @@ class HospitalState:
     pacientes_atendidos_hora: int = 0
     pacientes_derivados: int = 0
     ultimo_update: datetime = None
+    # Listas de pacientes por área (para visualización en dashboard)
+    pacientes_ventanilla: List[Dict] = None
+    pacientes_triaje: List[Dict] = None
+    pacientes_consulta: List[Dict] = None
+
+    def __post_init__(self):
+        if self.pacientes_ventanilla is None:
+            self.pacientes_ventanilla = []
+        if self.pacientes_triaje is None:
+            self.pacientes_triaje = []
+        if self.pacientes_consulta is None:
+            self.pacientes_consulta = []
 
     def to_dict(self):
         d = asdict(self)
@@ -162,6 +174,13 @@ def process_kafka_message(topic: str, data: dict):
                 # Estadísticas
                 state.pacientes_atendidos_hora = data.get('pacientes_atendidos_hora', state.pacientes_atendidos_hora)
                 state.pacientes_derivados = data.get('pacientes_derivados_enviados', state.pacientes_derivados)
+                # Listas de pacientes por área (para visualización en dashboard)
+                if 'pacientes_ventanilla' in data:
+                    state.pacientes_ventanilla = data.get('pacientes_ventanilla', [])
+                if 'pacientes_triaje' in data:
+                    state.pacientes_triaje = data.get('pacientes_triaje', [])
+                if 'pacientes_consulta' in data:
+                    state.pacientes_consulta = data.get('pacientes_consulta', [])
                 state.ultimo_update = datetime.now()
 
         elif topic == "system-context":

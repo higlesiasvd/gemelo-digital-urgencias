@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from common.schemas import (
     TriageLevel, HospitalId, PatientArrival, TriageResult,
     ConsultationEvent, ConsultationEventType, PatientDestination,
-    HospitalStats, HOSPITAL_CONFIGS
+    HospitalStats, PatientInQueue, HOSPITAL_CONFIGS
 )
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,7 @@ class Patient:
     patologia: str
     hospital_id: HospitalId
     hora_llegada: datetime
+    nombre: str = ""  # Nombre generado para visualización
     factor_demanda: float = 1.0
 
     # Se completan durante la simulación
@@ -54,9 +55,19 @@ class Patient:
     destino: Optional[PatientDestination] = None
     derivado: bool = False
     derivado_a: Optional[HospitalId] = None
+    entrada_area_actual: float = 0  # Tiempo simpy cuando entró al área actual
 
     @classmethod
     def from_arrival(cls, arrival: PatientArrival) -> 'Patient':
+        # Generar nombre aleatorio según sexo
+        nombres_m = ["Carlos", "Miguel", "José", "Antonio", "Juan", "Pedro", "Luis", "Francisco", "David", "Javier"]
+        nombres_f = ["María", "Carmen", "Ana", "Laura", "Isabel", "Elena", "Sara", "Paula", "Lucía", "Marta"]
+        apellidos = ["García", "Rodríguez", "Martínez", "López", "González", "Fernández", "Sánchez", "Pérez", "Díaz", "Torres"]
+        
+        nombre = random.choice(nombres_m if arrival.sexo == "M" else nombres_f)
+        apellido = random.choice(apellidos)
+        nombre_completo = f"{nombre} {apellido}"
+        
         return cls(
             patient_id=arrival.patient_id,
             edad=arrival.edad,
@@ -64,6 +75,7 @@ class Patient:
             patologia=arrival.patologia,
             hospital_id=arrival.hospital_id,
             hora_llegada=arrival.hora_llegada,
+            nombre=nombre_completo,
             factor_demanda=arrival.factor_demanda
         )
 
@@ -81,9 +93,14 @@ class HospitalResources:
 
     # Estado actual
     medicos_por_consulta: Dict[int, int] = field(default_factory=dict)
+    # Pacientes esperando (en cola)
     cola_ventanilla: List[Patient] = field(default_factory=list)
     cola_triaje: List[Patient] = field(default_factory=list)
     cola_consulta: List[Patient] = field(default_factory=list)
+    # Pacientes siendo atendidos (dentro del recurso)
+    en_ventanilla: List[Patient] = field(default_factory=list)
+    en_triaje: List[Patient] = field(default_factory=list)
+    en_consulta: List[Patient] = field(default_factory=list)
 
     # Estadísticas
     pacientes_atendidos: int = 0
@@ -104,8 +121,8 @@ class HospitalResources:
         for i in range(1, config.num_consultas + 1):
             self.medicos_por_consulta[i] = 1
 
-    def get_stats(self) -> HospitalStats:
-        """Genera estadísticas actuales"""
+    def get_stats(self, current_time: float = 0) -> HospitalStats:
+        """Genera estadísticas actuales incluyendo lista de pacientes"""
         config = HOSPITAL_CONFIGS[self.hospital_id]
 
         # Calcular saturación
@@ -119,6 +136,28 @@ class HospitalResources:
         tiempo_medio_triaje = sum(self.tiempos_espera_triaje[-20:]) / max(1, len(self.tiempos_espera_triaje[-20:]))
         tiempo_medio_consulta = sum(self.tiempos_espera_consulta[-20:]) / max(1, len(self.tiempos_espera_consulta[-20:]))
         tiempo_medio_total = sum(self.tiempos_totales[-20:]) / max(1, len(self.tiempos_totales[-20:]))
+
+        # Construir listas de pacientes por área (cola + siendo atendidos)
+        def build_patient_queue(patients: list, area: str) -> list:
+            result = []
+            for p in patients:
+                tiempo_en_area = round(current_time - p.entrada_area_actual, 1) if p.entrada_area_actual > 0 else 0
+                result.append(PatientInQueue(
+                    patient_id=p.patient_id,
+                    nombre=p.nombre or f"Paciente {p.patient_id[:8]}",
+                    edad=p.edad,
+                    sexo=p.sexo,
+                    patologia=p.patologia,
+                    area=area,
+                    nivel_triaje=p.nivel_triaje,
+                    tiempo_en_area=max(0, tiempo_en_area)
+                ))
+            return result
+
+        # Combinar pacientes en cola + siendo atendidos
+        pacientes_ventanilla = build_patient_queue(self.cola_ventanilla + self.en_ventanilla, "ventanilla")
+        pacientes_triaje = build_patient_queue(self.cola_triaje + self.en_triaje, "triaje")
+        pacientes_consulta = build_patient_queue(self.cola_consulta + self.en_consulta, "consulta")
 
         return HospitalStats(
             hospital_id=self.hospital_id,
@@ -139,7 +178,10 @@ class HospitalResources:
             pacientes_llegados_hora=len(self.tiempos_totales),
             pacientes_derivados_enviados=self.pacientes_derivados_enviados,
             pacientes_derivados_recibidos=self.pacientes_derivados_recibidos,
-            emergencia_activa=saturacion_global > 0.9
+            emergencia_activa=saturacion_global > 0.9,
+            pacientes_ventanilla=pacientes_ventanilla,
+            pacientes_triaje=pacientes_triaje,
+            pacientes_consulta=pacientes_consulta
         )
 
 
@@ -210,18 +252,26 @@ class FlowEngine:
         inicio = self.env.now
 
         # === 1. VENTANILLA ===
+        patient.entrada_area_actual = self.env.now
         self.resources.cola_ventanilla.append(patient)
         with self.resources.ventanillas.request() as req:
             yield req
             self.resources.cola_ventanilla.remove(patient)
+            # Ahora está siendo atendido
+            patient.entrada_area_actual = self.env.now
+            self.resources.en_ventanilla.append(patient)
 
             # Tiempo en ventanilla
             tiempo = self.TIEMPO_VENTANILLA * random.uniform(0.8, 1.2)
             yield self.env.timeout(tiempo)
             patient.tiempo_ventanilla = tiempo
+            
+            # Termina atención en ventanilla
+            self.resources.en_ventanilla.remove(patient)
 
         # === 2. ESPERA TRIAJE ===
         inicio_espera_triaje = self.env.now
+        patient.entrada_area_actual = self.env.now
         self.resources.cola_triaje.append(patient)
 
         with self.resources.boxes_triaje.request() as req:
@@ -229,6 +279,9 @@ class FlowEngine:
             self.resources.cola_triaje.remove(patient)
             patient.tiempo_espera_triaje = self.env.now - inicio_espera_triaje
             self.resources.tiempos_espera_triaje.append(patient.tiempo_espera_triaje)
+            # Ahora está siendo atendido en triaje
+            patient.entrada_area_actual = self.env.now
+            self.resources.en_triaje.append(patient)
 
             # === 3. TRIAJE ===
             box_id = random.randint(1, self.config.num_boxes)
@@ -256,6 +309,10 @@ class FlowEngine:
                 self.on_triage(triage_event)
 
         # === 4. VERIFICAR DERIVACIÓN ===
+        # Fin de triaje - sacar de la lista
+        if patient in self.resources.en_triaje:
+            self.resources.en_triaje.remove(patient)
+            
         # Pacientes graves en hospitales pequeños se derivan a CHUAC
         if (patient.nivel_triaje in [TriageLevel.ROJO, TriageLevel.NARANJA]
             and self.hospital_id != HospitalId.CHUAC):
@@ -269,6 +326,7 @@ class FlowEngine:
         inicio_espera_consulta = self.env.now
         # Prioridad según nivel (ROJO=0, AZUL=4)
         prioridad = list(TriageLevel).index(patient.nivel_triaje)
+        patient.entrada_area_actual = self.env.now
         self.resources.cola_consulta.append(patient)
 
         with self.resources.consultas.request(priority=prioridad) as req:
@@ -281,6 +339,10 @@ class FlowEngine:
             consulta_id = random.randint(1, self.config.num_consultas)
             num_medicos = self.resources.medicos_por_consulta.get(consulta_id, 1)
             tiempo_consulta = self._get_consulta_time(patient.nivel_triaje, consulta_id)
+            
+            # Paciente entra a consulta
+            patient.entrada_area_actual = self.env.now
+            self.resources.en_consulta.append(patient)
 
             # Evento inicio consulta
             if self.on_consultation:
@@ -312,6 +374,9 @@ class FlowEngine:
                     tiempo_consulta_minutos=tiempo_consulta,
                     destino=patient.destino
                 ))
+            
+            # Fin de consulta - sacar de lista
+            self.resources.en_consulta.remove(patient)
 
         # Estadísticas finales
         patient.tiempo_total = self.env.now - inicio
@@ -343,4 +408,4 @@ class FlowEngine:
 
     def get_stats(self) -> HospitalStats:
         """Obtiene estadísticas actuales"""
-        return self.resources.get_stats()
+        return self.resources.get_stats(current_time=self.env.now)

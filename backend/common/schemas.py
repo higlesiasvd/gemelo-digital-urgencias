@@ -354,6 +354,37 @@ class CapacityChange(BaseModel):
 
 
 # ============================================================================
+# ESQUEMAS DE PACIENTES EN COLA (para visualización en dashboard)
+# ============================================================================
+
+class PatientInQueue(BaseModel):
+    """Paciente en una cola del hospital (para visualización)"""
+    patient_id: str
+    nombre: str  # Nombre generado para visualización
+    edad: int
+    sexo: Literal["M", "F"]
+    patologia: str
+    area: Literal["ventanilla", "triaje", "consulta"]
+    nivel_triaje: Optional[TriageLevel] = None  # Solo para triaje y consulta
+    tiempo_en_area: float = Field(ge=0, description="Minutos en el área actual")
+    consulta_id: Optional[int] = None  # Solo para consulta
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "patient_id": "550e8400-e29b-41d4-a716-446655440000",
+                "nombre": "María García",
+                "edad": 45,
+                "sexo": "F",
+                "patologia": "dolor_toracico",
+                "area": "triaje",
+                "nivel_triaje": "amarillo",
+                "tiempo_en_area": 3.5
+            }
+        }
+
+
+# ============================================================================
 # ESQUEMAS DE ESTADISTICAS Y CONTEXTO
 # ============================================================================
 
@@ -393,6 +424,11 @@ class HospitalStats(BaseModel):
 
     # Estado
     emergencia_activa: bool = False
+
+    # Pacientes en cada área (para visualización en dashboard)
+    pacientes_ventanilla: List['PatientInQueue'] = Field(default_factory=list)
+    pacientes_triaje: List['PatientInQueue'] = Field(default_factory=list)
+    pacientes_consulta: List['PatientInQueue'] = Field(default_factory=list)
 
     timestamp: datetime = Field(default_factory=datetime.now)
 

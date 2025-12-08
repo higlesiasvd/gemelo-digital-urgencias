@@ -38,35 +38,9 @@ import { motion } from 'framer-motion';
 import { useHospitals, useDerivaciones } from '@/shared/store';
 import { fetchHospitals } from '@/shared/api/client';
 import { cssVariables } from '@/shared/theme';
-import type { HospitalConfig, HospitalState } from '@/shared/types';
+import type { HospitalConfig, HospitalState, PatientInQueue } from '@/shared/types';
 
-// Datos mock de pacientes para demo (en producción vendrían del WebSocket)
-const MOCK_PATIENTS = {
-    chuac: {
-        ventanilla: [
-            { id: 'P-001', nombre: 'María García', edad: 45, patologia: 'dolor_toracico', tiempo: '1 min' },
-            { id: 'P-002', nombre: 'Juan López', edad: 32, patologia: 'traumatismo', tiempo: '0.5 min' },
-        ],
-        triaje: [
-            { id: 'P-003', nombre: 'Ana Martínez', edad: 67, patologia: 'disnea', nivel: 'NARANJA', tiempo: '3 min' },
-            { id: 'P-004', nombre: 'Pedro Sánchez', edad: 28, patologia: 'herida', nivel: 'VERDE', tiempo: '2 min' },
-        ],
-        consulta: [
-            { id: 'P-005', nombre: 'Laura Fernández', edad: 55, patologia: 'dolor_abdominal', nivel: 'AMARILLO', consulta: 3, tiempo: '8 min' },
-            { id: 'P-006', nombre: 'Carlos Ruiz', edad: 41, patologia: 'fiebre', nivel: 'VERDE', consulta: 5, tiempo: '4 min' },
-        ],
-    },
-    modelo: {
-        ventanilla: [{ id: 'P-007', nombre: 'Elena Díaz', edad: 38, patologia: 'cefalea', tiempo: '1.5 min' }],
-        triaje: [{ id: 'P-008', nombre: 'Miguel Torres', edad: 52, patologia: 'mareo', nivel: 'AMARILLO', tiempo: '4 min' }],
-        consulta: [{ id: 'P-009', nombre: 'Sara Gómez', edad: 29, patologia: 'lumbalgia', nivel: 'VERDE', consulta: 2, tiempo: '6 min' }],
-    },
-    san_rafael: {
-        ventanilla: [],
-        triaje: [{ id: 'P-010', nombre: 'Roberto Iglesias', edad: 73, patologia: 'disnea', nivel: 'NARANJA', tiempo: '2 min' }],
-        consulta: [{ id: 'P-011', nombre: 'Carmen Vázquez', edad: 61, patologia: 'gastroenteritis', nivel: 'VERDE', consulta: 1, tiempo: '3 min' }],
-    },
-};
+// Los datos de pacientes ahora vienen del backend via WebSocket en el estado de cada hospital
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENTE DE FLECHA ANIMADA
@@ -313,11 +287,21 @@ export function DashboardPage() {
         open();
     };
 
-    const getPatients = () => {
+    const getPatients = (): PatientInQueue[] => {
         if (!selectedArea) return [];
-        const hospitalPatients = MOCK_PATIENTS[selectedArea.hospitalId as keyof typeof MOCK_PATIENTS];
-        if (!hospitalPatients) return [];
-        return hospitalPatients[selectedArea.area] || [];
+        const hospitalState = hospitals[selectedArea.hospitalId];
+        if (!hospitalState) return [];
+
+        switch (selectedArea.area) {
+            case 'ventanilla':
+                return hospitalState.pacientes_ventanilla || [];
+            case 'triaje':
+                return hospitalState.pacientes_triaje || [];
+            case 'consulta':
+                return hospitalState.pacientes_consulta || [];
+            default:
+                return [];
+        }
     };
 
     if (isLoading) {
@@ -394,21 +378,25 @@ export function DashboardPage() {
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
-                                {getPatients().map((p: any) => (
-                                    <Table.Tr key={p.id}>
-                                        <Table.Td><Badge variant="light">{p.id}</Badge></Table.Td>
+                                {getPatients().map((p) => (
+                                    <Table.Tr key={p.patient_id}>
+                                        <Table.Td><Badge variant="light">{p.patient_id.slice(0, 8)}</Badge></Table.Td>
                                         <Table.Td>{p.nombre}</Table.Td>
                                         <Table.Td>{p.edad}</Table.Td>
-                                        <Table.Td>{p.patologia.replace('_', ' ')}</Table.Td>
+                                        <Table.Td>{p.patologia.replace(/_/g, ' ')}</Table.Td>
                                         {selectedArea?.area !== 'ventanilla' && (
                                             <Table.Td>
-                                                <Badge color={p.nivel === 'ROJO' ? 'red' : p.nivel === 'NARANJA' ? 'orange' : p.nivel === 'AMARILLO' ? 'yellow' : 'green'}>
-                                                    {p.nivel}
+                                                <Badge color={
+                                                    p.nivel_triaje === 'rojo' ? 'red' :
+                                                        p.nivel_triaje === 'naranja' ? 'orange' :
+                                                            p.nivel_triaje === 'amarillo' ? 'yellow' : 'green'
+                                                }>
+                                                    {p.nivel_triaje?.toUpperCase() || '-'}
                                                 </Badge>
                                             </Table.Td>
                                         )}
-                                        {selectedArea?.area === 'consulta' && <Table.Td>#{p.consulta}</Table.Td>}
-                                        <Table.Td>{p.tiempo}</Table.Td>
+                                        {selectedArea?.area === 'consulta' && <Table.Td>#{p.consulta_id || '-'}</Table.Td>}
+                                        <Table.Td>{p.tiempo_en_area.toFixed(1)} min</Table.Td>
                                     </Table.Tr>
                                 ))}
                             </Table.Tbody>

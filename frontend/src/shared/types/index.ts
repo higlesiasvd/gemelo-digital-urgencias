@@ -15,6 +15,19 @@ export interface HospitalConfig {
     medicos_max_consulta: number;
 }
 
+// Paciente en cola (para visualización en dashboard)
+export interface PatientInQueue {
+    patient_id: string;
+    nombre: string;
+    edad: number;
+    sexo: 'M' | 'F';
+    patologia: string;
+    area: 'ventanilla' | 'triaje' | 'consulta';
+    nivel_triaje?: 'rojo' | 'naranja' | 'amarillo' | 'verde' | 'azul';
+    tiempo_en_area: number;  // minutos
+    consulta_id?: number;
+}
+
 export interface HospitalState {
     id: string;
     nombre: string;
@@ -35,6 +48,10 @@ export interface HospitalState {
     pacientes_atendidos_hora: number;
     pacientes_derivados: number;
     ultimo_update: string | null;
+    // Listas de pacientes en cada área (para visualización)
+    pacientes_ventanilla?: PatientInQueue[];
+    pacientes_triaje?: PatientInQueue[];
+    pacientes_consulta?: PatientInQueue[];
 }
 
 export interface ContextoExterno {
