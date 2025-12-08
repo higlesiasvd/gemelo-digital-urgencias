@@ -30,7 +30,9 @@ import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useHospitals, useContexto } from '@/shared/store';
+import { fetchActiveIncidents, type IncidentResponse } from '@/shared/api/client';
 import { cssVariables } from '@/shared/theme';
 
 // Fix para iconos de Leaflet
@@ -66,35 +68,68 @@ const HOSPITALES = {
   },
 };
 
-// Crear iconos personalizados
+// Crear iconos personalizados premium con SVG
 const createHospitalIcon = (color: string, saturacion: number) => {
-  const statusEmoji = saturacion > 0.85 ? '🔴' : saturacion > 0.7 ? '🟠' : '🟢';
+  const statusColor = saturacion > 0.85 ? '#ef4444' : saturacion > 0.7 ? '#f97316' : saturacion > 0.5 ? '#eab308' : '#22c55e';
+  const statusGlow = saturacion > 0.85 ? 'rgba(239, 68, 68, 0.6)' : saturacion > 0.7 ? 'rgba(249, 115, 22, 0.6)' : 'rgba(34, 197, 94, 0.5)';
+  const pulseAnimation = saturacion > 0.7 ? `
+    @keyframes statusPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.2); }
+    }
+  ` : '';
+
   return L.divIcon({
     className: 'custom-hospital-marker',
     html: `
       <div style="
-        background-color: ${color};
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        cursor: pointer;
-      ">🏥</div>
-      <div style="
-        position: absolute;
-        top: -8px;
-        right: -8px;
-        font-size: 14px;
-      ">${statusEmoji}</div>
+        position: relative;
+        width: 48px;
+        height: 48px;
+        filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+      ">
+        <!-- Círculo principal con gradiente -->
+        <div style="
+          position: absolute;
+          top: 4px;
+          left: 4px;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: linear-gradient(145deg, ${color}, ${color}dd);
+          border: 3px solid rgba(255,255,255,0.9);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: inset 0 -3px 8px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.3);
+        ">
+          <!-- Icono SVG de hospital -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L4 6V12H2V22H22V12H20V6L12 2Z" fill="white" fill-opacity="0.15"/>
+            <path d="M19 10V7.5L12 4L5 7.5V10H4V20H20V10H19ZM15 15H13V17H11V15H9V13H11V11H13V13H15V15Z" fill="white"/>
+          </svg>
+        </div>
+        <!-- Indicador de estado -->
+        <div style="
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: ${statusColor};
+          border: 2px solid white;
+          box-shadow: 0 2px 6px ${statusGlow};
+          ${saturacion > 0.7 ? 'animation: statusPulse 1.5s ease-in-out infinite;' : ''}
+        "></div>
+      </div>
+      <style>
+        ${pulseAnimation}
+      </style>
     `,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-    popupAnchor: [0, -18],
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
+    popupAnchor: [0, -24],
   });
 };
 
@@ -211,28 +246,102 @@ const CALENDARIO_EVENTOS = [
   },
 ];
 
-// Crear icono para eventos
+// Crear icono premium para eventos con SVG
 const createEventIcon = (tipo: string, color: string) => {
-  const emoji = tipo === 'football' ? '⚽' : tipo === 'concierto' ? '🎵' : '🎉';
+  // SVG paths para diferentes tipos de eventos
+  const getEventSvg = () => {
+    if (tipo === 'football') {
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 4.3l2.12.41.02.02 1.29 1.77-.71 2.1-2.08.57L12 9.43V6.3zm-2 0v3.13l-1.64 1.74-2.08-.57-.71-2.1 1.29-1.77.02-.02L10 6.3zM5.51 13.83l.71-2.1.02-.02 1.77-1.29 2.1.71.57 2.08L9.43 15H6.3l-.79-1.17zm5.49 4.87l-2.12-.41-.02-.02-1.29-1.77.71-2.1 2.08-.57L12 15.57v3.13zm1 0v-3.13l1.64-1.74 2.08.57.71 2.1-1.29 1.77-.02.02-2.12.41zm5.49-4.87L16.7 15h-3.13l-1.57-1.43.57-2.08 2.1-.71 1.77 1.29.02.02.71 2.1z"/></svg>`;
+    }
+    if (tipo === 'concierto') {
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
+    }
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
+  };
+
   return L.divIcon({
     className: 'custom-event-marker',
     html: `
       <div style="
-        background-color: ${color};
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        border: 2px solid white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-      ">${emoji}</div>
+        position: relative;
+        width: 34px;
+        height: 34px;
+        filter: drop-shadow(0 3px 8px rgba(0,0,0,0.35));
+      ">
+        <div style="
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: linear-gradient(145deg, ${color}, ${color}cc);
+          border: 2.5px solid rgba(255,255,255,0.9);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: inset 0 -2px 6px rgba(0,0,0,0.15);
+        ">
+          ${getEventSvg()}
+        </div>
+      </div>
     `,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    popupAnchor: [0, -15],
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -17],
+  });
+};
+
+// Crear icono para incidentes activos (con animación de pulso)
+const createIncidentIcon = (icono: string, gravedad: string) => {
+  const color = gravedad === 'catastrofico' ? '#dc2626'
+    : gravedad === 'grave' ? '#ea580c'
+      : gravedad === 'moderado' ? '#f59e0b'
+        : '#84cc16';
+
+  return L.divIcon({
+    className: 'custom-incident-marker',
+    html: `
+      <div style="
+        position: relative;
+        width: 40px;
+        height: 40px;
+      ">
+        <!-- Círculo pulsante de fondo -->
+        <div style="
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background-color: ${color}55;
+          animation: incidentPulse 1.5s ease-out infinite;
+        "></div>
+        <!-- Icono principal -->
+        <div style="
+          position: absolute;
+          top: 4px;
+          left: 4px;
+          background-color: ${color};
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          border: 3px solid white;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+        ">${icono}</div>
+      </div>
+      <style>
+        @keyframes incidentPulse {
+          0% { transform: scale(1); opacity: 0.8; }
+          100% { transform: scale(2.5); opacity: 0; }
+        }
+      </style>
+    `,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -20],
   });
 };
 
@@ -245,6 +354,14 @@ export function MapPage() {
   const hospitals = useHospitals();
   const contexto = useContexto();
   const hospitalIds = Object.keys(HOSPITALES) as Array<keyof typeof HOSPITALES>;
+
+  // Obtener incidentes activos
+  const { data: incidentsData } = useQuery({
+    queryKey: ['active-incidents'],
+    queryFn: fetchActiveIncidents,
+    refetchInterval: 5000, // Actualizar cada 5 segundos
+  });
+  const activeIncidents: IncidentResponse[] = incidentsData?.incidentes || [];
 
   const getColorBySaturation = (saturacion: number) => {
     if (saturacion > 0.85) return '#fa5252';
@@ -593,6 +710,69 @@ export function MapPage() {
                     </div>
                   </Popup>
                 </Marker>
+              ))}
+
+              {/* Marcadores de incidentes activos */}
+              {activeIncidents.map((incident: IncidentResponse) => (
+                <div key={incident.incident_id}>
+                  {/* Círculo de área afectada */}
+                  <Circle
+                    center={[incident.ubicacion.lat, incident.ubicacion.lon]}
+                    radius={300}
+                    pathOptions={{
+                      color: '#dc2626',
+                      fillColor: '#dc2626',
+                      fillOpacity: 0.2,
+                      weight: 2,
+                      dashArray: '5, 5',
+                    }}
+                  />
+
+                  {/* Marcador del incidente */}
+                  <Marker
+                    position={[incident.ubicacion.lat, incident.ubicacion.lon]}
+                    icon={createIncidentIcon(incident.icono, 'grave')}
+                  >
+                    <Popup>
+                      <div style={{ minWidth: 200, color: '#333' }}>
+                        <h4 style={{ margin: '0 0 8px 0', color: '#dc2626' }}>
+                          {incident.icono} {incident.nombre}
+                        </h4>
+                        <div style={{
+                          padding: '4px 8px',
+                          borderRadius: 4,
+                          backgroundColor: '#dc2626',
+                          color: 'white',
+                          display: 'inline-block',
+                          marginBottom: 8,
+                          fontSize: 12,
+                        }}>
+                          🚨 INCIDENTE ACTIVO
+                        </div>
+                        <table style={{ width: '100%', fontSize: 12 }}>
+                          <tbody>
+                            <tr>
+                              <td>Pacientes:</td>
+                              <td><strong>{incident.pacientes_generados}</strong></td>
+                            </tr>
+                            <tr>
+                              <td>Hospital:</td>
+                              <td><strong>{incident.hospital_nombre}</strong></td>
+                            </tr>
+                            <tr>
+                              <td>Distancia:</td>
+                              <td><strong>{incident.distancia_km} km</strong></td>
+                            </tr>
+                            <tr>
+                              <td>Hora:</td>
+                              <td><strong>{new Date(incident.timestamp).toLocaleTimeString()}</strong></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </Popup>
+                  </Marker>
+                </div>
               ))}
             </MapContainer>
           </div>
