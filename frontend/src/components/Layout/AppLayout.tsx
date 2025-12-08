@@ -27,7 +27,7 @@ import {
     IconActivity,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
-import { useIsConnected, useLastUpdate, useSystemSaturation } from '@/shared/store';
+import { useIsConnected, useLastUpdate } from '@/shared/store';
 import { useWebSocket } from '@/shared/hooks/useWebSocket';
 import { cssVariables } from '@/shared/theme';
 import { FloatingChatWidget } from '@/components/FloatingChat/FloatingChatWidget';
@@ -48,16 +48,8 @@ export function AppLayout() {
     const navigate = useNavigate();
     const isConnected = useIsConnected();
     const lastUpdate = useLastUpdate();
-    const saturation = useSystemSaturation();
 
     useWebSocket();
-
-    const getStatusColor = () => {
-        if (saturation > 85) return 'red';
-        if (saturation > 70) return 'orange';
-        if (saturation > 50) return 'yellow';
-        return 'green';
-    };
 
     return (
         <AppShell
@@ -97,10 +89,6 @@ export function AppLayout() {
                     </Group>
 
                     <Group gap="md">
-                        <Badge size="lg" variant="light" color={getStatusColor()} leftSection={<IconActivity size={14} />}>
-                            {saturation.toFixed(0)}% Saturación
-                        </Badge>
-
                         <Tooltip label={isConnected ? 'Conectado' : 'Sin conexión'}>
                             <Badge
                                 leftSection={isConnected ? <IconWifi size={14} /> : <IconWifiOff size={14} />}
