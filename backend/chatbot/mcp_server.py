@@ -136,6 +136,9 @@ contexto_state = {
     "es_festivo": False
 }
 
+# Derivaciones activas (lista con las últimas 50)
+derivaciones_state: List[Dict] = []
+
 
 # ============================================================================
 # KAFKA CONSUMER (en background)
@@ -188,6 +191,36 @@ def process_kafka_message(topic: str, data: dict):
             contexto_state["condicion_climatica"] = data.get('condicion')
             contexto_state["factor_eventos"] = data.get('factor_evento', 1.0)
             contexto_state["es_festivo"] = data.get('es_festivo', False)
+
+        elif topic == "diversion-alerts":
+            # Procesar alerta de derivación
+            global derivaciones_state
+            
+            # Mapear nivel_triaje a nivel_urgencia
+            nivel_triaje = data.get('nivel_triaje', 'verde')
+            if nivel_triaje in ['rojo', 'naranja']:
+                nivel_urgencia = 'alta'
+            elif nivel_triaje in ['amarillo']:
+                nivel_urgencia = 'media'
+            else:
+                nivel_urgencia = 'baja'
+            
+            derivacion = {
+                "id": len(derivaciones_state) + 1,
+                "alert_id": data.get('alert_id'),
+                "patient_id": data.get('patient_id'),
+                "hospital_origen": data.get('hospital_origen'),
+                "hospital_destino": data.get('hospital_destino'),
+                "motivo": data.get('motivo', 'gravedad'),
+                "nivel_triaje": nivel_triaje,
+                "nivel_urgencia": nivel_urgencia,
+                "tiempo_estimado": data.get('tiempo_estimado_traslado', 10),
+                "timestamp": data.get('timestamp', datetime.now().isoformat())
+            }
+            
+            # Añadir al inicio y mantener máximo 50
+            derivaciones_state = [derivacion] + derivaciones_state[:49]
+            logger.info(f"Derivación registrada: {derivacion['hospital_origen']} -> {derivacion['hospital_destino']}")
 
     except Exception as e:
         logger.error(f"Error procesando mensaje Kafka: {e}")
@@ -300,6 +333,7 @@ def get_system_summary() -> Dict[str, Any]:
         "hospitales_activos": len(hospitales_state),
         "hospitales": hospitales_data,  # Stats por hospital
         "contexto": contexto_state,
+        "derivaciones": derivaciones_state,  # Derivaciones activas
         "timestamp": datetime.now().isoformat()
     }
 

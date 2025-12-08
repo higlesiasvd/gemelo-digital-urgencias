@@ -1,10 +1,6 @@
-// ═══════════════════════════════════════════════════════════════════════════════
-// WEBSOCKET HOOK - CONEXIÓN EN TIEMPO REAL
-// ═══════════════════════════════════════════════════════════════════════════════
-
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAppStore } from '@/shared/store';
-import type { StatusUpdateMessage, WSMessage, HospitalState } from '@/shared/types';
+import type { StatusUpdateMessage, WSMessage, HospitalState, Derivacion } from '@/shared/types';
 
 type WSStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -27,7 +23,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
     const [status, setStatus] = useState<WSStatus>('disconnected');
 
-    const { setConnected, updateHospitalState, updateContexto } = useAppStore();
+    const { setConnected, updateHospitalState, updateContexto, addDerivacion } = useAppStore();
+
+    // Track processed derivacion IDs to avoid duplicates
+    const processedDerivacionIds = useRef<Set<string>>(new Set());
 
     const handleMessage = useCallback((event: MessageEvent) => {
         try {
@@ -48,11 +47,31 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
                 if (statusData.contexto) {
                     updateContexto(statusData.contexto);
                 }
+
+                // Procesar derivaciones
+                if (statusData.derivaciones && Array.isArray(statusData.derivaciones)) {
+                    statusData.derivaciones.forEach((d: any) => {
+                        // Evitar duplicados usando alert_id
+                        const alertId = d.alert_id || `${d.id}`;
+                        if (!processedDerivacionIds.current.has(alertId)) {
+                            processedDerivacionIds.current.add(alertId);
+                            const derivacion: Derivacion = {
+                                id: d.id,
+                                hospital_origen: d.hospital_origen,
+                                hospital_destino: d.hospital_destino,
+                                motivo: d.motivo,
+                                nivel_urgencia: d.nivel_urgencia,
+                                timestamp: d.timestamp
+                            };
+                            addDerivacion(derivacion);
+                        }
+                    });
+                }
             }
         } catch (error) {
             console.error('[WebSocket] Error parsing message:', error);
         }
-    }, [updateHospitalState, updateContexto]);
+    }, [updateHospitalState, updateContexto, addDerivacion]);
 
     const connect = useCallback(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;

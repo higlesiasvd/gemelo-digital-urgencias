@@ -70,6 +70,7 @@ export interface SystemStatus {
     hospitales_activos: number;
     hospitales: Record<string, HospitalState>;
     contexto: ContextoExterno;
+    derivaciones?: Derivacion[];  // Derivaciones activas
     timestamp: string;
 }
 
