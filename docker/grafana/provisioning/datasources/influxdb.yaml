@@ -12,7 +12,7 @@ datasources:
     jsonData:
       version: Flux
       organization: urgencias
-      defaultBucket: hospitales
+      defaultBucket: urgencias
       tlsSkipVerify: true
     secureJsonData:
       token: mi-token-secreto-urgencias-dt

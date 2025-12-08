@@ -1,26 +1,41 @@
-# ═══════════════════════════════════════════════════════════════
-# Gemelo Digital Urgencias - Dependencias Python
-# ═══════════════════════════════════════════════════════════════
+# ============================================================================
+# GEMELO DIGITAL HOSPITALARIO - REQUIREMENTS
+# ============================================================================
+# Base requirements for all services
+# ============================================================================
 
-# Simulación de eventos discretos
+# Kafka
+confluent-kafka>=2.3.0
+
+# Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Database
+sqlalchemy>=2.0.23
+psycopg2-binary>=2.9.9
+asyncpg>=0.29.0
+
+# InfluxDB
+influxdb-client>=1.38.0
+
+# Simulation
 simpy>=4.1.1
 
-# Comunicación MQTT
-paho-mqtt>=2.0.0
-
-# Análisis de datos
-pandas>=2.0.0
-numpy>=1.24.0
-
-# Predicción (se usará en día 4)
-prophet>=1.1.4
-
-# APIs externas y datos
+# HTTP Client
+httpx>=0.25.0
+aiohttp>=3.9.0
 requests>=2.31.0
-holidays>=0.35
 
-# Utilidades
+# Data Validation
+pydantic>=2.5.0
+
+# Utilities
+python-dotenv>=1.0.0
 python-dateutil>=2.8.2
 
-# Para pruebas
-pytest>=7.4.0
+# AI/LLM (Chatbot)
+groq>=0.4.0
+
+# Logging
+structlog>=23.2.0

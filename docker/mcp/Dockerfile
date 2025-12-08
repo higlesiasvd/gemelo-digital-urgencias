@@ -1,19 +1,28 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOCKERFILE - CHATBOT MCP
+# ═══════════════════════════════════════════════════════════════════════════════
+# Chatbot con Groq Llama-3.3-70B y Kafka para contexto en tiempo real
+# ═══════════════════════════════════════════════════════════════════════════════
+
 FROM python:3.11-slim
 
 WORKDIR /app
 
 # Instalar dependencias
-COPY requirements-mcp.txt .
-RUN pip install --no-cache-dir -r requirements-mcp.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar código
-COPY src/mcp_server.py .
+# Copiar código fuente
+COPY backend/ ./backend/
 
-# Variables de entorno para Groq
+# Variables de entorno
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV KAFKA_BOOTSTRAP_SERVERS=kafka:9092
 ENV GROQ_API_KEY=""
 
 # Puerto del servidor MCP
 EXPOSE 8080
 
 # Iniciar servidor
-CMD ["python", "mcp_server.py"]
+CMD ["python", "-m", "backend.chatbot.mcp_server"]

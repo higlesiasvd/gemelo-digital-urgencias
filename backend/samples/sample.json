@@ -1,0 +1,902 @@
+[
+  {
+    "patient_id": "e1314e2c-7aa4-4657-815e-0ac52908ac0e",
+    "edad": 64,
+    "sexo": "M",
+    "patologia": "fiebre",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-09T08:45:24.229701",
+    "factor_demanda": 1.01
+  },
+  {
+    "patient_id": "2b1d611b-4c9b-495d-9919-2dff99e3d9a0",
+    "edad": 1,
+    "sexo": "M",
+    "patologia": "gastroenteritis",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T17:27:24.229701",
+    "factor_demanda": 0.88
+  },
+  {
+    "patient_id": "23a72a6a-82b8-4452-bc38-2aed8450ee08",
+    "edad": 62,
+    "sexo": "F",
+    "patologia": "fiebre",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T14:21:24.229701",
+    "factor_demanda": 0.85
+  },
+  {
+    "patient_id": "48235aee-2601-47cd-b0ae-9e554ac66c5d",
+    "edad": 48,
+    "sexo": "M",
+    "patologia": "fiebre",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T13:25:24.229701",
+    "factor_demanda": 0.91
+  },
+  {
+    "patient_id": "15f64929-6a3d-44e5-bb46-fdf815b384a2",
+    "edad": 11,
+    "sexo": "M",
+    "patologia": "conjuntivitis",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T04:18:24.229701",
+    "factor_demanda": 1.1
+  },
+  {
+    "patient_id": "08193f28-53b2-4d74-ac54-0c4373e2fa6e",
+    "edad": 7,
+    "sexo": "F",
+    "patologia": "fractura",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-09T05:19:24.229701",
+    "factor_demanda": 1.05
+  },
+  {
+    "patient_id": "9ee4ed78-c796-4968-a899-cd5f6b35b2dd",
+    "edad": 7,
+    "sexo": "M",
+    "patologia": "otitis",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T06:35:24.229701",
+    "factor_demanda": 0.8
+  },
+  {
+    "patient_id": "688bc9fe-4c8c-4df0-b60e-ceee4244345b",
+    "edad": 24,
+    "sexo": "F",
+    "patologia": "mareo",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T19:51:24.229701",
+    "factor_demanda": 0.91
+  },
+  {
+    "patient_id": "506dc6c6-31be-440d-9686-4555676f7164",
+    "edad": 60,
+    "sexo": "F",
+    "patologia": "lumbalgia",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-08T22:19:24.229701",
+    "factor_demanda": 1.05
+  },
+  {
+    "patient_id": "5a29ae4c-8967-41ac-95c9-de405c8cfffa",
+    "edad": 78,
+    "sexo": "F",
+    "patologia": "ansiedad",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T15:19:24.229701",
+    "factor_demanda": 0.96
+  },
+  {
+    "patient_id": "72afd7df-26d4-467c-bf8c-fd14d1389e30",
+    "edad": 72,
+    "sexo": "F",
+    "patologia": "disnea",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T06:53:24.229701",
+    "factor_demanda": 1.06
+  },
+  {
+    "patient_id": "87e79853-17a7-4f66-9e1d-a3b7fc5e5815",
+    "edad": 3,
+    "sexo": "F",
+    "patologia": "cefalea",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T02:44:24.229701",
+    "factor_demanda": 0.97
+  },
+  {
+    "patient_id": "b1bac967-6c1c-46e4-ab64-8a0350282614",
+    "edad": 87,
+    "sexo": "F",
+    "patologia": "disnea",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T18:50:24.229701",
+    "factor_demanda": 1.04
+  },
+  {
+    "patient_id": "24a8b532-137a-432a-aad8-f7d0a9516a97",
+    "edad": 52,
+    "sexo": "F",
+    "patologia": "cefalea",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T20:47:24.229701",
+    "factor_demanda": 1.24
+  },
+  {
+    "patient_id": "1570cee6-e3e6-4403-9a32-8cdb412fb299",
+    "edad": 71,
+    "sexo": "M",
+    "patologia": "otitis",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-08T23:21:24.229701",
+    "factor_demanda": 1.42
+  },
+  {
+    "patient_id": "36a5657d-464f-4fbd-bde4-0a40504407df",
+    "edad": 52,
+    "sexo": "M",
+    "patologia": "alergia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T14:00:24.229701",
+    "factor_demanda": 1.19
+  },
+  {
+    "patient_id": "cc9b0da5-bb2b-4770-934f-09da47ca1ab3",
+    "edad": 3,
+    "sexo": "F",
+    "patologia": "disnea",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T16:24:24.229701",
+    "factor_demanda": 1.28
+  },
+  {
+    "patient_id": "0c48d370-bdb8-45ce-ab51-9b920f4c191b",
+    "edad": 38,
+    "sexo": "M",
+    "patologia": "lumbalgia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T18:00:24.229701",
+    "factor_demanda": 1.21
+  },
+  {
+    "patient_id": "a5948df9-4292-449f-b6c6-d0f572d34d62",
+    "edad": 63,
+    "sexo": "M",
+    "patologia": "lumbalgia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T22:01:24.229701",
+    "factor_demanda": 1.14
+  },
+  {
+    "patient_id": "9a2d5bb1-fa8a-4617-82c4-4a06529aa747",
+    "edad": 28,
+    "sexo": "M",
+    "patologia": "alergia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T10:28:24.229701",
+    "factor_demanda": 0.97
+  },
+  {
+    "patient_id": "578a575b-ec3b-4466-841d-1b3e2728c59f",
+    "edad": 5,
+    "sexo": "F",
+    "patologia": "herida",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T02:12:24.229701",
+    "factor_demanda": 0.98
+  },
+  {
+    "patient_id": "5e7b9712-4b22-4c9f-b887-2268acf39678",
+    "edad": 14,
+    "sexo": "F",
+    "patologia": "dolor_toracico",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T13:32:24.229701",
+    "factor_demanda": 0.87
+  },
+  {
+    "patient_id": "e13323b9-41a0-4079-b6de-6ec5b00848c1",
+    "edad": 61,
+    "sexo": "M",
+    "patologia": "fractura",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T15:43:24.229701",
+    "factor_demanda": 1.0
+  },
+  {
+    "patient_id": "06c46909-8aae-411e-a2e9-d8c07fc6e9f6",
+    "edad": 11,
+    "sexo": "F",
+    "patologia": "faringitis",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-09T00:23:24.229701",
+    "factor_demanda": 1.09
+  },
+  {
+    "patient_id": "9ad4dccc-72b5-4236-bb02-fa9973fa0138",
+    "edad": 71,
+    "sexo": "M",
+    "patologia": "dolor_abdominal",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T06:30:24.229701",
+    "factor_demanda": 1.49
+  },
+  {
+    "patient_id": "624832d4-9dc7-4c4c-80b9-ee49ce431d78",
+    "edad": 90,
+    "sexo": "M",
+    "patologia": "cefalea",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-08T23:42:24.229701",
+    "factor_demanda": 0.91
+  },
+  {
+    "patient_id": "60f1239b-43bc-427d-99a2-9b8b50ca9671",
+    "edad": 59,
+    "sexo": "M",
+    "patologia": "alergia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T14:18:24.229701",
+    "factor_demanda": 1.08
+  },
+  {
+    "patient_id": "7eb1d64f-4d44-45df-8cf4-e494943d629b",
+    "edad": 16,
+    "sexo": "M",
+    "patologia": "cefalea",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T16:08:24.229701",
+    "factor_demanda": 1.35
+  },
+  {
+    "patient_id": "16b45271-6413-4129-9b0f-c79b0c0e3cd8",
+    "edad": 6,
+    "sexo": "M",
+    "patologia": "dolor_abdominal",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T06:53:24.229701",
+    "factor_demanda": 1.41
+  },
+  {
+    "patient_id": "69df0f41-a3ce-479b-9cc5-46d566ac2baa",
+    "edad": 53,
+    "sexo": "M",
+    "patologia": "fiebre",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T22:51:24.229701",
+    "factor_demanda": 1.46
+  },
+  {
+    "patient_id": "84e35b31-6775-4399-825c-733335df5dda",
+    "edad": 18,
+    "sexo": "M",
+    "patologia": "mareo",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T13:28:24.229701",
+    "factor_demanda": 1.02
+  },
+  {
+    "patient_id": "7753cf4c-1eef-4b25-b35c-a81969b2907d",
+    "edad": 91,
+    "sexo": "F",
+    "patologia": "traumatismo",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T18:12:24.229701",
+    "factor_demanda": 0.97
+  },
+  {
+    "patient_id": "69b0f3b3-91a7-41d7-981b-d5b50c3628d3",
+    "edad": 84,
+    "sexo": "M",
+    "patologia": "faringitis",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T12:06:24.229701",
+    "factor_demanda": 1.44
+  },
+  {
+    "patient_id": "c96f1f76-8f97-492a-93e2-e54b97f07ce3",
+    "edad": 31,
+    "sexo": "M",
+    "patologia": "herida",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T12:33:24.229701",
+    "factor_demanda": 1.01
+  },
+  {
+    "patient_id": "15e3d9cb-ee0c-4da9-b6e4-efac86c755c0",
+    "edad": 6,
+    "sexo": "F",
+    "patologia": "alergia",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-09T02:53:24.229701",
+    "factor_demanda": 1.47
+  },
+  {
+    "patient_id": "3816e153-c3f4-425b-92e3-09b57b8be4cf",
+    "edad": 18,
+    "sexo": "F",
+    "patologia": "cefalea",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T13:31:24.229701",
+    "factor_demanda": 0.83
+  },
+  {
+    "patient_id": "5f52f9c6-0fd2-43e6-930b-5b16ca2cac15",
+    "edad": 67,
+    "sexo": "M",
+    "patologia": "quemadura",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T04:03:24.229701",
+    "factor_demanda": 1.15
+  },
+  {
+    "patient_id": "74f2379f-a760-46e3-9f38-9cf7d369ce1a",
+    "edad": 4,
+    "sexo": "F",
+    "patologia": "fractura",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T11:18:24.229701",
+    "factor_demanda": 1.45
+  },
+  {
+    "patient_id": "9fe3b19d-6004-404e-b4b6-4140df3488e4",
+    "edad": 7,
+    "sexo": "M",
+    "patologia": "conjuntivitis",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T05:05:24.229701",
+    "factor_demanda": 1.05
+  },
+  {
+    "patient_id": "f4ad1fba-6330-4b7c-af9a-bf9f6e9d9d32",
+    "edad": 57,
+    "sexo": "M",
+    "patologia": "gastroenteritis",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-09T01:09:24.229701",
+    "factor_demanda": 0.82
+  },
+  {
+    "patient_id": "df82aac8-424d-4618-9b77-f03c2bdb32fc",
+    "edad": 57,
+    "sexo": "F",
+    "patologia": "cefalea",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T07:44:24.229701",
+    "factor_demanda": 1.2
+  },
+  {
+    "patient_id": "e37122ad-977d-4e5d-9503-35644ee842c7",
+    "edad": 0,
+    "sexo": "M",
+    "patologia": "mareo",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T09:17:24.229701",
+    "factor_demanda": 1.24
+  },
+  {
+    "patient_id": "a267e785-3193-490f-9ef5-9f89b00834a5",
+    "edad": 25,
+    "sexo": "M",
+    "patologia": "dolor_abdominal",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-09T06:24:24.229701",
+    "factor_demanda": 1.14
+  },
+  {
+    "patient_id": "fb127145-60a1-428e-b5b5-ee12bef26945",
+    "edad": 20,
+    "sexo": "F",
+    "patologia": "ansiedad",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-09T07:22:24.229701",
+    "factor_demanda": 1.47
+  },
+  {
+    "patient_id": "c8469b3f-67a3-4235-853d-61382c4d3cc3",
+    "edad": 18,
+    "sexo": "F",
+    "patologia": "intoxicacion",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T20:47:24.229701",
+    "factor_demanda": 1.11
+  },
+  {
+    "patient_id": "511e4bfc-48a5-4a1c-a5ac-c9512a9e6843",
+    "edad": 50,
+    "sexo": "F",
+    "patologia": "dolor_abdominal",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T10:41:24.229701",
+    "factor_demanda": 1.47
+  },
+  {
+    "patient_id": "37cabafe-adaf-489f-8371-ebbc897a47e6",
+    "edad": 87,
+    "sexo": "F",
+    "patologia": "herida",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T07:23:24.229701",
+    "factor_demanda": 1.01
+  },
+  {
+    "patient_id": "b52ffd9f-c17c-46d4-b73a-95e6016410f3",
+    "edad": 0,
+    "sexo": "M",
+    "patologia": "fiebre",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T06:33:24.229701",
+    "factor_demanda": 1.19
+  },
+  {
+    "patient_id": "f9f80665-5ac1-4be3-a6a9-9930aa412b32",
+    "edad": 13,
+    "sexo": "F",
+    "patologia": "intoxicacion",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T12:51:24.229701",
+    "factor_demanda": 0.97
+  },
+  {
+    "patient_id": "7913ec86-31d1-4b01-b814-77ea8386adc4",
+    "edad": 80,
+    "sexo": "M",
+    "patologia": "lumbalgia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T19:50:24.229701",
+    "factor_demanda": 1.24
+  },
+  {
+    "patient_id": "a758d63a-04af-4c89-b0d2-e919a5659d17",
+    "edad": 7,
+    "sexo": "M",
+    "patologia": "intoxicacion",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T05:41:24.229701",
+    "factor_demanda": 1.42
+  },
+  {
+    "patient_id": "0b32a98c-52d1-404c-9565-e7113a0a73bf",
+    "edad": 10,
+    "sexo": "F",
+    "patologia": "fractura",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T13:42:24.229701",
+    "factor_demanda": 1.37
+  },
+  {
+    "patient_id": "dba792d4-5f7f-4c6f-b2ec-94a0e6701c78",
+    "edad": 12,
+    "sexo": "F",
+    "patologia": "fractura",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T18:31:24.229701",
+    "factor_demanda": 1.31
+  },
+  {
+    "patient_id": "677016ad-1d9c-4e1f-ab1c-ed4abac1d92d",
+    "edad": 92,
+    "sexo": "F",
+    "patologia": "faringitis",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-09T00:48:24.229701",
+    "factor_demanda": 1.21
+  },
+  {
+    "patient_id": "5c3bda30-aca4-4c81-bdf6-287d867ae943",
+    "edad": 91,
+    "sexo": "F",
+    "patologia": "dolor_abdominal",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T13:48:24.229701",
+    "factor_demanda": 0.98
+  },
+  {
+    "patient_id": "edf70fdb-b1db-42cf-acd9-9de00426fdcf",
+    "edad": 68,
+    "sexo": "F",
+    "patologia": "fractura",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-09T00:09:24.229701",
+    "factor_demanda": 1.29
+  },
+  {
+    "patient_id": "8426770a-1aee-43f1-ad21-5998c0154f64",
+    "edad": 44,
+    "sexo": "M",
+    "patologia": "intoxicacion",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T12:14:24.229701",
+    "factor_demanda": 1.11
+  },
+  {
+    "patient_id": "9a1235c9-4d1b-4c45-a6eb-942f416bf5ad",
+    "edad": 39,
+    "sexo": "F",
+    "patologia": "fiebre",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-08T18:47:24.229701",
+    "factor_demanda": 1.13
+  },
+  {
+    "patient_id": "0bc5cc9f-96e9-4227-867d-4bac64b44842",
+    "edad": 54,
+    "sexo": "F",
+    "patologia": "ansiedad",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T20:14:24.229701",
+    "factor_demanda": 1.2
+  },
+  {
+    "patient_id": "ff792f7a-5334-4b27-9fa0-56e0da29ac5d",
+    "edad": 70,
+    "sexo": "F",
+    "patologia": "dolor_abdominal",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T08:48:24.229701",
+    "factor_demanda": 1.37
+  },
+  {
+    "patient_id": "4016888d-995f-4755-9730-b3878cbaccaa",
+    "edad": 68,
+    "sexo": "M",
+    "patologia": "fractura",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-08T10:32:24.229701",
+    "factor_demanda": 0.83
+  },
+  {
+    "patient_id": "f08a9f6e-19f3-4a32-9575-49707e28fef6",
+    "edad": 5,
+    "sexo": "M",
+    "patologia": "otitis",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-09T01:05:24.229701",
+    "factor_demanda": 0.92
+  },
+  {
+    "patient_id": "f2119b10-4e40-47c7-809c-804fbc7c1fcd",
+    "edad": 45,
+    "sexo": "F",
+    "patologia": "mareo",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T23:52:24.229701",
+    "factor_demanda": 0.99
+  },
+  {
+    "patient_id": "588388ea-9395-4582-994a-e8b59471cad3",
+    "edad": 96,
+    "sexo": "M",
+    "patologia": "ansiedad",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T08:34:24.229701",
+    "factor_demanda": 0.9
+  },
+  {
+    "patient_id": "d2340fd4-5c19-4b69-9c98-32b57ed7ea5f",
+    "edad": 54,
+    "sexo": "F",
+    "patologia": "faringitis",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T07:58:24.229701",
+    "factor_demanda": 1.1
+  },
+  {
+    "patient_id": "618fb734-6a84-4dd5-8a9d-3c736da9e7a1",
+    "edad": 6,
+    "sexo": "F",
+    "patologia": "conjuntivitis",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-08T12:54:24.229701",
+    "factor_demanda": 1.39
+  },
+  {
+    "patient_id": "3cd8ab32-f886-4334-8ce0-cd929e0adcd7",
+    "edad": 93,
+    "sexo": "M",
+    "patologia": "alergia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T17:51:24.229701",
+    "factor_demanda": 1.16
+  },
+  {
+    "patient_id": "5cde3d2e-e31c-49a2-a859-31b2fbeb9b7e",
+    "edad": 54,
+    "sexo": "M",
+    "patologia": "quemadura",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T21:25:24.229701",
+    "factor_demanda": 1.03
+  },
+  {
+    "patient_id": "3f405942-f0ab-4a7c-af65-0f7ad9cc64df",
+    "edad": 6,
+    "sexo": "M",
+    "patologia": "ansiedad",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T15:12:24.229701",
+    "factor_demanda": 1.33
+  },
+  {
+    "patient_id": "e6dca648-6339-4a3c-adf2-f6b1fb2d8128",
+    "edad": 49,
+    "sexo": "F",
+    "patologia": "traumatismo",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T00:33:24.229701",
+    "factor_demanda": 1.44
+  },
+  {
+    "patient_id": "b3a05b59-77b0-471d-9418-2d3e5b688af2",
+    "edad": 47,
+    "sexo": "M",
+    "patologia": "intoxicacion",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T11:39:24.229701",
+    "factor_demanda": 1.17
+  },
+  {
+    "patient_id": "f9c5e0e3-c12e-4af2-af50-401a74f75722",
+    "edad": 3,
+    "sexo": "M",
+    "patologia": "conjuntivitis",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T03:55:24.229701",
+    "factor_demanda": 0.96
+  },
+  {
+    "patient_id": "912396cd-7099-46ee-9914-32320f836056",
+    "edad": 7,
+    "sexo": "M",
+    "patologia": "gastroenteritis",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-08T23:36:24.229701",
+    "factor_demanda": 0.91
+  },
+  {
+    "patient_id": "8df0e0aa-3cb8-477f-aa3c-191a24f133b5",
+    "edad": 39,
+    "sexo": "F",
+    "patologia": "lumbalgia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T13:37:24.229701",
+    "factor_demanda": 0.94
+  },
+  {
+    "patient_id": "d291e296-d9c7-422b-aff5-39da3ebe5617",
+    "edad": 53,
+    "sexo": "M",
+    "patologia": "disnea",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T08:17:24.229701",
+    "factor_demanda": 1.16
+  },
+  {
+    "patient_id": "bb709302-2783-4379-92c9-bd3825bce407",
+    "edad": 74,
+    "sexo": "F",
+    "patologia": "ansiedad",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T23:50:24.229701",
+    "factor_demanda": 1.21
+  },
+  {
+    "patient_id": "a98a909a-7768-4bc8-83b7-d43e58e2d77c",
+    "edad": 36,
+    "sexo": "F",
+    "patologia": "quemadura",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T04:47:24.229701",
+    "factor_demanda": 1.3
+  },
+  {
+    "patient_id": "de6fe7e2-33b3-42b0-bc31-25a18a14552a",
+    "edad": 79,
+    "sexo": "F",
+    "patologia": "dolor_toracico",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T06:24:24.229701",
+    "factor_demanda": 1.18
+  },
+  {
+    "patient_id": "2cbd9d6b-9fed-4663-9d02-3d9f8fc2e3be",
+    "edad": 62,
+    "sexo": "F",
+    "patologia": "quemadura",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T20:26:24.229701",
+    "factor_demanda": 1.19
+  },
+  {
+    "patient_id": "3aef1350-c3a3-41c5-8b74-086fbf90f5f6",
+    "edad": 43,
+    "sexo": "M",
+    "patologia": "gastroenteritis",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-08T15:21:24.229701",
+    "factor_demanda": 0.98
+  },
+  {
+    "patient_id": "08209363-581d-465e-abe8-f6d1abcd301d",
+    "edad": 34,
+    "sexo": "M",
+    "patologia": "otitis",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T16:36:24.229701",
+    "factor_demanda": 1.41
+  },
+  {
+    "patient_id": "29008a19-4504-47d0-9df7-3d9d44e3fbb1",
+    "edad": 46,
+    "sexo": "F",
+    "patologia": "dolor_abdominal",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T22:16:24.229701",
+    "factor_demanda": 1.48
+  },
+  {
+    "patient_id": "fb2064a3-4ce8-4623-8c4c-15fd4e5f2071",
+    "edad": 46,
+    "sexo": "F",
+    "patologia": "mareo",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T05:40:24.229701",
+    "factor_demanda": 1.36
+  },
+  {
+    "patient_id": "0c0b724b-4bca-4ed3-8178-911dac4d69e0",
+    "edad": 75,
+    "sexo": "M",
+    "patologia": "fractura",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-09T06:30:24.229701",
+    "factor_demanda": 1.15
+  },
+  {
+    "patient_id": "64b413fd-1d86-4e59-9cb3-5677773624eb",
+    "edad": 44,
+    "sexo": "M",
+    "patologia": "alergia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T13:00:24.229701",
+    "factor_demanda": 0.86
+  },
+  {
+    "patient_id": "a20ef47f-4f95-409a-9de1-529c07273161",
+    "edad": 55,
+    "sexo": "F",
+    "patologia": "mareo",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T12:43:24.229701",
+    "factor_demanda": 1.26
+  },
+  {
+    "patient_id": "dcd55e60-0f94-4c73-a315-f40f592ff788",
+    "edad": 6,
+    "sexo": "M",
+    "patologia": "traumatismo",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-08T17:26:24.229701",
+    "factor_demanda": 1.02
+  },
+  {
+    "patient_id": "87a88486-83fe-4326-8430-84353d2cf57c",
+    "edad": 15,
+    "sexo": "F",
+    "patologia": "lumbalgia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T01:50:24.229701",
+    "factor_demanda": 1.29
+  },
+  {
+    "patient_id": "af3f0c30-9062-489d-adad-09662ff5b24b",
+    "edad": 70,
+    "sexo": "M",
+    "patologia": "dolor_toracico",
+    "hospital_id": "modelo",
+    "hora_llegada": "2025-12-08T10:54:24.229701",
+    "factor_demanda": 1.07
+  },
+  {
+    "patient_id": "6013e2a0-0f05-4dd9-a73b-1e5b28376e78",
+    "edad": 19,
+    "sexo": "M",
+    "patologia": "dolor_toracico",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T16:49:24.229701",
+    "factor_demanda": 1.06
+  },
+  {
+    "patient_id": "c95872c9-1d2f-49da-a13d-e0f815e62563",
+    "edad": 91,
+    "sexo": "F",
+    "patologia": "alergia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T13:32:24.229701",
+    "factor_demanda": 0.94
+  },
+  {
+    "patient_id": "22f3ca96-4e8e-4313-a27e-6374e1dbaa88",
+    "edad": 59,
+    "sexo": "M",
+    "patologia": "lumbalgia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T07:31:24.229701",
+    "factor_demanda": 1.26
+  },
+  {
+    "patient_id": "e94de0be-75de-4487-a61c-b55fb60311d9",
+    "edad": 100,
+    "sexo": "M",
+    "patologia": "herida",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T09:50:24.229701",
+    "factor_demanda": 0.9
+  },
+  {
+    "patient_id": "1d42b256-b462-467c-ad6e-3827de97d42e",
+    "edad": 94,
+    "sexo": "M",
+    "patologia": "dolor_abdominal",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T22:07:24.229701",
+    "factor_demanda": 1.44
+  },
+  {
+    "patient_id": "eeac3f4a-353d-45a5-a811-70afc103c0d8",
+    "edad": 91,
+    "sexo": "F",
+    "patologia": "alergia",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T21:47:24.229701",
+    "factor_demanda": 0.84
+  },
+  {
+    "patient_id": "d9fd0534-a230-4e00-9820-5024e268549d",
+    "edad": 15,
+    "sexo": "F",
+    "patologia": "fiebre",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T18:07:24.229701",
+    "factor_demanda": 0.93
+  },
+  {
+    "patient_id": "85ca338e-115a-4480-932f-4fee7ae793a2",
+    "edad": 82,
+    "sexo": "M",
+    "patologia": "alergia",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T10:24:24.229701",
+    "factor_demanda": 1.01
+  },
+  {
+    "patient_id": "e92f82e5-21a1-4881-8df5-bb8dfbbf6736",
+    "edad": 23,
+    "sexo": "M",
+    "patologia": "faringitis",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-08T15:43:24.229701",
+    "factor_demanda": 1.31
+  },
+  {
+    "patient_id": "89ffae18-4738-40b3-a55b-65e5d8248aff",
+    "edad": 55,
+    "sexo": "M",
+    "patologia": "ansiedad",
+    "hospital_id": "san_rafael",
+    "hora_llegada": "2025-12-08T23:15:24.229701",
+    "factor_demanda": 1.14
+  },
+  {
+    "patient_id": "0dbfab5b-8262-41e3-9293-ddcff8ff00c9",
+    "edad": 78,
+    "sexo": "M",
+    "patologia": "faringitis",
+    "hospital_id": "chuac",
+    "hora_llegada": "2025-12-09T02:49:24.229701",
+    "factor_demanda": 1.2
+  }
+]

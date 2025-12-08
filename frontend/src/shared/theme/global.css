@@ -1,0 +1,79 @@
+:root {
+  --glass-bg: rgba(37, 38, 43, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --gradient-primary: linear-gradient(135deg, #228be6 0%, #15aabf 100%);
+  --gradient-success: linear-gradient(135deg, #40c057 0%, #20c997 100%);
+  --gradient-warning: linear-gradient(135deg, #fab005 0%, #fd7e14 100%);
+  --gradient-danger: linear-gradient(135deg, #fa5252 0%, #e64980 100%);
+}
+
+body {
+  background: linear-gradient(135deg, #0f0f12 0%, #1a1b1e 50%, #0f0f12 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(34, 139, 230, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(34, 139, 230, 0.8); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Status colors */
+.status-normal { color: #40c057; }
+.status-atencion { color: #fab005; }
+.status-alerta { color: #fd7e14; }
+.status-critico { color: #fa5252; }
+
+/* Saturation indicators */
+.saturation-low { background: linear-gradient(135deg, #40c057, #20c997); }
+.saturation-medium { background: linear-gradient(135deg, #fab005, #fd7e14); }
+.saturation-high { background: linear-gradient(135deg, #fa5252, #e64980); }

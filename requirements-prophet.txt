@@ -1,0 +1,19 @@
+# ============================================================================
+# GEMELO DIGITAL HOSPITALARIO - PROPHET REQUIREMENTS
+# ============================================================================
+# Requirements for Prophet prediction service
+# ============================================================================
+
+# Base requirements
+confluent-kafka>=2.3.0
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+httpx>=0.25.0
+
+# Prophet for time series prediction
+prophet>=1.1.5
+
+# Data processing
+pandas>=2.1.0
+numpy>=1.26.0

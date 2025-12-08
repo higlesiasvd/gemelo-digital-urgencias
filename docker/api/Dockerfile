@@ -12,24 +12,25 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements
-COPY requirements-api.txt .
+COPY requirements.txt .
 
 # Instalar dependencias Python
-RUN pip install --no-cache-dir -r requirements-api.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fuente
-COPY src/ ./src/
+COPY backend/ ./backend/
 
 # Variables de entorno
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
-ENV DOCKER_CONTAINER=1
+ENV KAFKA_BOOTSTRAP_SERVERS=kafka:9092
 
 # Puerto
 EXPOSE 8000
 
-# Comando de inicio - Usa la nueva estructura DDD
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Comando de inicio
+CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
