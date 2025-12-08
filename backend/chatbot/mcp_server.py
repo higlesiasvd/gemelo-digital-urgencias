@@ -67,6 +67,8 @@ class HospitalState:
     """Estado de un hospital"""
     id: str
     nombre: str
+    ventanillas_ocupadas: int = 0
+    ventanillas_totales: int = 2
     boxes_ocupados: int = 0
     boxes_totales: int = 5
     ocupacion_boxes: float = 0.0
@@ -94,18 +96,21 @@ hospitales_state: Dict[str, HospitalState] = {
     'chuac': HospitalState(
         id='chuac',
         nombre='CHUAC - Complejo Hospitalario Universitario',
+        ventanillas_totales=2,
         boxes_totales=5,
         consultas_totales=10
     ),
     'modelo': HospitalState(
         id='modelo',
         nombre='Hospital HM Modelo',
+        ventanillas_totales=1,
         boxes_totales=1,
         consultas_totales=4
     ),
     'san_rafael': HospitalState(
         id='san_rafael',
         nombre='Hospital San Rafael',
+        ventanillas_totales=1,
         boxes_totales=1,
         consultas_totales=4
     ),
@@ -134,17 +139,27 @@ def process_kafka_message(topic: str, data: dict):
             hospital_id = data.get("hospital_id")
             if hospital_id and hospital_id in hospitales_state:
                 state = hospitales_state[hospital_id]
+                # Ventanillas
+                state.ventanillas_ocupadas = data.get('ventanillas_ocupadas', state.ventanillas_ocupadas)
+                state.ventanillas_totales = data.get('ventanillas_totales', state.ventanillas_totales)
+                # Boxes
                 state.boxes_ocupados = data.get('boxes_ocupados', state.boxes_ocupados)
                 state.boxes_totales = data.get('boxes_totales', state.boxes_totales)
-                state.ocupacion_boxes = data.get('saturacion_global', state.ocupacion_boxes)
+                state.ocupacion_boxes = data.get('ocupacion_boxes', state.ocupacion_boxes)
+                # Consultas
                 state.consultas_ocupadas = data.get('consultas_ocupadas', state.consultas_ocupadas)
                 state.consultas_totales = data.get('consultas_totales', state.consultas_totales)
+                state.ocupacion_consultas = data.get('ocupacion_consultas', state.ocupacion_consultas)
+                # Colas
                 state.cola_triaje = data.get('cola_triaje', state.cola_triaje)
                 state.cola_consulta = data.get('cola_consulta', state.cola_consulta)
+                # Tiempos
                 state.tiempo_medio_espera = data.get('tiempo_medio_espera_triaje', state.tiempo_medio_espera)
                 state.tiempo_medio_total = data.get('tiempo_medio_total', state.tiempo_medio_total)
+                # Saturación
                 state.nivel_saturacion = data.get('saturacion_global', state.nivel_saturacion)
                 state.emergencia_activa = data.get('emergencia_activa', state.emergencia_activa)
+                # Estadísticas
                 state.pacientes_atendidos_hora = data.get('pacientes_atendidos_hora', state.pacientes_atendidos_hora)
                 state.pacientes_derivados = data.get('pacientes_derivados_enviados', state.pacientes_derivados)
                 state.ultimo_update = datetime.now()

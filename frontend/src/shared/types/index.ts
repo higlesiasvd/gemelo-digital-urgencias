@@ -18,6 +18,8 @@ export interface HospitalConfig {
 export interface HospitalState {
     id: string;
     nombre: string;
+    ventanillas_ocupadas: number;
+    ventanillas_totales: number;
     boxes_ocupados: number;
     boxes_totales: number;
     ocupacion_boxes: number;
