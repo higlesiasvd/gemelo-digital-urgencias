@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// SIMULATION PAGE - SIMULADOR Y GENERADOR DE INCIDENTES
+// SIMULATION PAGE - GENERADOR DE INCIDENTES (SIMPLIFIED)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useState } from 'react';
@@ -15,20 +15,16 @@ import {
     ThemeIcon,
     Paper,
     SimpleGrid,
-    Slider,
-    Switch,
     Select,
     Box,
     Tabs,
     Table,
     ActionIcon,
     Progress,
-    Alert,
+    Tooltip,
+    Transition,
 } from '@mantine/core';
 import {
-    IconPlayerPlay,
-    IconPlayerStop,
-    IconTestPipe,
     IconAlertTriangle,
     IconFlame,
     IconCar,
@@ -40,33 +36,36 @@ import {
     IconMapPin,
     IconAmbulance,
     IconRefresh,
+    IconClock,
+    IconBolt,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import {
-    startSimulation,
-    stopSimulation,
     generateIncident,
     fetchActiveIncidents,
     clearIncidents,
     type GenerateIncidentRequest,
     type IncidentResponse,
 } from '@/shared/api/client';
-import { cssVariables } from '@/shared/theme';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const INCIDENT_TYPES = [
-    { value: 'accidente_trafico', label: '🚗 Accidente de tráfico', icon: IconCar, color: 'orange' },
-    { value: 'incendio', label: '🔥 Incendio', icon: IconFlame, color: 'red' },
-    { value: 'evento_deportivo', label: '⚽ Incidente en evento deportivo', icon: IconBallFootball, color: 'blue' },
-    { value: 'intoxicacion_masiva', label: '☠️ Intoxicación masiva', icon: IconVirus, color: 'grape' },
-    { value: 'colapso_estructura', label: '🏚️ Colapso de estructura', icon: IconBuilding, color: 'dark' },
-    { value: 'accidente_laboral', label: '🏭 Accidente laboral', icon: IconTool, color: 'yellow' },
+    { value: 'accidente_trafico', label: '🚗 Accidente de tráfico', icon: IconCar, color: 'orange', emoji: '🚗' },
+    { value: 'incendio', label: '🔥 Incendio', icon: IconFlame, color: 'red', emoji: '🔥' },
+    { value: 'evento_deportivo', label: '⚽ Evento deportivo', icon: IconBallFootball, color: 'blue', emoji: '⚽' },
+    { value: 'intoxicacion_masiva', label: '☠️ Intoxicación masiva', icon: IconVirus, color: 'grape', emoji: '☠️' },
+    { value: 'colapso_estructura', label: '🏚️ Colapso estructura', icon: IconBuilding, color: 'dark', emoji: '🏚️' },
+    { value: 'accidente_laboral', label: '🏭 Accidente laboral', icon: IconTool, color: 'yellow', emoji: '🏭' },
 ];
 
 const SEVERITY_OPTIONS = [
-    { value: 'leve', label: '🟢 Leve (2-5 pacientes)' },
-    { value: 'moderado', label: '🟡 Moderado (5-10 pacientes)' },
-    { value: 'grave', label: '🟠 Grave (10-20 pacientes)' },
-    { value: 'catastrofico', label: '🔴 Catastrófico (20+ pacientes)' },
+    { value: 'leve', label: 'Leve', color: 'green', patients: '2-5' },
+    { value: 'moderado', label: 'Moderado', color: 'yellow', patients: '5-10' },
+    { value: 'grave', label: 'Grave', color: 'orange', patients: '10-20' },
+    { value: 'catastrofico', label: 'Catastrófico', color: 'red', patients: '20+' },
 ];
 
 const LOCATIONS = [
@@ -78,11 +77,23 @@ const LOCATIONS = [
     { value: 'autopista', label: '🛣️ Autopista AP-9', lat: 43.3450, lon: -8.4050 },
 ];
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const glassCard = {
+    background: 'rgba(30, 30, 46, 0.6)',
+    backdropFilter: 'blur(12px)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '16px',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export function SimulationPage() {
-    const [activeTab, setActiveTab] = useState<string | null>('control');
-    const [speed, setSpeed] = useState(1.0);
-    const [autoDerivation, setAutoDerivation] = useState(true);
-    const [isRunning, setIsRunning] = useState(false);
+    const [activeTab, setActiveTab] = useState<string | null>('incidents');
 
     // Incident generation state
     const [incidentType, setIncidentType] = useState<string | null>('accidente_trafico');
@@ -98,28 +109,12 @@ export function SimulationPage() {
     });
 
     // Mutations
-    const startMutation = useMutation({
-        mutationFn: startSimulation,
-        onSuccess: () => {
-            notifications.show({ title: 'Simulación', message: 'Iniciada correctamente', color: 'green' });
-            setIsRunning(true);
-        },
-    });
-
-    const stopMutation = useMutation({
-        mutationFn: stopSimulation,
-        onSuccess: () => {
-            notifications.show({ title: 'Simulación', message: 'Detenida', color: 'orange' });
-            setIsRunning(false);
-        },
-    });
-
     const incidentMutation = useMutation({
         mutationFn: (request: GenerateIncidentRequest) => generateIncident(request),
         onSuccess: (data) => {
             notifications.show({
                 title: `🚨 ${data.nombre}`,
-                message: `${data.pacientes_generados} pacientes enviados a ${data.hospital_nombre}`,
+                message: `${data.pacientes_generados} pacientes → ${data.hospital_nombre}`,
                 color: 'red',
                 autoClose: 5000,
             });
@@ -128,10 +123,11 @@ export function SimulationPage() {
         },
         onError: (error) => {
             notifications.show({
-                title: 'Error',
-                message: `No se pudo generar el incidente: ${error}`,
+                title: 'Error de conexión',
+                message: `Backend no disponible. Verifica que esté corriendo en localhost:8000`,
                 color: 'red',
             });
+            console.error('Incident error:', error);
         },
     });
 
@@ -139,7 +135,7 @@ export function SimulationPage() {
         mutationFn: clearIncidents,
         onSuccess: (data) => {
             notifications.show({
-                title: 'Incidentes limpiados',
+                title: 'Limpiado',
                 message: `${data.cleared} incidentes eliminados`,
                 color: 'blue',
             });
@@ -154,7 +150,6 @@ export function SimulationPage() {
         const loc = LOCATIONS.find(l => l.value === location);
         if (!loc) return;
 
-        // Add some randomness to location
         const lat = loc.lat + (Math.random() - 0.5) * 0.01;
         const lon = loc.lon + (Math.random() - 0.5) * 0.01;
 
@@ -177,153 +172,138 @@ export function SimulationPage() {
         }
     };
 
-    return (
-        <Stack gap="lg">
-            <Group justify="space-between">
-                <Box>
-                    <Title order={2}>Simulador y Control de Incidentes</Title>
-                    <Text c="dimmed" size="sm">Gestiona la simulación y genera incidentes en la ciudad</Text>
-                </Box>
-                <Group>
-                    <Badge size="lg" color={isRunning ? 'green' : 'gray'}>
-                        {isRunning ? '▶ Simulación activa' : '⏹ Detenida'}
-                    </Badge>
-                    <Badge size="lg" color="orange" variant="light">
-                        {activeIncidentsQuery.data?.total || 0} incidentes
-                    </Badge>
-                </Group>
-            </Group>
+    const incidentCount = activeIncidentsQuery.data?.total || 0;
 
-            <Tabs value={activeTab} onChange={setActiveTab}>
-                <Tabs.List>
-                    <Tabs.Tab value="control" leftSection={<IconTestPipe size={16} />}>
-                        Control Simulación
+    return (
+        <Stack gap="md">
+            {/* ══════════════════════════════════════════════════════════════ */}
+            {/* COMPACT HEADER */}
+            {/* ══════════════════════════════════════════════════════════════ */}
+            <Paper
+                p="sm"
+                radius="lg"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(250, 82, 82, 0.15) 0%, rgba(253, 126, 20, 0.1) 100%)',
+                    border: '1px solid rgba(250, 82, 82, 0.2)',
+                }}
+            >
+                <Group justify="space-between" align="center">
+                    <Group gap="sm">
+                        <ThemeIcon
+                            size={40}
+                            variant="gradient"
+                            gradient={{ from: 'red', to: 'orange' }}
+                            radius="xl"
+                        >
+                            <IconAlertTriangle size={22} />
+                        </ThemeIcon>
+                        <div>
+                            <Title order={4} style={{ lineHeight: 1.2 }}>Generador de Incidentes</Title>
+                            <Text size="xs" c="dimmed">Simula incidentes y gestiona llegadas al hospital</Text>
+                        </div>
+                    </Group>
+                    {incidentCount > 0 && (
+                        <Badge size="lg" color="red" variant="filled">
+                            {incidentCount} activo{incidentCount !== 1 ? 's' : ''}
+                        </Badge>
+                    )}
+                </Group>
+            </Paper>
+
+            {/* ══════════════════════════════════════════════════════════════ */}
+            {/* TABS */}
+            {/* ══════════════════════════════════════════════════════════════ */}
+            <Tabs
+                value={activeTab}
+                onChange={setActiveTab}
+                variant="pills"
+                radius="xl"
+                styles={{
+                    list: {
+                        background: 'rgba(0,0,0,0.2)',
+                        padding: '4px',
+                        borderRadius: '24px',
+                        gap: '4px',
+                    },
+                    tab: {
+                        fontWeight: 500,
+                        fontSize: '13px',
+                        padding: '8px 16px',
+                        transition: 'all 0.2s ease',
+                    },
+                }}
+            >
+                <Tabs.List grow>
+                    <Tabs.Tab value="incidents" leftSection={<IconBolt size={16} />}>
+                        Generar Incidente
                     </Tabs.Tab>
-                    <Tabs.Tab value="incidents" leftSection={<IconAlertTriangle size={16} />}>
-                        Generador de Incidentes
-                    </Tabs.Tab>
-                    <Tabs.Tab value="history" leftSection={<IconAmbulance size={16} />}>
-                        Historial ({activeIncidentsQuery.data?.total || 0})
+                    <Tabs.Tab value="history" leftSection={<IconClock size={16} />}>
+                        Historial {incidentCount > 0 && `(${incidentCount})`}
                     </Tabs.Tab>
                 </Tabs.List>
 
-                {/* TAB: Control de Simulación */}
-                <Tabs.Panel value="control" pt="lg">
-                    <Card
-                        padding="lg"
-                        radius="lg"
-                        style={{
-                            background: cssVariables.glassBg,
-                            backdropFilter: 'blur(10px)',
-                            border: `1px solid ${cssVariables.glassBorder}`,
-                        }}
-                    >
-                        <Group gap="md" mb="lg">
-                            <ThemeIcon size={50} variant="gradient" gradient={{ from: 'blue', to: 'cyan' }} radius="xl">
-                                <IconTestPipe size={28} />
-                            </ThemeIcon>
-                            <div>
-                                <Title order={3}>Control de Simulación</Title>
-                                <Text c="dimmed">Gestiona la simulación del sistema de urgencias</Text>
-                            </div>
-                        </Group>
-
-                        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-                            <Paper p="md" radius="md" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                                <Text fw={500} mb="md">Velocidad de simulación</Text>
-                                <Slider
-                                    value={speed}
-                                    onChange={setSpeed}
-                                    min={0.1}
-                                    max={10}
-                                    step={0.1}
-                                    marks={[{ value: 1, label: '1x' }, { value: 5, label: '5x' }, { value: 10, label: '10x' }]}
-                                    label={(v) => `${v}x`}
-                                />
-                            </Paper>
-
-                            <Paper p="md" radius="md" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                                <Text fw={500} mb="md">Opciones</Text>
-                                <Stack gap="sm">
-                                    <Switch
-                                        label="Derivación automática"
-                                        checked={autoDerivation}
-                                        onChange={(e) => setAutoDerivation(e.currentTarget.checked)}
-                                    />
-                                    <Switch
-                                        label="Mostrar alertas en tiempo real"
-                                        defaultChecked
-                                    />
-                                </Stack>
-                            </Paper>
-                        </SimpleGrid>
-
-                        <Group mt="lg" justify="center">
-                            {isRunning ? (
-                                <Button
-                                    size="lg"
-                                    color="red"
-                                    leftSection={<IconPlayerStop size={20} />}
-                                    onClick={() => stopMutation.mutate()}
-                                    loading={stopMutation.isPending}
-                                >
-                                    Detener Simulación
-                                </Button>
-                            ) : (
-                                <Button
-                                    size="lg"
-                                    color="green"
-                                    leftSection={<IconPlayerPlay size={20} />}
-                                    onClick={() => startMutation.mutate()}
-                                    loading={startMutation.isPending}
-                                >
-                                    Iniciar Simulación
-                                </Button>
-                            )}
-                        </Group>
-                    </Card>
-                </Tabs.Panel>
-
+                {/* ══════════════════════════════════════════════════════════════ */}
                 {/* TAB: Generador de Incidentes */}
-                <Tabs.Panel value="incidents" pt="lg">
-                    <SimpleGrid cols={{ base: 1, lg: 2 }}>
+                {/* ══════════════════════════════════════════════════════════════ */}
+                <Tabs.Panel value="incidents" pt="md">
+                    <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
                         {/* Generator */}
-                        <Card
-                            padding="lg"
-                            radius="lg"
-                            style={{
-                                background: cssVariables.glassBg,
-                                backdropFilter: 'blur(10px)',
-                                border: `1px solid ${cssVariables.glassBorder}`,
-                            }}
-                        >
-                            <Group gap="md" mb="lg">
-                                <ThemeIcon size={50} variant="gradient" gradient={{ from: 'red', to: 'orange' }} radius="xl">
-                                    <IconAlertTriangle size={28} />
-                                </ThemeIcon>
-                                <div>
-                                    <Title order={3}>Generar Incidente</Title>
-                                    <Text c="dimmed">Simula un incidente en la ciudad</Text>
-                                </div>
-                            </Group>
-
+                        <Card padding="lg" radius="lg" style={glassCard}>
                             <Stack gap="md">
-                                <Select
-                                    label="Tipo de incidente"
-                                    placeholder="Selecciona tipo"
-                                    data={INCIDENT_TYPES}
-                                    value={incidentType}
-                                    onChange={setIncidentType}
-                                    leftSection={<IconAlertTriangle size={16} />}
-                                />
+                                <Group gap="xs">
+                                    <ThemeIcon size={28} variant="gradient" gradient={{ from: 'red', to: 'orange' }} radius="md">
+                                        <IconBolt size={16} />
+                                    </ThemeIcon>
+                                    <Text fw={600} size="sm">Configurar Incidente</Text>
+                                </Group>
 
-                                <Select
-                                    label="Gravedad"
-                                    placeholder="Selecciona gravedad"
-                                    data={SEVERITY_OPTIONS}
-                                    value={severity}
-                                    onChange={setSeverity}
-                                />
+                                {/* Incident Type Chips */}
+                                <div>
+                                    <Text size="xs" c="dimmed" mb={6}>Tipo de incidente</Text>
+                                    <SimpleGrid cols={3} spacing={6}>
+                                        {INCIDENT_TYPES.map((type) => (
+                                            <Tooltip key={type.value} label={type.label} position="top">
+                                                <Paper
+                                                    p="xs"
+                                                    radius="md"
+                                                    onClick={() => setIncidentType(type.value)}
+                                                    style={{
+                                                        cursor: 'pointer',
+                                                        textAlign: 'center',
+                                                        background: incidentType === type.value
+                                                            ? `var(--mantine-color-${type.color}-filled)`
+                                                            : 'rgba(255,255,255,0.05)',
+                                                        border: incidentType === type.value
+                                                            ? `2px solid var(--mantine-color-${type.color}-filled)`
+                                                            : '2px solid transparent',
+                                                        transition: 'all 0.2s ease',
+                                                    }}
+                                                >
+                                                    <Text size="xl">{type.emoji}</Text>
+                                                </Paper>
+                                            </Tooltip>
+                                        ))}
+                                    </SimpleGrid>
+                                </div>
+
+                                {/* Severity Chips */}
+                                <div>
+                                    <Text size="xs" c="dimmed" mb={6}>Gravedad</Text>
+                                    <Group gap={6}>
+                                        {SEVERITY_OPTIONS.map((sev) => (
+                                            <Badge
+                                                key={sev.value}
+                                                size="lg"
+                                                variant={severity === sev.value ? 'filled' : 'light'}
+                                                color={sev.color}
+                                                onClick={() => setSeverity(sev.value)}
+                                                style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                                            >
+                                                {sev.label}
+                                            </Badge>
+                                        ))}
+                                    </Group>
+                                </div>
 
                                 <Select
                                     label="Ubicación"
@@ -331,114 +311,115 @@ export function SimulationPage() {
                                     data={LOCATIONS}
                                     value={location}
                                     onChange={setLocation}
-                                    leftSection={<IconMapPin size={16} />}
+                                    leftSection={<IconMapPin size={14} />}
+                                    size="sm"
+                                    styles={{ label: { fontSize: 12, color: 'var(--mantine-color-dimmed)' } }}
                                 />
 
-                                <Alert color="orange" variant="light" icon={<IconAmbulance />}>
-                                    Los pacientes serán enviados automáticamente al hospital más cercano
-                                </Alert>
-
                                 <Button
-                                    size="lg"
-                                    color="red"
-                                    leftSection={<IconAlertTriangle size={20} />}
+                                    size="md"
+                                    fullWidth
+                                    variant="gradient"
+                                    gradient={{ from: 'red', to: 'orange' }}
+                                    leftSection={<IconAlertTriangle size={18} />}
                                     onClick={handleGenerateIncident}
                                     loading={incidentMutation.isPending}
-                                    fullWidth
                                 >
                                     🚨 Generar Incidente
                                 </Button>
                             </Stack>
                         </Card>
 
-                        {/* Last Incident Result */}
-                        {lastIncident && (
-                            <Card
-                                padding="lg"
-                                radius="lg"
-                                style={{
-                                    background: 'linear-gradient(135deg, rgba(250, 82, 82, 0.15) 0%, rgba(253, 126, 20, 0.1) 100%)',
-                                    border: '1px solid rgba(250, 82, 82, 0.3)',
-                                }}
-                            >
-                                <Group justify="space-between" mb="md">
-                                    <Group>
-                                        <Text size="xl">{lastIncident.icono}</Text>
-                                        <div>
-                                            <Text fw={700}>{lastIncident.nombre}</Text>
-                                            <Text size="xs" c="dimmed">{lastIncident.incident_id}</Text>
-                                        </div>
-                                    </Group>
-                                    <Badge color="red" size="lg" variant="filled">
-                                        {lastIncident.pacientes_generados} pacientes
-                                    </Badge>
-                                </Group>
+                        {/* Result Card */}
+                        <Transition mounted={!!lastIncident} transition="slide-left" duration={300}>
+                            {(styles) => (
+                                <Card
+                                    padding="lg"
+                                    radius="lg"
+                                    style={{
+                                        ...styles,
+                                        background: 'linear-gradient(135deg, rgba(250, 82, 82, 0.12) 0%, rgba(253, 126, 20, 0.08) 100%)',
+                                        border: '1px solid rgba(250, 82, 82, 0.25)',
+                                    }}
+                                >
+                                    {lastIncident && (
+                                        <Stack gap="sm">
+                                            <Group justify="space-between">
+                                                <Group gap="xs">
+                                                    <Text size="xl">{lastIncident.icono}</Text>
+                                                    <div>
+                                                        <Text fw={700} size="sm">{lastIncident.nombre}</Text>
+                                                        <Text size="xs" c="dimmed">{lastIncident.incident_id}</Text>
+                                                    </div>
+                                                </Group>
+                                                <Badge color="red" size="lg" variant="filled">
+                                                    {lastIncident.pacientes_generados} pac.
+                                                </Badge>
+                                            </Group>
 
-                                <Paper p="sm" radius="md" style={{ background: 'rgba(0,0,0,0.2)' }} mb="md">
-                                    <Group justify="space-between">
-                                        <Group gap="xs">
-                                            <IconMapPin size={14} />
-                                            <Text size="sm">Hospital destino:</Text>
-                                        </Group>
-                                        <Text size="sm" fw={700}>{lastIncident.hospital_nombre}</Text>
-                                    </Group>
-                                    <Group justify="space-between" mt={4}>
-                                        <Text size="sm" c="dimmed">Distancia:</Text>
-                                        <Text size="sm">{lastIncident.distancia_km} km</Text>
-                                    </Group>
-                                </Paper>
+                                            <Paper p="xs" radius="md" style={{ background: 'rgba(0,0,0,0.2)' }}>
+                                                <Group justify="space-between">
+                                                    <Text size="xs" c="dimmed">Hospital:</Text>
+                                                    <Text size="xs" fw={600}>{lastIncident.hospital_nombre}</Text>
+                                                </Group>
+                                                <Group justify="space-between">
+                                                    <Text size="xs" c="dimmed">Distancia:</Text>
+                                                    <Text size="xs">{lastIncident.distancia_km} km</Text>
+                                                </Group>
+                                            </Paper>
 
-                                <Text size="sm" fw={600} mb="xs">Pacientes generados:</Text>
-                                <Table striped highlightOnHover withTableBorder>
-                                    <Table.Thead>
-                                        <Table.Tr>
-                                            <Table.Th>Triaje</Table.Th>
-                                            <Table.Th>Nombre</Table.Th>
-                                            <Table.Th>Patología</Table.Th>
-                                        </Table.Tr>
-                                    </Table.Thead>
-                                    <Table.Tbody>
-                                        {lastIncident.pacientes_detalle.slice(0, 5).map((p) => (
-                                            <Table.Tr key={p.patient_id}>
-                                                <Table.Td>
-                                                    <Badge color={getTriageColor(p.nivel_triaje)} size="xs">
-                                                        {p.nivel_triaje.toUpperCase()}
-                                                    </Badge>
-                                                </Table.Td>
-                                                <Table.Td>{p.nombre}</Table.Td>
-                                                <Table.Td>{p.patologia}</Table.Td>
-                                            </Table.Tr>
-                                        ))}
-                                    </Table.Tbody>
-                                </Table>
-                                {lastIncident.pacientes_detalle.length > 5 && (
-                                    <Text size="xs" c="dimmed" mt="xs" ta="center">
-                                        +{lastIncident.pacientes_detalle.length - 5} pacientes más
-                                    </Text>
-                                )}
-                            </Card>
-                        )}
+                                            <Box style={{ maxHeight: 150, overflowY: 'auto' }}>
+                                                <Table striped highlightOnHover withTableBorder size="xs">
+                                                    <Table.Thead>
+                                                        <Table.Tr>
+                                                            <Table.Th>Triaje</Table.Th>
+                                                            <Table.Th>Paciente</Table.Th>
+                                                        </Table.Tr>
+                                                    </Table.Thead>
+                                                    <Table.Tbody>
+                                                        {lastIncident.pacientes_detalle.slice(0, 5).map((p) => (
+                                                            <Table.Tr key={p.patient_id}>
+                                                                <Table.Td>
+                                                                    <Badge color={getTriageColor(p.nivel_triaje)} size="xs">
+                                                                        {p.nivel_triaje.toUpperCase()}
+                                                                    </Badge>
+                                                                </Table.Td>
+                                                                <Table.Td>
+                                                                    <Text size="xs">{p.nombre}</Text>
+                                                                </Table.Td>
+                                                            </Table.Tr>
+                                                        ))}
+                                                    </Table.Tbody>
+                                                </Table>
+                                            </Box>
+                                            {lastIncident.pacientes_detalle.length > 5 && (
+                                                <Text size="xs" c="dimmed" ta="center">
+                                                    +{lastIncident.pacientes_detalle.length - 5} más
+                                                </Text>
+                                            )}
+                                        </Stack>
+                                    )}
+                                </Card>
+                            )}
+                        </Transition>
 
                         {!lastIncident && (
                             <Card
                                 padding="xl"
                                 radius="lg"
                                 style={{
-                                    background: cssVariables.glassBg,
-                                    backdropFilter: 'blur(10px)',
-                                    border: `1px solid ${cssVariables.glassBorder}`,
+                                    ...glassCard,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    textAlign: 'center',
                                 }}
                             >
-                                <Stack align="center">
-                                    <ThemeIcon size={80} radius="xl" variant="light" color="gray">
-                                        <IconAmbulance size={40} />
+                                <Stack align="center" gap="xs">
+                                    <ThemeIcon size={60} radius="xl" variant="light" color="gray">
+                                        <IconAmbulance size={30} />
                                     </ThemeIcon>
-                                    <Text c="dimmed">
-                                        Genera un incidente para ver los pacientes enviados
+                                    <Text c="dimmed" size="sm" ta="center">
+                                        Genera un incidente para<br />ver los pacientes enviados
                                     </Text>
                                 </Stack>
                             </Card>
@@ -446,69 +427,62 @@ export function SimulationPage() {
                     </SimpleGrid>
                 </Tabs.Panel>
 
+                {/* ══════════════════════════════════════════════════════════════ */}
                 {/* TAB: Historial */}
-                <Tabs.Panel value="history" pt="lg">
-                    <Card
-                        padding="lg"
-                        radius="lg"
-                        style={{
-                            background: cssVariables.glassBg,
-                            backdropFilter: 'blur(10px)',
-                            border: `1px solid ${cssVariables.glassBorder}`,
-                        }}
-                    >
-                        <Group justify="space-between" mb="lg">
-                            <Title order={4}>Historial de Incidentes</Title>
-                            <Group>
+                {/* ══════════════════════════════════════════════════════════════ */}
+                <Tabs.Panel value="history" pt="md">
+                    <Card padding="md" radius="lg" style={glassCard}>
+                        <Group justify="space-between" mb="md">
+                            <Text fw={600} size="sm">Historial de Incidentes</Text>
+                            <Group gap="xs">
                                 <ActionIcon
                                     variant="light"
                                     color="blue"
+                                    size="sm"
                                     onClick={() => activeIncidentsQuery.refetch()}
                                     loading={activeIncidentsQuery.isRefetching}
                                 >
-                                    <IconRefresh size={16} />
+                                    <IconRefresh size={14} />
                                 </ActionIcon>
                                 <Button
                                     size="xs"
                                     color="red"
                                     variant="light"
-                                    leftSection={<IconTrash size={14} />}
+                                    leftSection={<IconTrash size={12} />}
                                     onClick={() => clearMutation.mutate()}
                                     loading={clearMutation.isPending}
-                                    disabled={!activeIncidentsQuery.data?.total}
+                                    disabled={!incidentCount}
                                 >
-                                    Limpiar todo
+                                    Limpiar
                                 </Button>
                             </Group>
                         </Group>
 
-                        {activeIncidentsQuery.data?.incidentes?.length ? (
-                            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
-                                {activeIncidentsQuery.data.incidentes.map((inc: IncidentResponse) => (
+                        {incidentCount > 0 ? (
+                            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="sm">
+                                {activeIncidentsQuery.data?.incidentes?.map((inc: IncidentResponse) => (
                                     <Paper
                                         key={inc.incident_id}
-                                        p="md"
+                                        p="sm"
                                         radius="md"
                                         style={{
-                                            background: 'rgba(255,255,255,0.05)',
-                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            background: 'rgba(255,255,255,0.03)',
+                                            border: '1px solid rgba(255,255,255,0.06)',
+                                            transition: 'all 0.2s ease',
                                         }}
+                                        className="hover-lift"
                                     >
-                                        <Group justify="space-between" mb="xs">
-                                            <Group gap="xs">
-                                                <Text size="lg">{inc.icono}</Text>
-                                                <Text fw={600} size="sm">{inc.nombre}</Text>
+                                        <Group justify="space-between" mb={4}>
+                                            <Group gap={6}>
+                                                <Text size="md">{inc.icono}</Text>
+                                                <Text fw={600} size="xs" lineClamp={1}>{inc.nombre}</Text>
                                             </Group>
-                                            <Badge size="sm">{inc.pacientes_generados} pac.</Badge>
+                                            <Badge size="xs" color="red">{inc.pacientes_generados}</Badge>
                                         </Group>
-                                        <Stack gap={4}>
+                                        <Stack gap={2}>
                                             <Group justify="space-between">
                                                 <Text size="xs" c="dimmed">Hospital:</Text>
-                                                <Text size="xs">{inc.hospital_nombre}</Text>
-                                            </Group>
-                                            <Group justify="space-between">
-                                                <Text size="xs" c="dimmed">Distancia:</Text>
-                                                <Text size="xs">{inc.distancia_km} km</Text>
+                                                <Text size="xs" fw={500}>{inc.hospital_nombre}</Text>
                                             </Group>
                                             <Group justify="space-between">
                                                 <Text size="xs" c="dimmed">Hora:</Text>
@@ -516,22 +490,23 @@ export function SimulationPage() {
                                             </Group>
                                         </Stack>
                                         <Progress
-                                            size="xs"
+                                            size={3}
                                             value={100}
                                             color="red"
-                                            mt="xs"
+                                            mt={8}
+                                            radius="xl"
                                             animated
                                         />
                                     </Paper>
                                 ))}
                             </SimpleGrid>
                         ) : (
-                            <Paper p="xl" radius="md" style={{ background: 'rgba(255,255,255,0.03)', textAlign: 'center' }}>
-                                <ThemeIcon size={60} radius="xl" variant="light" color="gray" mx="auto" mb="md">
-                                    <IconAlertTriangle size={30} />
+                            <Paper p="xl" radius="md" style={{ background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}>
+                                <ThemeIcon size={50} radius="xl" variant="light" color="gray" mx="auto" mb="sm">
+                                    <IconAlertTriangle size={24} />
                                 </ThemeIcon>
-                                <Text c="dimmed">No hay incidentes registrados</Text>
-                                <Text size="xs" c="dimmed">Genera un incidente desde la pestaña anterior</Text>
+                                <Text c="dimmed" size="sm">No hay incidentes registrados</Text>
+                                <Text size="xs" c="dimmed">Genera uno desde la pestaña anterior</Text>
                             </Paper>
                         )}
                     </Card>

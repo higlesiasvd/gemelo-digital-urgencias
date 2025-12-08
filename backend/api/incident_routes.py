@@ -272,13 +272,22 @@ async def generate_incident(request: GenerateIncidentRequest):
         }
         
         # Crear llegada de paciente
+        # El schema PatientArrival requiere: sexo, patologia, hospital_id (enum)
+        from common.schemas import HospitalId
+        
+        # Mapear hospital_id string a enum
+        hospital_enum_map = {
+            "chuac": HospitalId.CHUAC,
+            "modelo": HospitalId.MODELO,
+            "san_rafael": HospitalId.SAN_RAFAEL,
+        }
+        
         arrival = PatientArrival(
             patient_id=patient_id,
-            hospital_id=hospital_id,
-            timestamp=now.isoformat(),
+            hospital_id=hospital_enum_map.get(hospital_id, HospitalId.CHUAC),
             edad=edad,
-            nivel_triaje_estimado=nivel_map.get(triage_nivel, TriageLevel.AMARILLO),
-            motivo_consulta=f"{patologia} - {tipo_config['nombre']}"
+            sexo=random.choice(["M", "F"]),
+            patologia=patologia,
         )
         
         # Enviar a Kafka
