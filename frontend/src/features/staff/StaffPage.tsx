@@ -39,9 +39,11 @@ import {
     IconArrowRight,
     IconSparkles,
     IconShieldCheck,
+    IconGauge,
+    IconBolt,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { fetchListaSergas, assignDoctor, unassignDoctor } from '@/shared/api/client';
+import { fetchListaSergas, assignDoctor, unassignDoctor, fetchChuacConsultas } from '@/shared/api/client';
 import { cssVariables } from '@/shared/theme';
 
 // Gradientes para tarjetas de hospitales
@@ -111,11 +113,18 @@ export function StaffPage() {
         queryFn: () => fetchListaSergas(false),
     });
 
+    const { data: consultas } = useQuery({
+        queryKey: ['chuac', 'consultas'],
+        queryFn: () => fetchChuacConsultas(),
+        refetchInterval: 5000,  // Refrescar cada 5s para ver cambios de velocidad
+    });
+
     const assignMutation = useMutation({
         mutationFn: ({ medicoId, consultaId }: { medicoId: string; consultaId: number }) => assignDoctor(medicoId, consultaId),
         onSuccess: () => {
             notifications.show({ title: 'Médico asignado', message: 'El médico ha sido asignado correctamente', color: 'green' });
             queryClient.invalidateQueries({ queryKey: ['sergas'] });
+            queryClient.invalidateQueries({ queryKey: ['chuac', 'consultas'] });
             setAssignModalOpen(false);
             setSelectedMedico(null);
             setSelectedConsulta(null);
@@ -130,6 +139,7 @@ export function StaffPage() {
         onSuccess: () => {
             notifications.show({ title: 'Médico desasignado', message: 'El médico ha sido devuelto a la lista SERGAS', color: 'green' });
             queryClient.invalidateQueries({ queryKey: ['sergas'] });
+            queryClient.invalidateQueries({ queryKey: ['chuac', 'consultas'] });
         },
         onError: (error) => {
             notifications.show({ title: 'Error', message: error instanceof Error ? error.message : 'Error al desasignar', color: 'red' });
@@ -278,6 +288,98 @@ export function StaffPage() {
                     </Text>
                 </Group>
             </Alert>
+
+            {/* Sección de Velocidad de Consultas del CHUAC */}
+            <Card
+                padding="xl"
+                radius="lg"
+                style={{
+                    background: cssVariables.glassBg,
+                    backdropFilter: 'blur(10px)',
+                    border: `1px solid ${cssVariables.glassBorder}`,
+                }}
+            >
+                <Group justify="space-between" mb="lg">
+                    <Group gap="md">
+                        <ThemeIcon size={50} radius="xl" variant="gradient" gradient={{ from: 'orange', to: 'yellow' }}>
+                            <IconGauge size={26} />
+                        </ThemeIcon>
+                        <Box>
+                            <Title order={3}>Velocidad de Consultas CHUAC</Title>
+                            <Text size="sm" c="dimmed">Más médicos = consultas más rápidas</Text>
+                        </Box>
+                    </Group>
+                    <Badge
+                        size="xl"
+                        variant="gradient"
+                        gradient={{ from: 'orange', to: 'yellow' }}
+                        style={{ boxShadow: '0 2px 10px rgba(253, 126, 20, 0.3)' }}
+                    >
+                        {consultas?.filter(c => c.medicos_asignados > 1).length ?? 0} aceleradas
+                    </Badge>
+                </Group>
+
+                <SimpleGrid cols={{ base: 2, sm: 5, lg: 10 }} spacing="sm">
+                    {consultas?.map((consulta) => {
+                        const velocidad = consulta.velocidad_factor;
+                        const colorMap: Record<number, string> = {
+                            1: 'gray',
+                            2: 'green',
+                            3: 'blue',
+                            4: 'violet',
+                        };
+                        const color = colorMap[Math.min(velocidad, 4)] || 'gray';
+
+                        return (
+                            <Tooltip
+                                key={consulta.numero_consulta}
+                                label={
+                                    <Stack gap={4}>
+                                        <Text size="sm" fw={600}>Consulta {consulta.numero_consulta}</Text>
+                                        <Text size="xs">{consulta.medicos_asignados} médico{consulta.medicos_asignados > 1 ? 's' : ''}</Text>
+                                        <Text size="xs" c="yellow">Velocidad: {velocidad}x</Text>
+                                        {consulta.medicos_sergas.length > 0 && (
+                                            <Text size="xs" c="dimmed">
+                                                SERGAS: {consulta.medicos_sergas.join(', ')}
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                }
+                            >
+                                <Paper
+                                    p="md"
+                                    radius="lg"
+                                    style={{
+                                        background: velocidad > 1
+                                            ? `linear-gradient(135deg, rgba(253, 126, 20, ${0.15 * velocidad}) 0%, rgba(255, 183, 77, ${0.08 * velocidad}) 100%)`
+                                            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                                        border: velocidad > 1
+                                            ? `1px solid rgba(253, 126, 20, ${0.3 * velocidad})`
+                                            : '1px solid rgba(255, 255, 255, 0.1)',
+                                        textAlign: 'center',
+                                        transition: 'all 0.3s ease',
+                                    }}
+                                >
+                                    <Text size="lg" fw={700}>C{consulta.numero_consulta}</Text>
+                                    <Group justify="center" gap={4} mt="xs">
+                                        {velocidad > 1 && <IconBolt size={14} style={{ color: '#fd7e14' }} />}
+                                        <Badge size="sm" color={color} variant={velocidad > 1 ? 'filled' : 'light'}>
+                                            {velocidad}x
+                                        </Badge>
+                                    </Group>
+                                    <Text size="xs" c="dimmed" mt={4}>
+                                        {consulta.medicos_asignados} 👨‍⚕️
+                                    </Text>
+                                </Paper>
+                            </Tooltip>
+                        );
+                    }) ?? (
+                            <Text c="dimmed" ta="center" style={{ gridColumn: 'span 10' }}>
+                                Cargando consultas...
+                            </Text>
+                        )}
+                </SimpleGrid>
+            </Card>
 
             {/* Sección de médicos SERGAS disponibles */}
             <Card

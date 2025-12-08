@@ -400,3 +400,42 @@ async def list_lista_sergas(
 
     medicos = query.all()
     return [ListaSergasMedico(**m.to_dict()) for m in medicos]
+
+
+class ConsultaInfo(BaseModel):
+    numero_consulta: int
+    medicos_asignados: int
+    velocidad_factor: float
+    medicos_sergas: List[str]  # Lista de nombres de médicos SERGAS asignados
+
+
+@router.get("/chuac/consultas", response_model=List[ConsultaInfo])
+async def list_chuac_consultas(db: Session = Depends(get_db)):
+    """
+    Lista las consultas del CHUAC con información de velocidad.
+    
+    Velocidad factor = número de médicos (1-4).
+    Más médicos = consultas más rápidas.
+    """
+    consultas = db.query(Consulta).filter(
+        Consulta.hospital_id == "chuac"
+    ).order_by(Consulta.numero_consulta).all()
+    
+    result = []
+    for c in consultas:
+        # Buscar médicos SERGAS asignados a esta consulta
+        medicos_sergas = db.query(ListaSergas).filter(
+            ListaSergas.asignado_a_consulta == c.numero_consulta,
+            ListaSergas.asignado_a_hospital == "chuac",
+            ListaSergas.disponible == False
+        ).all()
+        
+        result.append(ConsultaInfo(
+            numero_consulta=c.numero_consulta,
+            medicos_asignados=c.medicos_asignados,
+            velocidad_factor=float(c.medicos_asignados),
+            medicos_sergas=[m.nombre for m in medicos_sergas]
+        ))
+    
+    return result
+

@@ -98,6 +98,17 @@ export async function scaleConsulta(consultaId: number, targetMedicos: number): 
     });
 }
 
+export interface ConsultaInfo {
+    numero_consulta: number;
+    medicos_asignados: number;
+    velocidad_factor: number;
+    medicos_sergas: string[];
+}
+
+export async function fetchChuacConsultas(): Promise<ConsultaInfo[]> {
+    return fetchAPI('/staff/chuac/consultas');
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SIMULACIÓN
 // ═══════════════════════════════════════════════════════════════════════════════

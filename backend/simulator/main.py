@@ -43,6 +43,7 @@ class SimulatorOrchestrator:
         self.simulations: Dict[HospitalId, HospitalSimulation] = {}
         self._running = False
         self._incident_consumer: Consumer = None
+        self._staff_consumer: Consumer = None
 
     def setup(self):
         """Configura el simulador"""
@@ -156,6 +157,97 @@ class SimulatorOrchestrator:
             self._incident_consumer.close()
         logger.info("Consumidor de incidentes detenido")
 
+    def _consume_staff_events(self):
+        """Thread que consume eventos de personal desde Kafka para escalar consultas"""
+        logger.info("👨‍⚕️ Iniciando consumidor de eventos de personal...")
+        
+        # Crear consumidor específico para eventos de personal
+        self._staff_consumer = Consumer({
+            'bootstrap.servers': settings.KAFKA_BOOTSTRAP_SERVERS,
+            'group.id': 'simulator-staff',
+            'client.id': 'simulator-staff-consumer',
+            'auto.offset.reset': 'latest',
+            'enable.auto.commit': True,
+        })
+        
+        self._staff_consumer.subscribe(['doctor-assigned', 'doctor-unassigned', 'capacity-change'])
+        logger.info("📡 Suscrito a topics: doctor-assigned, doctor-unassigned, capacity-change")
+        
+        while self._running:
+            try:
+                msg = self._staff_consumer.poll(timeout=0.5)
+                
+                if msg is None:
+                    continue
+                    
+                if msg.error():
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                        continue
+                    logger.error(f"Error en consumidor staff: {msg.error()}")
+                    continue
+                
+                # Parsear mensaje
+                try:
+                    topic = msg.topic()
+                    data = json.loads(msg.value().decode('utf-8'))
+                    
+                    # Obtener hospital_id del mensaje
+                    hospital_id_str = data.get('hospital_id')
+                    if not hospital_id_str:
+                        logger.warning(f"Mensaje {topic} sin hospital_id")
+                        continue
+                    
+                    # Solo procesar eventos del CHUAC (único hospital escalable)
+                    if hospital_id_str != 'chuac':
+                        logger.debug(f"Ignorando evento de {hospital_id_str} (solo CHUAC es escalable)")
+                        continue
+                    
+                    # Obtener simulación
+                    sim = self.simulations.get(HospitalId.CHUAC)
+                    if not sim or not sim.flow_engine:
+                        logger.warning("Simulación CHUAC no activa")
+                        continue
+                    
+                    # Procesar según tipo de evento
+                    consulta_id = data.get('consulta_id')
+                    if not consulta_id:
+                        logger.warning(f"Mensaje {topic} sin consulta_id")
+                        continue
+                    
+                    if topic == 'doctor-assigned':
+                        # Médico asignado: obtener nuevo total de médicos
+                        medicos_totales = data.get('medicos_totales_consulta', 1)
+                        success = sim.flow_engine.scale_consulta(consulta_id, medicos_totales)
+                        if success:
+                            logger.info(f"🩺 Doctor asignado a consulta {consulta_id} → ahora {medicos_totales} médicos (velocidad x{medicos_totales})")
+                        
+                    elif topic == 'doctor-unassigned':
+                        # Médico desasignado: obtener nuevo total de médicos
+                        medicos_restantes = data.get('medicos_restantes_consulta', 1)
+                        success = sim.flow_engine.scale_consulta(consulta_id, medicos_restantes)
+                        if success:
+                            logger.info(f"👋 Doctor desasignado de consulta {consulta_id} → ahora {medicos_restantes} médicos")
+                        
+                    elif topic == 'capacity-change':
+                        # Cambio de capacidad directo
+                        medicos_nuevos = data.get('medicos_nuevos', 1)
+                        success = sim.flow_engine.scale_consulta(consulta_id, medicos_nuevos)
+                        if success:
+                            logger.info(f"⚡ Capacidad cambiada en consulta {consulta_id} → {medicos_nuevos} médicos")
+                    
+                except json.JSONDecodeError as e:
+                    logger.error(f"Error parseando mensaje staff: {e}")
+                except Exception as e:
+                    logger.error(f"Error procesando evento de personal: {e}")
+                    
+            except Exception as e:
+                logger.error(f"Error en consumidor de staff: {e}")
+                time.sleep(1)
+        
+        if self._staff_consumer:
+            self._staff_consumer.close()
+        logger.info("Consumidor de staff detenido")
+
     def run(self, duration_hours: float = None):
         """
         Ejecuta las simulaciones.
@@ -182,6 +274,14 @@ class SimulatorOrchestrator:
         )
         incident_thread.start()
         threads.append(incident_thread)
+
+        # Thread para consumir eventos de personal (doctor-assigned, etc.)
+        staff_thread = Thread(
+            target=self._consume_staff_events,
+            name="staff-consumer"
+        )
+        staff_thread.start()
+        threads.append(staff_thread)
 
         # Esperar a que terminen
         for thread in threads:
