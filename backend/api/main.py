@@ -25,6 +25,7 @@ from common.kafka_client import create_all_topics
 from .staff_routes import router as staff_router
 from .simulation_routes import router as simulation_router
 from .prediction_routes import router as prediction_router
+from .incident_routes import router as incident_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -101,6 +102,7 @@ app.add_middleware(
 app.include_router(staff_router)
 app.include_router(simulation_router)
 app.include_router(prediction_router)
+app.include_router(incident_router)
 
 
 # ============================================================================
