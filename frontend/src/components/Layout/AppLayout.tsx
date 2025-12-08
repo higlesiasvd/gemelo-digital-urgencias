@@ -21,7 +21,6 @@ import {
     IconTestPipe,
     IconChartLine,
     IconMap,
-    IconRobot,
     IconSettings,
     IconWifi,
     IconWifiOff,
@@ -31,6 +30,7 @@ import { motion } from 'framer-motion';
 import { useIsConnected, useLastUpdate, useSystemSaturation } from '@/shared/store';
 import { useWebSocket } from '@/shared/hooks/useWebSocket';
 import { cssVariables } from '@/shared/theme';
+import { FloatingChatWidget } from '@/components/FloatingChat/FloatingChatWidget';
 
 const NAV_ITEMS = [
     { path: '/', label: 'Dashboard', icon: IconDashboard },
@@ -40,7 +40,6 @@ const NAV_ITEMS = [
     { path: '/simulacion', label: 'Simulación', icon: IconTestPipe },
     { path: '/demanda/predictor', label: 'Predicción', icon: IconChartLine },
     { path: '/mapa', label: 'Mapa', icon: IconMap },
-    { path: '/mcp', label: 'MCP Asistente', icon: IconRobot },
     { path: '/configuracion', label: 'Configuración', icon: IconSettings },
 ];
 
@@ -159,6 +158,9 @@ export function AppLayout() {
                     <Outlet />
                 </motion.div>
             </AppShell.Main>
+
+            {/* Floating Chat Widget */}
+            <FloatingChatWidget />
         </AppShell>
     );
 }
