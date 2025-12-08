@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// DASHBOARD PAGE - CON FLUJO VISUAL
+// DASHBOARD PAGE - CON FLUJO VISUAL Y MODAL DE PACIENTES
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
     SimpleGrid,
@@ -16,7 +17,11 @@ import {
     Paper,
     Box,
     Skeleton,
+    Modal,
+    Table,
+    ScrollArea,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconBuildingHospital,
     IconUsers,
@@ -35,6 +40,34 @@ import { fetchHospitals } from '@/shared/api/client';
 import { cssVariables } from '@/shared/theme';
 import type { HospitalConfig, HospitalState } from '@/shared/types';
 
+// Datos mock de pacientes para demo (en producción vendrían del WebSocket)
+const MOCK_PATIENTS = {
+    chuac: {
+        ventanilla: [
+            { id: 'P-001', nombre: 'María García', edad: 45, patologia: 'dolor_toracico', tiempo: '1 min' },
+            { id: 'P-002', nombre: 'Juan López', edad: 32, patologia: 'traumatismo', tiempo: '0.5 min' },
+        ],
+        triaje: [
+            { id: 'P-003', nombre: 'Ana Martínez', edad: 67, patologia: 'disnea', nivel: 'NARANJA', tiempo: '3 min' },
+            { id: 'P-004', nombre: 'Pedro Sánchez', edad: 28, patologia: 'herida', nivel: 'VERDE', tiempo: '2 min' },
+        ],
+        consulta: [
+            { id: 'P-005', nombre: 'Laura Fernández', edad: 55, patologia: 'dolor_abdominal', nivel: 'AMARILLO', consulta: 3, tiempo: '8 min' },
+            { id: 'P-006', nombre: 'Carlos Ruiz', edad: 41, patologia: 'fiebre', nivel: 'VERDE', consulta: 5, tiempo: '4 min' },
+        ],
+    },
+    modelo: {
+        ventanilla: [{ id: 'P-007', nombre: 'Elena Díaz', edad: 38, patologia: 'cefalea', tiempo: '1.5 min' }],
+        triaje: [{ id: 'P-008', nombre: 'Miguel Torres', edad: 52, patologia: 'mareo', nivel: 'AMARILLO', tiempo: '4 min' }],
+        consulta: [{ id: 'P-009', nombre: 'Sara Gómez', edad: 29, patologia: 'lumbalgia', nivel: 'VERDE', consulta: 2, tiempo: '6 min' }],
+    },
+    san_rafael: {
+        ventanilla: [],
+        triaje: [{ id: 'P-010', nombre: 'Roberto Iglesias', edad: 73, patologia: 'disnea', nivel: 'NARANJA', tiempo: '2 min' }],
+        consulta: [{ id: 'P-011', nombre: 'Carmen Vázquez', edad: 61, patologia: 'gastroenteritis', nivel: 'VERDE', consulta: 1, tiempo: '3 min' }],
+    },
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENTE DE FLECHA ANIMADA
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -42,10 +75,7 @@ import type { HospitalConfig, HospitalState } from '@/shared/types';
 function AnimatedArrow({ active = true }: { active?: boolean }) {
     return (
         <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 8px' }}>
-            <motion.div
-                animate={active ? { x: [0, 5, 0] } : {}}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-            >
+            <motion.div animate={active ? { x: [0, 5, 0] } : {}} transition={{ repeat: Infinity, duration: 1.5 }}>
                 <IconArrowRight size={20} style={{ color: active ? '#15aabf' : '#555' }} />
             </motion.div>
         </Box>
@@ -63,23 +93,30 @@ interface FlowBoxProps {
     capacity: number | string;
     color: string;
     sublabel?: string;
+    onClick?: () => void;
 }
 
-function FlowBox({ icon, label, value, capacity, color, sublabel }: FlowBoxProps) {
+function FlowBox({ icon, label, value, capacity, color, sublabel, onClick }: FlowBoxProps) {
     const valueNum = typeof value === 'number' ? value : 0;
     const capacityNum = typeof capacity === 'number' ? capacity : 0;
     const percentage = capacityNum > 0 ? (valueNum / capacityNum) * 100 : 0;
+
+    const colorRgb = color === 'blue' ? '34,139,230' : color === 'orange' ? '255,159,64' : '64,192,87';
 
     return (
         <Paper
             p="sm"
             radius="md"
             style={{
-                background: `linear-gradient(135deg, rgba(${color === 'blue' ? '34,139,230' : color === 'orange' ? '255,159,64' : '64,192,87'},0.2) 0%, rgba(${color === 'blue' ? '34,139,230' : color === 'orange' ? '255,159,64' : '64,192,87'},0.05) 100%)`,
-                border: `1px solid rgba(${color === 'blue' ? '34,139,230' : color === 'orange' ? '255,159,64' : '64,192,87'},0.3)`,
+                background: `linear-gradient(135deg, rgba(${colorRgb},0.2) 0%, rgba(${colorRgb},0.05) 100%)`,
+                border: `1px solid rgba(${colorRgb},0.3)`,
                 minWidth: 100,
                 textAlign: 'center',
+                cursor: onClick ? 'pointer' : 'default',
+                transition: 'transform 0.2s, box-shadow 0.2s',
             }}
+            onClick={onClick}
+            className={onClick ? 'clickable-flow-box' : ''}
         >
             <ThemeIcon size="lg" variant="light" color={color} radius="xl" mb={4}>
                 {icon}
@@ -88,6 +125,7 @@ function FlowBox({ icon, label, value, capacity, color, sublabel }: FlowBoxProps
             <Text size="lg" fw={700}>{value}/{capacity}</Text>
             {sublabel && <Text size="xs" c="dimmed">{sublabel}</Text>}
             <Progress value={Math.min(percentage, 100)} color={color} size="xs" radius="xl" mt={4} />
+            {onClick && <Text size="xs" c="blue" mt={4}>Ver pacientes</Text>}
         </Paper>
     );
 }
@@ -96,9 +134,10 @@ interface HospitalFlowCardProps {
     config: HospitalConfig;
     state: HospitalState | undefined;
     onClick: () => void;
+    onFlowClick: (hospitalId: string, area: 'ventanilla' | 'triaje' | 'consulta') => void;
 }
 
-function HospitalFlowCard({ config, state, onClick }: HospitalFlowCardProps) {
+function HospitalFlowCard({ config, state, onClick, onFlowClick }: HospitalFlowCardProps) {
     const saturation = state?.nivel_saturacion ?? 0;
     const saturationPercent = Math.round(saturation * 100);
 
@@ -116,7 +155,6 @@ function HospitalFlowCard({ config, state, onClick }: HospitalFlowCardProps) {
         return 'NORMAL';
     };
 
-    // Datos del flujo
     const ventanillasOcupadas = state?.ventanillas_ocupadas ?? 0;
     const boxesOcupados = state?.boxes_ocupados ?? 0;
     const colaTriaje = state?.cola_triaje ?? 0;
@@ -128,15 +166,10 @@ function HospitalFlowCard({ config, state, onClick }: HospitalFlowCardProps) {
         <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
             <Card
                 className="glass-card"
-                style={{
-                    background: cssVariables.glassBg,
-                    border: `1px solid ${cssVariables.glassBorder}`,
-                    cursor: 'pointer',
-                }}
-                onClick={onClick}
+                style={{ background: cssVariables.glassBg, border: `1px solid ${cssVariables.glassBorder}` }}
             >
                 {/* Header */}
-                <Group justify="space-between" mb="md">
+                <Group justify="space-between" mb="md" style={{ cursor: 'pointer' }} onClick={onClick}>
                     <Group gap="sm">
                         <ThemeIcon size="xl" radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan', deg: 135 }}>
                             <IconBuildingHospital size={24} />
@@ -156,28 +189,21 @@ function HospitalFlowCard({ config, state, onClick }: HospitalFlowCardProps) {
                 <Box
                     p="md"
                     mb="md"
-                    style={{
-                        background: 'rgba(0,0,0,0.2)',
-                        borderRadius: 12,
-                        border: '1px solid rgba(255,255,255,0.05)',
-                    }}
+                    style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}
                 >
                     <Text size="xs" c="dimmed" mb="sm" ta="center" tt="uppercase" fw={600}>
-                        Flujo de Pacientes
+                        Flujo de Pacientes (clic para ver detalle)
                     </Text>
                     <Group justify="center" gap={0} wrap="nowrap">
-                        {/* Ventanilla/Entrada */}
                         <FlowBox
                             icon={<IconDoor size={18} />}
                             label="Ventanilla"
                             value={ventanillasOcupadas}
                             capacity={config.ventanillas}
                             color="blue"
+                            onClick={() => onFlowClick(config.id, 'ventanilla')}
                         />
-
                         <AnimatedArrow active={colaTriaje > 0} />
-
-                        {/* Triaje */}
                         <FlowBox
                             icon={<IconHeartRateMonitor size={18} />}
                             label="Triaje"
@@ -185,11 +211,9 @@ function HospitalFlowCard({ config, state, onClick }: HospitalFlowCardProps) {
                             capacity={config.boxes_triaje}
                             color="orange"
                             sublabel={colaTriaje > 0 ? `+${colaTriaje} esperando` : undefined}
+                            onClick={() => onFlowClick(config.id, 'triaje')}
                         />
-
                         <AnimatedArrow active={colaConsulta > 0} />
-
-                        {/* Consulta */}
                         <FlowBox
                             icon={<IconStethoscope size={18} />}
                             label="Consulta"
@@ -197,6 +221,7 @@ function HospitalFlowCard({ config, state, onClick }: HospitalFlowCardProps) {
                             capacity={config.consultas}
                             color="green"
                             sublabel={colaConsulta > 0 ? `+${colaConsulta} esperando` : undefined}
+                            onClick={() => onFlowClick(config.id, 'consulta')}
                         />
                     </Group>
                 </Box>
@@ -212,7 +237,7 @@ function HospitalFlowCard({ config, state, onClick }: HospitalFlowCardProps) {
                         <Text size="xs" c="dimmed">Saturación</Text>
                     </Box>
                     <Box ta="center">
-                        <Text size="lg" fw={700} c="blue">{(colaTriaje + colaConsulta)}</Text>
+                        <Text size="lg" fw={700} c="blue">{colaTriaje + colaConsulta}</Text>
                         <Text size="xs" c="dimmed">En espera</Text>
                     </Box>
                 </Group>
@@ -253,10 +278,24 @@ function KPICard({ title, value, icon, color, subtitle }: KPICardProps) {
 // DASHBOARD PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const HOSPITAL_NAMES: Record<string, string> = {
+    chuac: 'CHUAC',
+    modelo: 'HM Modelo',
+    san_rafael: 'San Rafael',
+};
+
+const AREA_NAMES: Record<string, string> = {
+    ventanilla: 'Ventanilla',
+    triaje: 'Triaje',
+    consulta: 'Consulta',
+};
+
 export function DashboardPage() {
     const navigate = useNavigate();
     const hospitals = useHospitals();
     const derivaciones = useDerivaciones();
+    const [opened, { open, close }] = useDisclosure(false);
+    const [selectedArea, setSelectedArea] = useState<{ hospitalId: string; area: 'ventanilla' | 'triaje' | 'consulta' } | null>(null);
 
     const { data: hospitalConfigs, isLoading } = useQuery({
         queryKey: ['hospitals'],
@@ -268,6 +307,18 @@ export function DashboardPage() {
     const avgSaturation = Object.values(hospitals).length > 0
         ? Object.values(hospitals).reduce((acc, h) => acc + (h.nivel_saturacion ?? 0), 0) / Object.values(hospitals).length
         : 0;
+
+    const handleFlowClick = (hospitalId: string, area: 'ventanilla' | 'triaje' | 'consulta') => {
+        setSelectedArea({ hospitalId, area });
+        open();
+    };
+
+    const getPatients = () => {
+        if (!selectedArea) return [];
+        const hospitalPatients = MOCK_PATIENTS[selectedArea.hospitalId as keyof typeof MOCK_PATIENTS];
+        if (!hospitalPatients) return [];
+        return hospitalPatients[selectedArea.area] || [];
+    };
 
     if (isLoading) {
         return (
@@ -303,9 +354,70 @@ export function DashboardPage() {
                         config={config}
                         state={hospitals[config.id]}
                         onClick={() => navigate(`/hospitales/${config.id === 'san_rafael' ? 'san-rafael' : config.id}`)}
+                        onFlowClick={handleFlowClick}
                     />
                 ))}
             </SimpleGrid>
+
+            {/* Modal de Pacientes */}
+            <Modal
+                opened={opened}
+                onClose={close}
+                title={
+                    selectedArea && (
+                        <Group>
+                            <ThemeIcon color="blue" variant="light"><IconUsers size={18} /></ThemeIcon>
+                            <Text fw={600}>
+                                Pacientes en {AREA_NAMES[selectedArea.area]} - {HOSPITAL_NAMES[selectedArea.hospitalId]}
+                            </Text>
+                        </Group>
+                    )
+                }
+                size="lg"
+                styles={{
+                    header: { background: cssVariables.glassBg },
+                    content: { background: cssVariables.glassBg },
+                }}
+            >
+                <ScrollArea h={300}>
+                    {getPatients().length > 0 ? (
+                        <Table striped highlightOnHover>
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th>ID</Table.Th>
+                                    <Table.Th>Nombre</Table.Th>
+                                    <Table.Th>Edad</Table.Th>
+                                    <Table.Th>Patología</Table.Th>
+                                    {selectedArea?.area !== 'ventanilla' && <Table.Th>Nivel</Table.Th>}
+                                    {selectedArea?.area === 'consulta' && <Table.Th>Consulta</Table.Th>}
+                                    <Table.Th>Tiempo</Table.Th>
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {getPatients().map((p: any) => (
+                                    <Table.Tr key={p.id}>
+                                        <Table.Td><Badge variant="light">{p.id}</Badge></Table.Td>
+                                        <Table.Td>{p.nombre}</Table.Td>
+                                        <Table.Td>{p.edad}</Table.Td>
+                                        <Table.Td>{p.patologia.replace('_', ' ')}</Table.Td>
+                                        {selectedArea?.area !== 'ventanilla' && (
+                                            <Table.Td>
+                                                <Badge color={p.nivel === 'ROJO' ? 'red' : p.nivel === 'NARANJA' ? 'orange' : p.nivel === 'AMARILLO' ? 'yellow' : 'green'}>
+                                                    {p.nivel}
+                                                </Badge>
+                                            </Table.Td>
+                                        )}
+                                        {selectedArea?.area === 'consulta' && <Table.Td>#{p.consulta}</Table.Td>}
+                                        <Table.Td>{p.tiempo}</Table.Td>
+                                    </Table.Tr>
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    ) : (
+                        <Text ta="center" c="dimmed" py="xl">No hay pacientes en esta área actualmente</Text>
+                    )}
+                </ScrollArea>
+            </Modal>
         </Stack>
     );
 }

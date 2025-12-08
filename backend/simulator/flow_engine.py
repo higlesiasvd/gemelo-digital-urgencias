@@ -150,13 +150,13 @@ class FlowEngine:
     TIEMPO_VENTANILLA = 2.0
     TIEMPO_TRIAJE = 5.0
 
-    # Tiempos de consulta por nivel de triaje
+    # Tiempos de consulta por nivel de triaje (según requisitos)
     TIEMPOS_CONSULTA = {
-        TriageLevel.ROJO: 45.0,
-        TriageLevel.NARANJA: 30.0,
-        TriageLevel.AMARILLO: 20.0,
-        TriageLevel.VERDE: 15.0,
-        TriageLevel.AZUL: 10.0
+        TriageLevel.ROJO: 30.0,     # Más grave
+        TriageLevel.NARANJA: 25.0,
+        TriageLevel.AMARILLO: 15.0,
+        TriageLevel.VERDE: 10.0,
+        TriageLevel.AZUL: 5.0       # Más leve
     }
 
     def __init__(

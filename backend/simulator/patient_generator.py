@@ -182,25 +182,25 @@ class PatientGenerator:
         """
         Calcula la tasa de llegadas por hora para un hospital.
 
-        Tasas base (pacientes/hora):
-        - CHUAC: 15-25
-        - Modelo: 5-10
-        - San Rafael: 5-10
+        Tasas base (pacientes/hora) - BALANCEADAS con capacidad:
+        - CHUAC: 12 (con 10 consultas)
+        - Modelo: 4 (con 4 consultas)
+        - San Rafael: 4 (con 4 consultas)
 
         Returns:
             Pacientes por hora
         """
         base_rates = {
-            HospitalId.CHUAC: 20,
-            HospitalId.MODELO: 7,
-            HospitalId.SAN_RAFAEL: 7
+            HospitalId.CHUAC: 12,       # Reducido de 20 para balancear
+            HospitalId.MODELO: 4,       # Reducido de 7 para balancear
+            HospitalId.SAN_RAFAEL: 4    # Reducido de 7 para balancear
         }
 
-        base_rate = base_rates.get(hospital_id, 10)
+        base_rate = base_rates.get(hospital_id, 6)
         adjusted_rate = base_rate * factor_total
 
-        # Añadir variabilidad (±20%)
-        variability = random.uniform(0.8, 1.2)
+        # Añadir variabilidad (±15%)
+        variability = random.uniform(0.85, 1.15)
 
         return adjusted_rate * variability
 
