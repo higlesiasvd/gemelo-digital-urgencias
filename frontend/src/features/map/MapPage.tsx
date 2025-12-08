@@ -130,6 +130,87 @@ const EVENTOS_CIUDAD = [
   },
 ];
 
+// Calendario de eventos próximos con estimación de asistencia
+const CALENDARIO_EVENTOS = [
+  {
+    id: 1,
+    fecha: '2025-12-08',
+    hora: '17:00',
+    nombre: 'RC Deportivo vs Sporting',
+    tipo: 'football',
+    ubicacion: 'Estadio Riazor',
+    asistencia_estimada: 25000,
+    impacto: 'alto',
+    color: '#1e88e5',
+  },
+  {
+    id: 2,
+    fecha: '2025-12-10',
+    hora: '21:00',
+    nombre: 'Concierto Fito y Fitipaldis',
+    tipo: 'concierto',
+    ubicacion: 'Coliseum',
+    asistencia_estimada: 8500,
+    impacto: 'medio',
+    color: '#9c27b0',
+  },
+  {
+    id: 3,
+    fecha: '2025-12-13',
+    hora: '20:00',
+    nombre: 'RC Deportivo vs Málaga',
+    tipo: 'football',
+    ubicacion: 'Estadio Riazor',
+    asistencia_estimada: 22000,
+    impacto: 'alto',
+    color: '#1e88e5',
+  },
+  {
+    id: 4,
+    fecha: '2025-12-15',
+    hora: '12:00',
+    nombre: 'Mercado Navideño',
+    tipo: 'evento',
+    ubicacion: 'María Pita',
+    asistencia_estimada: 15000,
+    impacto: 'medio',
+    color: '#ff9800',
+  },
+  {
+    id: 5,
+    fecha: '2025-12-18',
+    hora: '19:00',
+    nombre: 'Básquet Leyma vs Valencia',
+    tipo: 'deportes',
+    ubicacion: 'Coliseum',
+    asistencia_estimada: 5500,
+    impacto: 'bajo',
+    color: '#00897b',
+  },
+  {
+    id: 6,
+    fecha: '2025-12-21',
+    hora: '20:30',
+    nombre: 'RC Deportivo vs Zaragoza',
+    tipo: 'football',
+    ubicacion: 'Estadio Riazor',
+    asistencia_estimada: 28000,
+    impacto: 'alto',
+    color: '#1e88e5',
+  },
+  {
+    id: 7,
+    fecha: '2025-12-24',
+    hora: '11:00',
+    nombre: 'Cabalgata Pre-Navidad',
+    tipo: 'evento',
+    ubicacion: 'Centro Ciudad',
+    asistencia_estimada: 35000,
+    impacto: 'muy alto',
+    color: '#e53935',
+  },
+];
+
 // Crear icono para eventos
 const createEventIcon = (tipo: string, color: string) => {
   const emoji = tipo === 'football' ? '⚽' : tipo === 'concierto' ? '🎵' : '🎉';
@@ -582,6 +663,133 @@ export function MapPage() {
           )}
         </Card>
       </SimpleGrid>
+
+      {/* Calendario de Eventos */}
+      <Card
+        padding="lg"
+        radius="lg"
+        style={{
+          background: cssVariables.glassBg,
+          backdropFilter: 'blur(10px)',
+          border: `1px solid ${cssVariables.glassBorder}`,
+        }}
+      >
+        <Group justify="space-between" mb="lg">
+          <Group gap="sm">
+            <ThemeIcon size={40} radius="xl" variant="gradient" gradient={{ from: 'grape', to: 'pink' }}>
+              <IconCalendarEvent size={22} />
+            </ThemeIcon>
+            <Box>
+              <Title order={4}>Calendario de Eventos</Title>
+              <Text size="xs" c="dimmed">Próximos eventos con estimación de asistencia</Text>
+            </Box>
+          </Group>
+          <Badge size="lg" variant="light" color="grape">
+            {CALENDARIO_EVENTOS.length} eventos
+          </Badge>
+        </Group>
+
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
+          {CALENDARIO_EVENTOS.map((evento) => {
+            const fecha = new Date(evento.fecha);
+            const diasHasta = Math.ceil((fecha.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+            const esHoy = diasHasta === 0;
+            const esProximo = diasHasta >= 0 && diasHasta <= 3;
+
+            const impactoColor = evento.impacto === 'muy alto' ? 'red'
+              : evento.impacto === 'alto' ? 'orange'
+                : evento.impacto === 'medio' ? 'yellow'
+                  : 'green';
+
+            const tipoEmoji = evento.tipo === 'football' ? '⚽'
+              : evento.tipo === 'concierto' ? '🎵'
+                : evento.tipo === 'deportes' ? '🏀'
+                  : '🎉';
+
+            return (
+              <Paper
+                key={evento.id}
+                p="md"
+                radius="md"
+                style={{
+                  background: esHoy
+                    ? `linear-gradient(135deg, ${evento.color}40 0%, ${evento.color}20 100%)`
+                    : esProximo
+                      ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)'
+                      : 'linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%)',
+                  border: esHoy
+                    ? `2px solid ${evento.color}`
+                    : '1px solid rgba(255, 255, 255, 0.08)',
+                  transition: 'all 0.2s ease',
+                  cursor: 'default',
+                }}
+              >
+                {/* Fecha y badges */}
+                <Group justify="space-between" mb="xs">
+                  <Group gap={4}>
+                    <Text size="xl" fw={700}>{fecha.getDate()}</Text>
+                    <Box>
+                      <Text size="xs" tt="uppercase" c="dimmed">
+                        {fecha.toLocaleString('es-ES', { month: 'short' })}
+                      </Text>
+                      <Text size="xs" c="dimmed">{evento.hora}</Text>
+                    </Box>
+                  </Group>
+                  <Badge
+                    size="sm"
+                    variant={esHoy ? 'filled' : 'light'}
+                    color={esHoy ? 'red' : esProximo ? 'orange' : 'gray'}
+                  >
+                    {esHoy ? '🔴 HOY' : diasHasta < 0 ? 'Pasado' : `${diasHasta}d`}
+                  </Badge>
+                </Group>
+
+                {/* Nombre del evento */}
+                <Text fw={600} size="sm" mb={4} lineClamp={2}>
+                  {tipoEmoji} {evento.nombre}
+                </Text>
+
+                {/* Ubicación */}
+                <Text size="xs" c="dimmed" mb="sm">
+                  📍 {evento.ubicacion}
+                </Text>
+
+                {/* Asistencia estimada */}
+                <Box
+                  p="xs"
+                  style={{
+                    background: 'rgba(0,0,0,0.2)',
+                    borderRadius: 8,
+                    borderLeft: `3px solid ${evento.color}`
+                  }}
+                >
+                  <Group justify="space-between">
+                    <Text size="xs" c="dimmed">Asistencia est.</Text>
+                    <Text size="sm" fw={700}>
+                      {evento.asistencia_estimada.toLocaleString('es-ES')}
+                    </Text>
+                  </Group>
+                  <Group justify="space-between" mt={4}>
+                    <Text size="xs" c="dimmed">Impacto</Text>
+                    <Badge size="xs" color={impactoColor} variant="filled">
+                      {evento.impacto.toUpperCase()}
+                    </Badge>
+                  </Group>
+                </Box>
+              </Paper>
+            );
+          })}
+        </SimpleGrid>
+
+        {/* Leyenda de impacto */}
+        <Group justify="center" mt="lg" gap="lg">
+          <Text size="xs" c="dimmed">Nivel de impacto en urgencias:</Text>
+          <Badge size="xs" color="green" variant="dot">Bajo (&lt;10K)</Badge>
+          <Badge size="xs" color="yellow" variant="dot">Medio (10-20K)</Badge>
+          <Badge size="xs" color="orange" variant="dot">Alto (20-30K)</Badge>
+          <Badge size="xs" color="red" variant="dot">Muy Alto (&gt;30K)</Badge>
+        </Group>
+      </Card>
     </Stack>
   );
 }
