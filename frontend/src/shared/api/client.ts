@@ -11,6 +11,7 @@ import type { HospitalConfig, StaffMember, MedicoSergas } from '@/shared/types';
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 export const MCP_BASE_URL = import.meta.env.VITE_MCP_URL || 'http://localhost:8080';
+export const PROPHET_BASE_URL = import.meta.env.VITE_PROPHET_URL || 'http://localhost:8001';
 
 export const queryClient = new QueryClient({
     defaultOptions: {
@@ -114,14 +115,46 @@ export async function stopSimulation() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PREDICCIÓN
+// PREDICCIÓN (Prophet Service)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export async function fetchPrediction(hospitalId: string, hours: number = 24) {
-    return fetchAPI('/prediction/forecast', {
+export interface Prediccion {
+    hora: number;
+    timestamp: string;
+    llegadas_esperadas: number;
+    minimo: number;
+    maximo: number;
+    factor_escenario: number;
+}
+
+export interface PredictionResponse {
+    hospital_id: string;
+    predicciones: Prediccion[];
+    resumen: {
+        total_esperado: number;
+        promedio_hora: number;
+        hora_pico: number;
+        llegadas_pico: number;
+        hora_valle: number;
+        llegadas_valle: number;
+        factor_escenario_aplicado: number;
+    };
+    escenario_aplicado: string | null;
+    generado_en: string;
+}
+
+export async function fetchPrediction(hospitalId: string, hours: number = 24): Promise<PredictionResponse> {
+    const response = await fetch(`${PROPHET_BASE_URL}/predict`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hospital_id: hospitalId, hours }),
     });
+
+    if (!response.ok) {
+        throw new Error(`Prophet Error: ${response.status}`);
+    }
+
+    return response.json();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
