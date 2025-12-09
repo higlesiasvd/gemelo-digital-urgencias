@@ -15,7 +15,6 @@ import {
     Select,
     ThemeIcon,
     SimpleGrid,
-    Table,
     Alert,
     Modal,
     Box,
@@ -23,7 +22,6 @@ import {
     Avatar,
     Progress,
     Tooltip,
-    ActionIcon,
     Transition,
 } from '@mantine/core';
 import {
@@ -607,7 +605,6 @@ export function StaffPage() {
                 <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
                     {(Object.entries(PERSONAL_BASE) as [keyof typeof PERSONAL_BASE, typeof PERSONAL_BASE.chuac][]).map(([id, hospital]) => {
                         const medicosSergas = sergasAsignados?.filter(m => m.asignado_a_hospital === id).length ?? 0;
-                        const totalMedicos = hospital.medicos_base + medicosSergas;
                         const capacidadColor = HOSPITAL_COLORS[id];
 
                         return (

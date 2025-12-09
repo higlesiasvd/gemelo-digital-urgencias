@@ -22,7 +22,6 @@ import {
     Switch,
     Progress,
     Alert,
-    Tooltip,
 } from '@mantine/core';
 import {
     IconChartLine,
@@ -514,8 +513,8 @@ export function PredictorPage() {
                                                 ? 'rgba(253,126,20,0.1)'
                                                 : 'rgba(255,255,255,0.03)',
                                         border: `1px solid ${p.nivel_alerta === 'CRITICO' ? 'rgba(250,82,82,0.3)'
-                                                : p.nivel_alerta === 'ALERTA' ? 'rgba(253,126,20,0.3)'
-                                                    : 'rgba(255,255,255,0.05)'
+                                            : p.nivel_alerta === 'ALERTA' ? 'rgba(253,126,20,0.3)'
+                                                : 'rgba(255,255,255,0.05)'
                                             }`,
                                     }}
                                 >

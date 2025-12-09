@@ -16,7 +16,6 @@ import {
     TextInput,
     ActionIcon,
     ScrollArea,
-    Loader,
     Box,
     SimpleGrid,
     Tooltip,

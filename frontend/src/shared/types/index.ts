@@ -110,6 +110,7 @@ export interface Consulta {
 
 export interface Derivacion {
     id: number;
+    paciente_id?: string;
     hospital_origen: HospitalId;
     hospital_destino: HospitalId;
     motivo: string;

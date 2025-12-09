@@ -369,7 +369,7 @@ export function SimulationPage() {
                                             </Paper>
 
                                             <Box style={{ maxHeight: 150, overflowY: 'auto' }}>
-                                                <Table striped highlightOnHover withTableBorder size="xs">
+                                                <Table striped highlightOnHover withTableBorder fz="xs">
                                                     <Table.Thead>
                                                         <Table.Tr>
                                                             <Table.Th>Triaje</Table.Th>

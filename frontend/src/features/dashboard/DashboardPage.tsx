@@ -20,6 +20,7 @@ import {
     Modal,
     Table,
     ScrollArea,
+    SegmentedControl,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -32,12 +33,15 @@ import {
     IconDoor,
     IconHeartRateMonitor,
     IconStethoscope,
+    Icon3dCubeSphere,
+    IconLayoutList,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useHospitals, useDerivaciones } from '@/shared/store';
 import { fetchHospitals } from '@/shared/api/client';
 import { cssVariables } from '@/shared/theme';
+import { CSS3DHospitalScene, useChuacConsultas } from '@/features/twin/CSS3DHospitalScene';
 import type { HospitalConfig, HospitalState, PatientInQueue } from '@/shared/types';
 
 // Los datos de pacientes ahora vienen del backend via WebSocket en el estado de cada hospital
@@ -270,11 +274,14 @@ export function DashboardPage() {
     const derivaciones = useDerivaciones();
     const [opened, { open, close }] = useDisclosure(false);
     const [selectedArea, setSelectedArea] = useState<{ hospitalId: string; area: 'ventanilla' | 'triaje' | 'consulta' } | null>(null);
+    const [viewMode, setViewMode] = useState<'flow' | '3d'>('flow');
 
     const { data: hospitalConfigs, isLoading } = useQuery({
         queryKey: ['hospitals'],
         queryFn: fetchHospitals,
     });
+
+    const { data: chuacConsultas } = useChuacConsultas();
 
     const totalPatients = Object.values(hospitals).reduce((acc, h) => acc + (h.cola_triaje ?? 0) + (h.cola_consulta ?? 0), 0);
     const totalAttended = Object.values(hospitals).reduce((acc, h) => acc + (h.pacientes_atendidos_hora ?? 0), 0);
@@ -329,19 +336,64 @@ export function DashboardPage() {
                 <KPICard title="Derivaciones Activas" value={derivaciones.length} icon={<IconAlertTriangle size={24} />} color="orange" subtitle="Últimas 24h" />
             </SimpleGrid>
 
-            {/* Hospitales con Flujo Visual */}
-            <Title order={3} mt="md">Flujo de Atención por Hospital</Title>
-            <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
-                {hospitalConfigs?.hospitales.map((config) => (
-                    <HospitalFlowCard
-                        key={config.id}
-                        config={config}
-                        state={hospitals[config.id]}
-                        onClick={() => navigate(`/hospitales/${config.id === 'san_rafael' ? 'san-rafael' : config.id}`)}
-                        onFlowClick={handleFlowClick}
-                    />
-                ))}
-            </SimpleGrid>
+            {/* Hospitales con Flujo Visual o Vista 3D */}
+            <Group justify="space-between" align="center" mt="md">
+                <Title order={3}>
+                    {viewMode === 'flow' ? 'Flujo de Atención' : 'Gemelo Digital 3D'}
+                </Title>
+                <SegmentedControl
+                    value={viewMode}
+                    onChange={(v) => setViewMode(v as 'flow' | '3d')}
+                    data={[
+                        {
+                            label: (
+                                <Group gap={6}>
+                                    <IconLayoutList size={16} />
+                                    <span>Flujo</span>
+                                </Group>
+                            ),
+                            value: 'flow'
+                        },
+                        {
+                            label: (
+                                <Group gap={6}>
+                                    <Icon3dCubeSphere size={16} />
+                                    <span>3D</span>
+                                </Group>
+                            ),
+                            value: '3d'
+                        },
+                    ]}
+                    styles={{
+                        root: {
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                        },
+                    }}
+                />
+            </Group>
+
+            {viewMode === 'flow' ? (
+                <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="lg">
+                    {hospitalConfigs?.hospitales.map((config) => (
+                        <HospitalFlowCard
+                            key={config.id}
+                            config={config}
+                            state={hospitals[config.id]}
+                            onClick={() => navigate(`/hospitales/${config.id === 'san_rafael' ? 'san-rafael' : config.id}`)}
+                            onFlowClick={handleFlowClick}
+                        />
+                    ))}
+                </SimpleGrid>
+            ) : (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    <CSS3DHospitalScene consultasInfo={chuacConsultas} />
+                </motion.div>
+            )}
 
             {/* Modal de Pacientes */}
             <Modal

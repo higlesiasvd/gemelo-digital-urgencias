@@ -25,6 +25,7 @@ import {
     IconWifi,
     IconWifiOff,
     IconActivity,
+    Icon3dCubeSphere,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import { useIsConnected, useLastUpdate } from '@/shared/store';
@@ -40,6 +41,7 @@ const NAV_ITEMS = [
     { path: '/simulacion', label: 'Simulación', icon: IconTestPipe },
     { path: '/demanda/predictor', label: 'Predicción', icon: IconChartLine },
     { path: '/mapa', label: 'Mapa', icon: IconMap },
+    { path: '/gemelo', label: 'Gemelo 3D', icon: Icon3dCubeSphere },
     { path: '/configuracion', label: 'Configuración', icon: IconSettings },
 ];
 

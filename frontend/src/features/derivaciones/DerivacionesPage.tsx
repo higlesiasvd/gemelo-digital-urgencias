@@ -31,7 +31,7 @@ import type { Derivacion } from '@/shared/types';
 // Datos de ejemplo para demo cuando no hay derivaciones reales
 const MOCK_DERIVACIONES: Derivacion[] = [
     {
-        id: 'demo-1',
+        id: 1,
         paciente_id: 'P-2024-001',
         hospital_origen: 'chuac',
         hospital_destino: 'modelo',
@@ -40,7 +40,7 @@ const MOCK_DERIVACIONES: Derivacion[] = [
         timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // hace 30 min
     },
     {
-        id: 'demo-2',
+        id: 2,
         paciente_id: 'P-2024-002',
         hospital_origen: 'chuac',
         hospital_destino: 'san_rafael',
@@ -49,7 +49,7 @@ const MOCK_DERIVACIONES: Derivacion[] = [
         timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // hace 2 horas
     },
     {
-        id: 'demo-3',
+        id: 3,
         paciente_id: 'P-2024-003',
         hospital_origen: 'modelo',
         hospital_destino: 'chuac',
