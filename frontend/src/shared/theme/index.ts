@@ -1,17 +1,24 @@
 import { createTheme, MantineColorsTuple } from '@mantine/core';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PALETAS DE COLORES
+// PALETAS DE COLORES - MODERN DARK NAVY THEME
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const primaryBlue: MantineColorsTuple = [
-    '#e6f4ff', '#bae0ff', '#91caff', '#69b4ff', '#4096ff',
-    '#1677ff', '#0958d9', '#003eb3', '#002c8c', '#001d66',
+// Azul marino oscuro profesional
+const navyBlue: MantineColorsTuple = [
+    '#e8f4fc', '#c5e4f9', '#9bd0f5', '#6ab8ef', '#3a9fe8',
+    '#1a8cde', '#0d6ebd', '#0a5a9c', '#08477b', '#0a1628',
+];
+
+// Azul cian moderno para acentos
+const accentCyan: MantineColorsTuple = [
+    '#e6fcff', '#c3f7fc', '#8eeef9', '#4de4f5', '#0cd6ed',
+    '#00c4dc', '#00a3b8', '#008294', '#006270', '#00424c',
 ];
 
 const emeraldGreen: MantineColorsTuple = [
-    '#d1fae5', '#a7f3d0', '#6ee7b7', '#34d399', '#10b981',
-    '#059669', '#047857', '#065f46', '#064e3b', '#022c22',
+    '#e6fff5', '#c3ffe7', '#8affd1', '#4dfcb8', '#1af09f',
+    '#00d68f', '#00b377', '#009161', '#006f4b', '#004d35',
 ];
 
 const vibrantOrange: MantineColorsTuple = [
@@ -20,65 +27,83 @@ const vibrantOrange: MantineColorsTuple = [
 ];
 
 const deepPurple: MantineColorsTuple = [
-    '#faf5ff', '#f3e8ff', '#e9d5ff', '#d8b4fe', '#c084fc',
-    '#a855f7', '#9333ea', '#7e22ce', '#6b21a8', '#581c87',
+    '#f5f0ff', '#e8deff', '#d4c4fc', '#bda6f7', '#a688f0',
+    '#8b6ce6', '#7152d9', '#5a3fc7', '#4530a8', '#302187',
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TEMA MANTINE
+// TEMA MANTINE - MODERN CLEAN DESIGN
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const theme = createTheme({
-    primaryColor: 'primaryBlue',
+    primaryColor: 'navyBlue',
     colors: {
-        primaryBlue,
+        navyBlue,
+        accentCyan,
         emeraldGreen,
         vibrantOrange,
         deepPurple,
     },
-    defaultRadius: 'md',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    defaultRadius: 'lg',
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     headings: {
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        fontWeight: '700',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontWeight: '600',
     },
     shadows: {
-        xs: '0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1)',
-        sm: '0 1px 3px rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05) 0px 10px 15px -5px, rgba(0, 0, 0, 0.04) 0px 7px 7px -5px',
-        md: '0 1px 3px rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05) 0px 20px 25px -5px, rgba(0, 0, 0, 0.04) 0px 10px 10px -5px',
-        lg: '0 1px 3px rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05) 0px 28px 23px -7px, rgba(0, 0, 0, 0.04) 0px 12px 12px -7px',
-        xl: '0 1px 3px rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05) 0px 36px 28px -7px, rgba(0, 0, 0, 0.04) 0px 17px 17px -7px',
+        xs: '0 1px 2px rgba(10, 22, 40, 0.08)',
+        sm: '0 2px 8px rgba(10, 22, 40, 0.12)',
+        md: '0 4px 16px rgba(10, 22, 40, 0.16)',
+        lg: '0 8px 32px rgba(10, 22, 40, 0.20)',
+        xl: '0 16px 48px rgba(10, 22, 40, 0.24)',
     },
     components: {
         Card: {
-            defaultProps: { shadow: 'sm', radius: 'lg', withBorder: true },
+            defaultProps: { shadow: 'sm', radius: 'xl', withBorder: true },
             styles: {
                 root: {
-                    transition: 'all 0.3s ease',
-                    '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 24px rgba(0, 0, 0, 0.15)' },
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 32px rgba(10, 22, 40, 0.25)' },
                 },
             },
         },
         Button: {
-            defaultProps: { radius: 'md' },
+            defaultProps: { radius: 'xl' },
             styles: { root: { transition: 'all 0.2s ease', '&:hover': { transform: 'translateY(-1px)' } } },
         },
-        Badge: { defaultProps: { radius: 'md' } },
-        Paper: { defaultProps: { radius: 'md' } },
+        Badge: { defaultProps: { radius: 'xl' } },
+        Paper: { defaultProps: { radius: 'xl' } },
     },
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CSS VARIABLES
+// CSS VARIABLES - MODERN DARK NAVY PALETTE
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const cssVariables = {
-    glassBg: 'rgba(37, 38, 43, 0.8)',
-    glassBorder: 'rgba(255, 255, 255, 0.1)',
-    glassShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
-    gradientPrimary: 'linear-gradient(135deg, #228be6 0%, #15aabf 100%)',
-    gradientSuccess: 'linear-gradient(135deg, #40c057 0%, #20c997 100%)',
-    gradientWarning: 'linear-gradient(135deg, #fab005 0%, #fd7e14 100%)',
-    gradientDanger: 'linear-gradient(135deg, #fa5252 0%, #e64980 100%)',
-    bodyBg: 'linear-gradient(135deg, #0f0f12 0%, #1a1b1e 50%, #0f0f12 100%)',
+    // Primary backgrounds - azul marino muy oscuro
+    bgBase: '#050a12',
+    bgSurface: '#0a1628',
+    bgElevated: '#0d1f3c',
+    bgCard: '#0f2447',
+
+    // Glass effect con tono azul
+    glassBg: 'rgba(10, 22, 40, 0.85)',
+    glassBorder: 'rgba(56, 189, 248, 0.12)',
+    glassShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+    glassBlur: 'blur(20px)',
+
+    // Accent colors
+    accentPrimary: '#00c4dc',
+    accentSecondary: '#1a8cde',
+
+    // Gradientes modernos
+    gradientPrimary: 'linear-gradient(135deg, #0d6ebd 0%, #00c4dc 100%)',
+    gradientSuccess: 'linear-gradient(135deg, #00b377 0%, #00d68f 100%)',
+    gradientWarning: 'linear-gradient(135deg, #f97316 0%, #fbbf24 100%)',
+    gradientDanger: 'linear-gradient(135deg, #dc2626 0%, #f43f5e 100%)',
+    gradientNavy: 'linear-gradient(180deg, #0a1628 0%, #050a12 100%)',
+
+    // Body background - gradiente azul marino profundo
+    bodyBg: 'linear-gradient(135deg, #050a12 0%, #0a1628 50%, #050a12 100%)',
 };

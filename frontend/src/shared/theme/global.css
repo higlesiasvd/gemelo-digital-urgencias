@@ -1,25 +1,71 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MODERN DARK NAVY THEME - GLOBAL STYLES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
 :root {
-  --glass-bg: rgba(37, 38, 43, 0.8);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --gradient-primary: linear-gradient(135deg, #228be6 0%, #15aabf 100%);
-  --gradient-success: linear-gradient(135deg, #40c057 0%, #20c997 100%);
-  --gradient-warning: linear-gradient(135deg, #fab005 0%, #fd7e14 100%);
-  --gradient-danger: linear-gradient(135deg, #fa5252 0%, #e64980 100%);
+  /* Primary Navy Palette */
+  --navy-base: #050a12;
+  --navy-surface: #0a1628;
+  --navy-elevated: #0d1f3c;
+  --navy-card: #0f2447;
+
+  /* Accent Colors */
+  --accent-cyan: #00c4dc;
+  --accent-blue: #1a8cde;
+  --accent-glow: rgba(0, 196, 220, 0.4);
+
+  /* Glass Effects */
+  --glass-bg: rgba(10, 22, 40, 0.85);
+  --glass-border: rgba(56, 189, 248, 0.12);
+  --glass-border-hover: rgba(56, 189, 248, 0.25);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+  /* Modern Gradients */
+  --gradient-primary: linear-gradient(135deg, #0d6ebd 0%, #00c4dc 100%);
+  --gradient-success: linear-gradient(135deg, #00b377 0%, #00d68f 100%);
+  --gradient-warning: linear-gradient(135deg, #f97316 0%, #fbbf24 100%);
+  --gradient-danger: linear-gradient(135deg, #dc2626 0%, #f43f5e 100%);
+  --gradient-navy: linear-gradient(180deg, #0a1628 0%, #050a12 100%);
+
+  /* Text Colors */
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.5);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════════
+   BODY & BASE
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
 body {
-  background: linear-gradient(135deg, #0f0f12 0%, #1a1b1e 50%, #0f0f12 100%);
+  background: linear-gradient(135deg, var(--navy-base) 0%, var(--navy-surface) 50%, var(--navy-base) 100%);
   background-attachment: fixed;
   min-height: 100vh;
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   GLASS MORPHISM CARDS
+   ═══════════════════════════════════════════════════════════════════════════════ */
 
 .glass-card {
   background: var(--glass-bg);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+.glass-card:hover {
+  border-color: var(--glass-border-hover);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   GRADIENT TEXT
+   ═══════════════════════════════════════════════════════════════════════════════ */
 
 .gradient-text {
   background: var(--gradient-primary);
@@ -28,35 +74,66 @@ body {
   background-clip: text;
 }
 
-/* Scrollbar */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MODERN SCROLLBAR
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
+  background: rgba(10, 22, 40, 0.4);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
+  background: linear-gradient(180deg, var(--accent-cyan) 0%, var(--accent-blue) 100%);
+  border-radius: 3px;
+  opacity: 0.6;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  opacity: 1;
 }
 
-/* Animations */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 5px rgba(34, 139, 230, 0.5); }
-  50% { box-shadow: 0 0 20px rgba(34, 139, 230, 0.8); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 5px var(--accent-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 20px var(--accent-glow), 0 0 30px var(--accent-glow);
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .pulse-glow {
@@ -67,13 +144,58 @@ body {
   animation: float 3s ease-in-out infinite;
 }
 
-/* Status colors */
-.status-normal { color: #40c057; }
-.status-atencion { color: #fab005; }
-.status-alerta { color: #fd7e14; }
-.status-critico { color: #fa5252; }
+.shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
 
-/* Saturation indicators */
-.saturation-low { background: linear-gradient(135deg, #40c057, #20c997); }
-.saturation-medium { background: linear-gradient(135deg, #fab005, #fd7e14); }
-.saturation-high { background: linear-gradient(135deg, #fa5252, #e64980); }
+/* ═══════════════════════════════════════════════════════════════════════════════
+   STATUS COLORS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.status-normal {
+  color: #00d68f;
+}
+
+.status-atencion {
+  color: #fbbf24;
+}
+
+.status-alerta {
+  color: #f97316;
+}
+
+.status-critico {
+  color: #f43f5e;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SATURATION INDICATORS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.saturation-low {
+  background: var(--gradient-success);
+}
+
+.saturation-medium {
+  background: var(--gradient-warning);
+}
+
+.saturation-high {
+  background: var(--gradient-danger);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MANTINE OVERRIDES FOR DARK NAVY THEME
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.mantine-Paper-root {
+  background: var(--glass-bg) !important;
+  border-color: var(--glass-border) !important;
+}
+
+.mantine-Card-root {
+  background: var(--glass-bg) !important;
+  border-color: var(--glass-border) !important;
+}

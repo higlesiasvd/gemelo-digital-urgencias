@@ -32,14 +32,14 @@ import { FloatingChatWidget } from '@/components/FloatingChat/FloatingChatWidget
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const NAV_ITEMS = [
-    { path: '/', label: 'Dashboard', icon: IconDashboard, color: '#228be6' },
-    { path: '/hospitales', label: 'Hospitales', icon: IconBuildingHospital, color: '#40c057' },
-    { path: '/personal', label: 'Personal', icon: IconUsers, color: '#be4bdb' },
-    { path: '/derivaciones', label: 'Derivaciones', icon: IconArrowsExchange, color: '#fd7e14' },
-    { path: '/simulacion', label: 'Simulación', icon: IconTestPipe, color: '#fa5252' },
-    { path: '/demanda/predictor', label: 'Predicción', icon: IconChartLine, color: '#15aabf' },
-    { path: '/mapa', label: 'Mapa', icon: IconMap, color: '#fab005' },
-    { path: '/configuracion', label: 'Configuración', icon: IconSettings, color: '#868e96' },
+    { path: '/', label: 'Dashboard', icon: IconDashboard, color: '#00c4dc' },
+    { path: '/hospitales', label: 'Hospitales', icon: IconBuildingHospital, color: '#00d68f' },
+    { path: '/personal', label: 'Personal', icon: IconUsers, color: '#8b6ce6' },
+    { path: '/derivaciones', label: 'Derivaciones', icon: IconArrowsExchange, color: '#f97316' },
+    { path: '/simulacion', label: 'Simulación', icon: IconTestPipe, color: '#f43f5e' },
+    { path: '/demanda/predictor', label: 'Predicción', icon: IconChartLine, color: '#1a8cde' },
+    { path: '/mapa', label: 'Mapa', icon: IconMap, color: '#fbbf24' },
+    { path: '/configuracion', label: 'Configuración', icon: IconSettings, color: '#64748b' },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -163,14 +163,16 @@ export function AppLayout() {
                 {/* Header */}
                 <AppShell.Header
                     style={{
-                        background: 'linear-gradient(180deg, rgba(8,18,38,0.99) 0%, rgba(12,24,48,0.98) 100%)',
+                        background: 'linear-gradient(180deg, rgba(10,22,40,0.98) 0%, rgba(5,10,18,0.95) 100%)',
                         backdropFilter: 'blur(24px)',
-                        borderBottom: '1px solid rgba(56,189,248,0.12)',
-                        borderBottomLeftRadius: 12,
-                        borderBottomRightRadius: 12,
+                        WebkitBackdropFilter: 'blur(24px)',
+                        borderBottom: '1px solid rgba(0, 196, 220, 0.08)',
+                        borderBottomLeftRadius: 20,
+                        borderBottomRightRadius: 20,
+                        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
                     }}
                 >
-                    <Group h="100%" px="lg" justify="space-between">
+                    <Group h="100%" px="xl" justify="space-between">
                         {/* Left: Logo & Brand */}
                         <Group gap="lg">
                             {/* Modern Logo with glow ring */}
@@ -178,26 +180,27 @@ export function AppLayout() {
                                 {/* Outer glow ring */}
                                 <motion.div
                                     animate={{ rotate: 360 }}
-                                    transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+                                    transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
                                     style={{
                                         position: 'absolute',
                                         inset: -3,
-                                        borderRadius: 14,
-                                        background: 'conic-gradient(from 0deg, #228be6, #15aabf, #40c057, #228be6)',
-                                        opacity: 0.6,
+                                        borderRadius: 16,
+                                        background: 'conic-gradient(from 0deg, #00c4dc, #0d6ebd, #00d68f, #00c4dc)',
+                                        opacity: 0.5,
                                     }}
                                 />
                                 {/* Logo container */}
                                 <Box
                                     style={{
                                         position: 'relative',
-                                        width: 44,
-                                        height: 44,
-                                        borderRadius: 12,
-                                        background: 'linear-gradient(135deg, rgba(34,139,230,0.9) 0%, rgba(21,170,191,0.9) 100%)',
+                                        width: 46,
+                                        height: 46,
+                                        borderRadius: 14,
+                                        background: 'linear-gradient(135deg, #0d6ebd 0%, #00c4dc 100%)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
+                                        boxShadow: '0 4px 16px rgba(0, 196, 220, 0.3)',
                                     }}
                                 >
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -216,45 +219,45 @@ export function AppLayout() {
                             {/* Brand text */}
                             <Box>
                                 <Text
-                                    fw={700}
+                                    fw={600}
                                     size="lg"
-                                    style={{ lineHeight: 1.2 }}
+                                    style={{ lineHeight: 1.2, letterSpacing: '-0.02em' }}
                                 >
                                     <span style={{ color: '#fff' }}>Health</span>
                                     <span style={{
-                                        background: 'linear-gradient(90deg, #228be6 0%, #40c057 100%)',
+                                        background: 'linear-gradient(90deg, #00c4dc 0%, #00d68f 100%)',
                                         WebkitBackgroundClip: 'text',
                                         WebkitTextFillColor: 'transparent',
                                     }}>Verse</span>
-                                    <span style={{ color: 'rgba(255,255,255,0.7)', marginLeft: 6 }}>Coruña</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.6)', marginLeft: 8, fontWeight: 400 }}>Coruña</span>
                                 </Text>
-                                <Text size="xs" c="dimmed" style={{ opacity: 0.6 }}>
+                                <Text size="xs" style={{ color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em' }}>
                                     Digital Hospital Twin
                                 </Text>
                             </Box>
                         </Group>
 
                         {/* Right: Status */}
-                        <Group gap="lg">
+                        <Group gap="xl">
                             {/* Connection status - minimal */}
-                            <Group gap={8}>
+                            <Group gap={10}>
                                 <motion.div
                                     animate={{
-                                        scale: isConnected ? [1, 1.2, 1] : 1,
+                                        scale: isConnected ? [1, 1.15, 1] : 1,
                                         opacity: isConnected ? 1 : 0.5,
                                     }}
-                                    transition={{ duration: 1.5, repeat: Infinity }}
+                                    transition={{ duration: 2, repeat: Infinity }}
                                     style={{
-                                        width: 8,
-                                        height: 8,
+                                        width: 10,
+                                        height: 10,
                                         borderRadius: '50%',
-                                        background: isConnected ? '#40c057' : '#fa5252',
+                                        background: isConnected ? '#00d68f' : '#f43f5e',
                                         boxShadow: isConnected
-                                            ? '0 0 8px #40c057, 0 0 16px rgba(64,192,87,0.4)'
+                                            ? '0 0 10px #00d68f, 0 0 20px rgba(0,214,143,0.4)'
                                             : 'none',
                                     }}
                                 />
-                                <Text size="sm" c={isConnected ? 'green.4' : 'red.4'} fw={500}>
+                                <Text size="sm" style={{ color: isConnected ? '#00d68f' : '#f43f5e' }} fw={500}>
                                     {isConnected ? 'Live' : 'Offline'}
                                 </Text>
                             </Group>
@@ -262,12 +265,13 @@ export function AppLayout() {
                             {/* Time */}
                             {lastUpdate && (
                                 <Badge
-                                    variant="outline"
-                                    color="gray"
-                                    size="sm"
+                                    variant="light"
+                                    size="md"
+                                    radius="xl"
                                     style={{
-                                        borderColor: 'rgba(255,255,255,0.1)',
-                                        color: 'rgba(255,255,255,0.5)',
+                                        background: 'rgba(0, 196, 220, 0.1)',
+                                        border: '1px solid rgba(0, 196, 220, 0.2)',
+                                        color: 'rgba(255,255,255,0.7)',
                                     }}
                                 >
                                     {lastUpdate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
@@ -279,13 +283,15 @@ export function AppLayout() {
 
                 {/* Navbar */}
                 <AppShell.Navbar
-                    p="md"
+                    p="lg"
                     style={{
-                        background: 'linear-gradient(180deg, rgba(8,18,38,0.99) 0%, rgba(6,14,30,0.99) 100%)',
+                        background: 'linear-gradient(180deg, rgba(10,22,40,0.98) 0%, rgba(5,10,18,0.95) 100%)',
                         backdropFilter: 'blur(24px)',
-                        borderRight: '1px solid rgba(56,189,248,0.08)',
-                        borderTopRightRadius: 16,
-                        borderBottomRightRadius: 16,
+                        WebkitBackdropFilter: 'blur(24px)',
+                        borderRight: '1px solid rgba(0, 196, 220, 0.06)',
+                        borderTopRightRadius: 24,
+                        borderBottomRightRadius: 24,
+                        boxShadow: '4px 0 24px rgba(0, 0, 0, 0.2)',
                     }}
                 >
                     <Stack gap={6} style={{ height: '100%' }}>
