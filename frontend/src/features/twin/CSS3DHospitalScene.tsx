@@ -28,7 +28,6 @@ import {
     IconPlayerPause,
     IconPlayerPlay,
     IconClock,
-    IconArrowDown,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
