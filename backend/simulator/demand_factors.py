@@ -141,8 +141,8 @@ class DemandFactors:
             factor_futbol
         )
 
-        # Limitar entre 0.3 y 3.0
-        factor_total = max(0.3, min(3.0, factor_total))
+        # Limitar entre 0.5 y 3.0 (acorde a SystemContext schema)
+        factor_total = max(0.5, min(3.0, factor_total))
 
         return {
             "factor_hora": round(factor_hora, 2),
