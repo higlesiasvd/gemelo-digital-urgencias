@@ -307,6 +307,7 @@ export function AppLayout() {
                                         WebkitBackgroundClip: 'text',
                                         WebkitTextFillColor: 'transparent',
                                     }}>Verse</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}> A Coruña</span>
                                 </Text>
 
                                 {/* Separator */}
@@ -327,7 +328,7 @@ export function AppLayout() {
                                         letterSpacing: '0.02em',
                                     }}
                                 >
-                                    Emergency Room Digital Twin — A Coruña
+                                    Gemelo Digital de Urgencias
                                 </Text>
                             </Group>
                         </Group>

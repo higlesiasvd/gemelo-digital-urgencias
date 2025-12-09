@@ -134,6 +134,46 @@ const EVENTOS_CIUDAD = [
     descripcion: 'Zona de eventos turísticos',
     color: '#ff9800',
   },
+  {
+    id: 'ayuntamiento',
+    nombre: 'Ayuntamiento (Plaza María Pita)',
+    tipo: 'gobierno',
+    coordenadas: { lat: 43.3708, lon: -8.3961 },
+    descripcion: 'Sede del gobierno municipal',
+    color: '#607d8b',
+  },
+  {
+    id: 'palacio_opera',
+    nombre: 'Palacio de la Ópera',
+    tipo: 'concierto',
+    coordenadas: { lat: 43.36306, lon: -8.41081 },
+    descripcion: 'Auditorio y sala de conciertos',
+    color: '#e91e63',
+  },
+  {
+    id: 'sala_pelicano',
+    nombre: 'Sala Pelícano',
+    tipo: 'concierto',
+    coordenadas: { lat: 43.3682, lon: -8.3998 },
+    descripcion: 'Sala de conciertos y eventos',
+    color: '#00bcd4',
+  },
+  {
+    id: 'domus',
+    nombre: 'Domus - Casa del Hombre',
+    tipo: 'evento',
+    coordenadas: { lat: 43.37761, lon: -8.40651 },
+    descripcion: 'Museo interactivo',
+    color: '#4caf50',
+  },
+  {
+    id: 'aquarium',
+    nombre: 'Aquarium Finisterrae',
+    tipo: 'evento',
+    coordenadas: { lat: 43.3853, lon: -8.4073 },
+    descripcion: 'Acuario y museo del mar',
+    color: '#2196f3',
+  },
 ];
 
 // Calendario de eventos próximos con estimación de asistencia
@@ -233,37 +273,58 @@ const createEventIcon = (tipo: string, color: string) => {
       // Nota musical
       return `<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
     }
-    // Estrella para eventos/monumentos (Torre de Hércules)
+    if (tipo === 'gobierno') {
+      // Edificio clásico con columnas (Ayuntamiento)
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 21h18"/>
+        <path d="M4 21v-10"/>
+        <path d="M20 21v-10"/>
+        <path d="M12 3l9 7h-18z"/>
+        <path d="M8 21v-8h3v8"/>
+        <path d="M13 21v-8h3v8"/>
+      </svg>`;
+    }
+    // Estrella para eventos/monumentos
     return `<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
   };
 
   return L.divIcon({
-    className: 'custom-event-marker',
+    className: 'event-marker-container',
     html: `
-      <div style="
+      <div class="event-marker" style="
         position: relative;
-        width: 34px;
-        height: 34px;
-        filter: drop-shadow(0 3px 8px rgba(0,0,0,0.35));
+        width: 28px;
+        height: 28px;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        opacity: 0.6;
+        transform: scale(0.85);
+        transition: all 0.2s ease;
+        cursor: pointer;
       ">
         <div style="
-          width: 34px;
-          height: 34px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
-          background: linear-gradient(145deg, ${color}, ${color}cc);
-          border: 2.5px solid rgba(255,255,255,0.9);
+          background: ${color};
+          border: 2px solid rgba(255,255,255,0.7);
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: inset 0 -2px 6px rgba(0,0,0,0.15);
         ">
           ${getEventSvg()}
         </div>
       </div>
+      <style>
+        .event-marker:hover {
+          opacity: 1 !important;
+          transform: scale(1.1) !important;
+          filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5)) !important;
+        }
+      </style>
     `,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
-    popupAnchor: [0, -17],
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
   });
 };
 

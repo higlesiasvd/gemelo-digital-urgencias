@@ -63,16 +63,10 @@ const HOSPITAL_OPTIONS = [
     { value: 'san_rafael', label: 'San Rafael' },
 ];
 
-const HOURS_OPTIONS = [
-    { value: '12', label: '12 horas' },
-    { value: '24', label: '24 horas' },
-    { value: '48', label: '48 horas' },
-    { value: '72', label: '72 horas' },
-];
 
 export function PredictorPage() {
     const [hospitalId, setHospitalId] = useState('chuac');
-    const [hoursAhead, setHoursAhead] = useState('24');
+    const [hoursAhead] = useState('24');
     const [data, setData] = useState<ExtendedPredictionResponse | null>(null);
     const [activeTab, setActiveTab] = useState<string | null>('llegadas');
 
@@ -166,12 +160,6 @@ export function PredictorPage() {
                                 data={HOSPITAL_OPTIONS}
                                 value={hospitalId}
                                 onChange={(v) => v && setHospitalId(v)}
-                            />
-                            <Select
-                                label="Horizonte"
-                                data={HOURS_OPTIONS}
-                                value={hoursAhead}
-                                onChange={(v) => v && setHoursAhead(v)}
                             />
                         </Group>
                         <Button
