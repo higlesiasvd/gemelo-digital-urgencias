@@ -274,7 +274,7 @@ export function DashboardPage() {
     const derivaciones = useDerivaciones();
     const [opened, { open, close }] = useDisclosure(false);
     const [selectedArea, setSelectedArea] = useState<{ hospitalId: string; area: 'ventanilla' | 'triaje' | 'consulta' } | null>(null);
-    const [viewMode, setViewMode] = useState<'flow' | '3d'>('flow');
+    const [viewMode, setViewMode] = useState<'flow' | '3d'>('3d');
 
     const { data: hospitalConfigs, isLoading } = useQuery({
         queryKey: ['hospitals'],
@@ -339,7 +339,7 @@ export function DashboardPage() {
             {/* Hospitales con Flujo Visual o Vista 3D */}
             <Group justify="space-between" align="center" mt="md">
                 <Title order={3}>
-                    {viewMode === 'flow' ? 'Flujo de Atención' : 'Gemelo Digital 3D'}
+                    {viewMode === '3d' ? 'Vista 3D' : 'Flujo de Atención'}
                 </Title>
                 <SegmentedControl
                     value={viewMode}
@@ -348,20 +348,20 @@ export function DashboardPage() {
                         {
                             label: (
                                 <Group gap={6}>
-                                    <IconLayoutList size={16} />
-                                    <span>Flujo</span>
-                                </Group>
-                            ),
-                            value: 'flow'
-                        },
-                        {
-                            label: (
-                                <Group gap={6}>
                                     <Icon3dCubeSphere size={16} />
                                     <span>3D</span>
                                 </Group>
                             ),
                             value: '3d'
+                        },
+                        {
+                            label: (
+                                <Group gap={6}>
+                                    <IconLayoutList size={16} />
+                                    <span>Flujo</span>
+                                </Group>
+                            ),
+                            value: 'flow'
                         },
                     ]}
                     styles={{
@@ -391,7 +391,7 @@ export function DashboardPage() {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.5 }}
                 >
-                    <CSS3DHospitalScene consultasInfo={chuacConsultas} />
+                    <CSS3DHospitalScene consultasInfo={chuacConsultas} onFlowClick={handleFlowClick} />
                 </motion.div>
             )}
 

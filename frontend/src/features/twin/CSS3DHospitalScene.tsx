@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// CSS3D HOSPITAL SCENE - Vista 3D Premium con Layout Horizontal
+// CSS3D HOSPITAL SCENE - Vista 3D Premium con Animaciones Avanzadas
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -28,6 +28,7 @@ import {
     IconPlayerPause,
     IconPlayerPlay,
     IconClock,
+    IconArrowDown,
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -45,6 +46,63 @@ export function useChuacConsultas() {
         refetchInterval: 5000,
     });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CSS STYLES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const cssStyles = `
+@keyframes float {
+    0%, 100% { transform: translateY(0) translateZ(0); }
+    50% { transform: translateY(-10px) translateZ(20px); }
+}
+
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(34,139,230,0.3); }
+    50% { box-shadow: 0 0 40px rgba(34,139,230,0.6); }
+}
+
+@keyframes rotate-orbit {
+    from { transform: rotate(0deg) translateX(80px) rotate(0deg); }
+    to { transform: rotate(360deg) translateX(80px) rotate(-360deg); }
+}
+
+@keyframes flow-particle {
+    0% { transform: translateY(0) scale(1); opacity: 0.8; }
+    100% { transform: translateY(60px) scale(0.3); opacity: 0; }
+}
+
+@keyframes shine {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+}
+
+@keyframes data-stream {
+    0% { transform: translateY(-100%); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateY(100%); opacity: 0; }
+}
+
+.card-3d {
+    transform-style: preserve-3d;
+    transition: transform 0.4s ease-out;
+}
+
+.card-3d:hover {
+    transform: translateZ(30px) rotateX(-2deg) rotateY(3deg);
+}
+
+.shine-effect {
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255,255,255,0.05) 50%,
+        transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shine 4s infinite;
+}
+`;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIGURACIÓN DE HOSPITALES
@@ -84,7 +142,104 @@ const HOSPITAL_CONFIG = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// COMPONENTE: CUBO 3D MEJORADO
+// COMPONENTE: PARTÍCULAS FLOTANTES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function FloatingParticles() {
+    const particles = useMemo(() =>
+        Array.from({ length: 30 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            y: Math.random() * 100,
+            size: 2 + Math.random() * 4,
+            duration: 8 + Math.random() * 8,
+            delay: Math.random() * 5,
+            color: ['#228be6', '#fd7e14', '#40c057'][Math.floor(Math.random() * 3)],
+        })),
+        []);
+
+    return (
+        <Box style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+            {particles.map(p => (
+                <motion.div
+                    key={p.id}
+                    initial={{ x: `${p.x}%`, y: '110%', opacity: 0 }}
+                    animate={{
+                        y: [null, '-10%'],
+                        opacity: [0, 0.8, 0],
+                    }}
+                    transition={{
+                        duration: p.duration,
+                        repeat: Infinity,
+                        delay: p.delay,
+                        ease: 'linear',
+                    }}
+                    style={{
+                        position: 'absolute',
+                        width: p.size,
+                        height: p.size,
+                        borderRadius: '50%',
+                        background: p.color,
+                        boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
+                        filter: 'blur(1px)',
+                    }}
+                />
+            ))}
+        </Box>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPONENTE: FLUJO DE PACIENTES ANIMADO
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function PatientFlow({ count, color }: { count: number; color: string }) {
+    if (count === 0) return null;
+
+    return (
+        <Box style={{ position: 'relative', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <IconArrowDown size={16} style={{ color, opacity: 0.5 }} />
+            {Array.from({ length: Math.min(count, 5) }).map((_, i) => (
+                <motion.div
+                    key={i}
+                    animate={{
+                        y: [0, 40],
+                        opacity: [0.9, 0],
+                        scale: [1, 0.5],
+                    }}
+                    transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        delay: i * 0.3,
+                        ease: 'easeIn',
+                    }}
+                    style={{
+                        position: 'absolute',
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: color,
+                        boxShadow: `0 0 10px ${color}`,
+                    }}
+                />
+            ))}
+            <Badge
+                size="xs"
+                style={{
+                    position: 'absolute',
+                    right: -30,
+                    background: color,
+                    boxShadow: `0 0 10px ${color}50`,
+                }}
+            >
+                +{count}
+            </Badge>
+        </Box>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPONENTE: CUBO SIMPLE ANIMADO
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface Cube3DProps {
@@ -94,25 +249,26 @@ interface Cube3DProps {
     isAccelerated?: boolean;
     saturacion: number;
     label: string;
+    index: number;
 }
 
-function Cube3D({ size, color, occupied, isAccelerated, saturacion, label }: Cube3DProps) {
+function Cube3D({ size, color, occupied, isAccelerated, saturacion, label, index }: Cube3DProps) {
     const [hovered, setHovered] = useState(false);
 
     const bgColor = useMemo(() => {
-        if (!occupied) return 'rgba(60,60,80,0.6)';
-        if (saturacion > 0.85) return 'rgba(250,82,82,0.9)';
-        if (saturacion > 0.7) return 'rgba(253,126,20,0.9)';
-        if (saturacion > 0.5) return 'rgba(250,176,5,0.9)';
-        return 'rgba(64,192,87,0.9)';
+        if (!occupied) return 'rgba(50,50,65,0.8)';
+        if (saturacion > 0.85) return 'linear-gradient(135deg, #ff6b6b 0%, #fa5252 100%)';
+        if (saturacion > 0.7) return 'linear-gradient(135deg, #ff922b 0%, #fd7e14 100%)';
+        if (saturacion > 0.5) return 'linear-gradient(135deg, #fcc419 0%, #fab005 100%)';
+        return 'linear-gradient(135deg, #69db7c 0%, #40c057 100%)';
     }, [occupied, saturacion]);
 
     const glowColor = useMemo(() => {
         if (!occupied) return 'transparent';
-        if (saturacion > 0.85) return 'rgba(250,82,82,0.6)';
-        if (saturacion > 0.7) return 'rgba(253,126,20,0.5)';
-        if (saturacion > 0.5) return 'rgba(250,176,5,0.4)';
-        return 'rgba(64,192,87,0.4)';
+        if (saturacion > 0.85) return 'rgba(250,82,82,0.3)';
+        if (saturacion > 0.7) return 'rgba(253,126,20,0.25)';
+        if (saturacion > 0.5) return 'rgba(250,176,5,0.2)';
+        return 'rgba(64,192,87,0.2)';
     }, [occupied, saturacion]);
 
     return (
@@ -138,50 +294,85 @@ function Cube3D({ size, color, occupied, isAccelerated, saturacion, label }: Cub
             <motion.div
                 onHoverStart={() => setHovered(true)}
                 onHoverEnd={() => setHovered(false)}
+                initial={{ opacity: 0, scale: 0 }}
                 animate={{
-                    scale: hovered ? 1.15 : 1,
-                    y: hovered ? -5 : 0,
+                    opacity: 1,
+                    scale: hovered ? 1.25 : 1,
+                    y: hovered ? -6 : 0,
                 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                transition={{
+                    type: 'spring',
+                    stiffness: 400,
+                    damping: 25,
+                    delay: index * 0.04,
+                }}
                 style={{
                     width: size,
                     height: size,
                     background: bgColor,
-                    borderRadius: 6,
+                    borderRadius: 8,
                     border: `2px solid ${occupied ? color : 'rgba(255,255,255,0.1)'}`,
-                    boxShadow: occupied ? `0 4px 20px ${glowColor}, inset 0 1px 0 rgba(255,255,255,0.2)` : 'inset 0 1px 0 rgba(255,255,255,0.05)',
+                    boxShadow: occupied
+                        ? `0 4px 15px ${glowColor}, inset 0 1px 0 rgba(255,255,255,0.15)`
+                        : 'inset 0 1px 0 rgba(255,255,255,0.05)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     position: 'relative',
+                    overflow: 'hidden',
                 }}
             >
+                {/* Efecto de brillo interior */}
                 {occupied && (
                     <motion.div
-                        animate={{ scale: [1, 1.2, 1] }}
+                        animate={{
+                            opacity: [0.15, 0.3, 0.15],
+                        }}
                         transition={{
-                            duration: isAccelerated ? 0.4 : 1.5,
+                            duration: isAccelerated ? 0.6 : 3,
                             repeat: Infinity,
                             ease: 'easeInOut',
                         }}
                         style={{
-                            width: size * 0.5,
-                            height: size * 0.5,
-                            borderRadius: '50%',
-                            background: `radial-gradient(circle at 30% 30%, white, ${color})`,
-                            boxShadow: `0 0 10px ${color}`,
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), transparent 60%)',
                         }}
                     />
                 )}
+
+                {/* Indicador central pulsante */}
+                {occupied && (
+                    <motion.div
+                        animate={{
+                            scale: [1, 1.15, 1],
+                            opacity: [0.7, 0.85, 0.7],
+                        }}
+                        transition={{
+                            duration: isAccelerated ? 0.5 : 2,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                        }}
+                        style={{
+                            width: size * 0.3,
+                            height: size * 0.3,
+                            borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.7)',
+                            boxShadow: `0 0 6px rgba(255,255,255,0.4)`,
+                        }}
+                    />
+                )}
+
+                {/* Indicador de velocidad */}
                 {isAccelerated && occupied && (
                     <motion.div
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                         style={{
                             position: 'absolute',
-                            top: -6,
-                            right: -6,
+                            top: -7,
+                            right: -7,
                             width: 18,
                             height: 18,
                             borderRadius: '50%',
@@ -189,7 +380,7 @@ function Cube3D({ size, color, occupied, isAccelerated, saturacion, label }: Cub
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            boxShadow: '0 0 8px #fab005',
+                            boxShadow: '0 0 10px #fab005',
                         }}
                     >
                         <IconBolt size={10} style={{ color: '#000' }} />
@@ -201,17 +392,59 @@ function Cube3D({ size, color, occupied, isAccelerated, saturacion, label }: Cub
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// COMPONENTE: ANILLO ORBITAL 3D
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function OrbitalRing({ color, size = 100 }: { color: string; size?: number }) {
+    return (
+        <motion.div
+            animate={{ rotateZ: 360 }}
+            transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+            style={{
+                position: 'absolute',
+                width: size,
+                height: size,
+                border: `1px solid ${color}30`,
+                borderRadius: '50%',
+                transformStyle: 'preserve-3d',
+                transform: 'rotateX(75deg)',
+            }}
+        >
+            <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                style={{
+                    position: 'absolute',
+                    width: 8,
+                    height: 8,
+                    background: color,
+                    borderRadius: '50%',
+                    boxShadow: `0 0 10px ${color}`,
+                    top: '50%',
+                    left: 0,
+                    marginTop: -4,
+                    marginLeft: -4,
+                }}
+            />
+        </motion.div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENTE: HOSPITAL CARD 3D
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface Hospital3DCardProps {
     config: typeof HOSPITAL_CONFIG.chuac;
     consultasInfo?: ConsultaInfo[];
+    delay: number;
+    onFlowClick?: (hospitalId: string, area: 'ventanilla' | 'triaje' | 'consulta') => void;
 }
 
-function Hospital3DCard({ config, consultasInfo }: Hospital3DCardProps) {
+function Hospital3DCard({ config, consultasInfo, delay, onFlowClick }: Hospital3DCardProps) {
     const hospitals = useHospitals();
     const state = hospitals[config.id];
+    const [isHovered, setIsHovered] = useState(false);
 
     const saturacion = state?.nivel_saturacion ?? 0;
     const saturationPercent = Math.round(saturacion * 100);
@@ -233,87 +466,159 @@ function Hospital3DCard({ config, consultasInfo }: Hospital3DCardProps) {
         return consultasInfo.find(c => c.numero_consulta === num)?.velocidad_factor ?? 1;
     }, [consultasInfo]);
 
-    const cubeSize = { ventanilla: 32, box: 36, consulta: 30 };
+    const cubeSize = { ventanilla: 34, box: 38, consulta: 32 };
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            style={{ flex: 1, minWidth: 280, maxWidth: 400 }}
+            initial={{ opacity: 0, y: 50, rotateY: -30 }}
+            animate={{
+                opacity: 1,
+                y: 0,
+                rotateY: 0,
+                z: isHovered ? 40 : 0,
+                scale: isHovered ? 1.02 : 1,
+            }}
+            transition={{
+                duration: 0.8,
+                delay,
+                type: 'spring',
+                stiffness: 100,
+            }}
+            onHoverStart={() => setIsHovered(true)}
+            onHoverEnd={() => setIsHovered(false)}
+            className="card-3d"
+            style={{
+                flex: 1,
+                minWidth: 300,
+                maxWidth: 380,
+                transformStyle: 'preserve-3d',
+            }}
         >
             <Paper
                 p="lg"
                 radius="xl"
                 style={{
-                    background: `linear-gradient(145deg, rgba(${config.colorRgb},0.15) 0%, rgba(20,20,30,0.95) 100%)`,
-                    border: `2px solid rgba(${config.colorRgb},0.4)`,
-                    boxShadow: `0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(${config.colorRgb},0.15)`,
+                    background: `linear-gradient(145deg, rgba(${config.colorRgb},0.2) 0%, rgba(15,15,25,0.98) 100%)`,
+                    border: `2px solid rgba(${config.colorRgb},0.5)`,
+                    boxShadow: isHovered
+                        ? `0 30px 80px rgba(0,0,0,0.6), 0 0 60px rgba(${config.colorRgb},0.3)`
+                        : `0 20px 50px rgba(0,0,0,0.4), 0 0 30px rgba(${config.colorRgb},0.15)`,
                     backdropFilter: 'blur(20px)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    transition: 'box-shadow 0.3s ease',
                 }}
             >
+                {/* Efecto de brillo */}
+                <div className="shine-effect" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+
+                {/* Anillo orbital decorativo */}
+                <Box style={{ position: 'absolute', top: -20, right: -20, opacity: 0.3 }}>
+                    <OrbitalRing color={config.color} size={80} />
+                </Box>
+
                 {/* Header */}
-                <Group justify="space-between" mb="lg">
+                <Group justify="space-between" mb="lg" style={{ position: 'relative', zIndex: 1 }}>
                     <Group gap="sm">
-                        <ThemeIcon size={44} radius="xl" style={{ background: config.color }}>
-                            <IconUsers size={22} />
-                        </ThemeIcon>
+                        <motion.div
+                            animate={{
+                                rotateY: [0, 360],
+                            }}
+                            transition={{
+                                duration: 8,
+                                repeat: Infinity,
+                                ease: 'linear',
+                            }}
+                            style={{ transformStyle: 'preserve-3d' }}
+                        >
+                            <ThemeIcon size={48} radius="xl" style={{ background: config.color, boxShadow: `0 0 20px ${config.color}80` }}>
+                                <IconUsers size={24} />
+                            </ThemeIcon>
+                        </motion.div>
                         <Box>
                             <Text size="lg" fw={800} c="white">{config.nombre}</Text>
                             <Text size="xs" c="dimmed">{config.tipo}</Text>
                         </Box>
                     </Group>
                     <motion.div
-                        animate={saturationPercent > 70 ? { scale: [1, 1.05, 1] } : {}}
-                        transition={{ duration: 0.6, repeat: Infinity }}
+                        animate={saturationPercent > 70 ? {
+                            scale: [1, 1.1, 1],
+                            boxShadow: [
+                                `0 4px 15px rgba(${config.colorRgb},0.3)`,
+                                `0 4px 25px rgba(${config.colorRgb},0.6)`,
+                                `0 4px 15px rgba(${config.colorRgb},0.3)`,
+                            ]
+                        } : {}}
+                        transition={{ duration: 1, repeat: Infinity }}
                     >
                         <Badge
                             size="xl"
                             color={getStatusColor()}
                             variant="filled"
-                            style={{ boxShadow: `0 4px 15px rgba(${config.colorRgb},0.3)` }}
+                            style={{ boxShadow: `0 4px 20px rgba(${config.colorRgb},0.4)` }}
                         >
                             {saturationPercent}%
                         </Badge>
                     </motion.div>
                 </Group>
 
-                {/* Estadísticas rápidas */}
+                {/* Estadísticas con animación */}
                 <Group justify="space-around" mb="lg">
-                    <Box ta="center">
-                        <Text size="xl" fw={800} c={config.color}>
-                            {colaTriaje + colaConsulta}
-                        </Text>
-                        <Text size="xs" c="dimmed">En cola</Text>
-                    </Box>
-                    <Box ta="center">
-                        <Text size="xl" fw={800} c="teal">
-                            {state?.pacientes_atendidos_hora ?? 0}/h
-                        </Text>
-                        <Text size="xs" c="dimmed">Atendidos</Text>
-                    </Box>
-                    <Box ta="center">
-                        <Group gap={2} justify="center">
-                            <IconClock size={14} style={{ color: '#868e96' }} />
-                            <Text size="xl" fw={800} c={getStatusColor()}>
-                                {state?.tiempo_medio_total?.toFixed(0) ?? 0}
+                    <motion.div
+                        animate={{ y: [0, -3, 0] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                    >
+                        <Box ta="center">
+                            <Text size="xl" fw={800} c={config.color}>
+                                {colaTriaje + colaConsulta}
                             </Text>
-                        </Group>
-                        <Text size="xs" c="dimmed">min</Text>
-                    </Box>
+                            <Text size="xs" c="dimmed">En cola</Text>
+                        </Box>
+                    </motion.div>
+                    <motion.div
+                        animate={{ y: [0, -3, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
+                    >
+                        <Box ta="center">
+                            <Text size="xl" fw={800} c="teal">
+                                {state?.pacientes_atendidos_hora ?? 0}/h
+                            </Text>
+                            <Text size="xs" c="dimmed">Atendidos</Text>
+                        </Box>
+                    </motion.div>
+                    <motion.div
+                        animate={{ y: [0, -3, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: 0.6 }}
+                    >
+                        <Box ta="center">
+                            <Group gap={2} justify="center">
+                                <IconClock size={14} style={{ color: '#868e96' }} />
+                                <Text size="xl" fw={800} c={getStatusColor()}>
+                                    {state?.tiempo_medio_total?.toFixed(0) ?? 0}
+                                </Text>
+                            </Group>
+                            <Text size="xs" c="dimmed">min</Text>
+                        </Box>
+                    </motion.div>
                 </Group>
 
-                {/* Secciones del hospital */}
-                <Stack gap="md">
+                {/* Secciones del hospital con cubos 3D */}
+                <Stack gap="sm">
                     {/* Ventanillas */}
                     <Box>
-                        <Group gap={4} mb={8}>
+                        <Group
+                            gap={4}
+                            mb={8}
+                            style={{ cursor: onFlowClick ? 'pointer' : 'default' }}
+                            onClick={() => onFlowClick?.(config.id, 'ventanilla')}
+                        >
                             <IconDoor size={14} style={{ color: config.color }} />
                             <Text size="xs" fw={600} c={config.color}>
                                 Ventanillas {ventanillasOcupadas}/{config.ventanillas}
                             </Text>
+                            {onFlowClick && <Text size="xs" c="dimmed">(ver pacientes)</Text>}
                         </Group>
-                        <Group gap={8}>
+                        <Group gap={10} style={{ perspective: '500px' }}>
                             {Array.from({ length: config.ventanillas }).map((_, i) => (
                                 <Cube3D
                                     key={`vent-${i}`}
@@ -322,25 +627,30 @@ function Hospital3DCard({ config, consultasInfo }: Hospital3DCardProps) {
                                     occupied={i < ventanillasOcupadas}
                                     saturacion={saturacion}
                                     label={`Ventanilla ${i + 1}`}
+                                    index={i}
                                 />
                             ))}
                         </Group>
                     </Box>
 
+                    {/* Flujo hacia triaje */}
+                    <PatientFlow count={colaTriaje} color={config.color} />
+
                     {/* Boxes Triaje */}
                     <Box>
-                        <Group gap={4} mb={8}>
+                        <Group
+                            gap={4}
+                            mb={8}
+                            style={{ cursor: onFlowClick ? 'pointer' : 'default' }}
+                            onClick={() => onFlowClick?.(config.id, 'triaje')}
+                        >
                             <IconHeartRateMonitor size={14} style={{ color: config.color }} />
                             <Text size="xs" fw={600} c={config.color}>
                                 Triaje {boxesOcupados}/{config.boxes}
                             </Text>
-                            {colaTriaje > 0 && (
-                                <Badge size="xs" color="orange" variant="filled">
-                                    +{colaTriaje} esperando
-                                </Badge>
-                            )}
+                            {onFlowClick && <Text size="xs" c="dimmed">(ver pacientes)</Text>}
                         </Group>
-                        <Group gap={8} wrap="wrap">
+                        <Group gap={10} wrap="wrap" style={{ perspective: '500px' }}>
                             {Array.from({ length: config.boxes }).map((_, i) => (
                                 <Cube3D
                                     key={`box-${i}`}
@@ -349,25 +659,30 @@ function Hospital3DCard({ config, consultasInfo }: Hospital3DCardProps) {
                                     occupied={i < boxesOcupados}
                                     saturacion={saturacion}
                                     label={`Box ${i + 1}`}
+                                    index={i}
                                 />
                             ))}
                         </Group>
                     </Box>
 
+                    {/* Flujo hacia consulta */}
+                    <PatientFlow count={colaConsulta} color={config.color} />
+
                     {/* Consultas */}
                     <Box>
-                        <Group gap={4} mb={8}>
+                        <Group
+                            gap={4}
+                            mb={8}
+                            style={{ cursor: onFlowClick ? 'pointer' : 'default' }}
+                            onClick={() => onFlowClick?.(config.id, 'consulta')}
+                        >
                             <IconStethoscope size={14} style={{ color: config.color }} />
                             <Text size="xs" fw={600} c={config.color}>
                                 Consultas {consultasOcupadas}/{config.consultas}
                             </Text>
-                            {colaConsulta > 0 && (
-                                <Badge size="xs" color="orange" variant="filled">
-                                    +{colaConsulta} esperando
-                                </Badge>
-                            )}
+                            {onFlowClick && <Text size="xs" c="dimmed">(ver pacientes)</Text>}
                         </Group>
-                        <Group gap={6} wrap="wrap">
+                        <Group gap={8} wrap="wrap" style={{ perspective: '500px' }}>
                             {Array.from({ length: config.consultas }).map((_, i) => {
                                 const speed = config.id === 'chuac' ? getConsultaSpeed(i + 1) : 1;
                                 return (
@@ -379,6 +694,7 @@ function Hospital3DCard({ config, consultasInfo }: Hospital3DCardProps) {
                                         isAccelerated={speed > 1}
                                         saturacion={saturacion}
                                         label={`Consulta ${i + 1}${speed > 1 ? ` (${speed}x)` : ''}`}
+                                        index={i}
                                     />
                                 );
                             })}
@@ -398,51 +714,59 @@ function MiniMap() {
     const hospitals = useHospitals();
 
     return (
-        <Paper
-            p="sm"
-            style={{
-                position: 'absolute',
-                top: 16,
-                left: 16,
-                background: 'rgba(10,10,15,0.95)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 14,
-                zIndex: 100,
-                minWidth: 160,
-            }}
+        <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 }}
         >
-            <Group gap="xs" mb="sm">
-                <IconActivity size={16} style={{ color: '#228be6' }} />
-                <Text size="xs" fw={700}>Saturación</Text>
-            </Group>
-            <Stack gap={6}>
-                {Object.entries(HOSPITAL_CONFIG).map(([id, cfg]) => {
-                    const sat = hospitals[id]?.nivel_saturacion ?? 0;
-                    const satPercent = Math.round(sat * 100);
-                    const statusColor = sat > 0.85 ? 'red' : sat > 0.7 ? 'orange' : sat > 0.5 ? 'yellow' : 'green';
-                    return (
-                        <Group key={id} justify="space-between" gap="xs">
-                            <Group gap={6}>
-                                <div
-                                    style={{
-                                        width: 8,
-                                        height: 8,
-                                        borderRadius: '50%',
-                                        background: cfg.color,
-                                        boxShadow: `0 0 6px ${cfg.color}`,
-                                    }}
-                                />
-                                <Text size="xs">{cfg.nombre}</Text>
+            <Paper
+                p="sm"
+                style={{
+                    position: 'absolute',
+                    top: 16,
+                    left: 16,
+                    background: 'rgba(10,10,15,0.95)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 14,
+                    zIndex: 100,
+                    minWidth: 160,
+                }}
+            >
+                <Group gap="xs" mb="sm">
+                    <IconActivity size={16} style={{ color: '#228be6' }} />
+                    <Text size="xs" fw={700}>Saturación</Text>
+                </Group>
+                <Stack gap={6}>
+                    {Object.entries(HOSPITAL_CONFIG).map(([id, cfg]) => {
+                        const sat = hospitals[id]?.nivel_saturacion ?? 0;
+                        const satPercent = Math.round(sat * 100);
+                        const statusColor = sat > 0.85 ? 'red' : sat > 0.7 ? 'orange' : sat > 0.5 ? 'yellow' : 'green';
+                        return (
+                            <Group key={id} justify="space-between" gap="xs">
+                                <Group gap={6}>
+                                    <motion.div
+                                        animate={{ scale: [1, 1.3, 1] }}
+                                        transition={{ duration: 2, repeat: Infinity }}
+                                        style={{
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: '50%',
+                                            background: cfg.color,
+                                            boxShadow: `0 0 8px ${cfg.color}`,
+                                        }}
+                                    />
+                                    <Text size="xs">{cfg.nombre}</Text>
+                                </Group>
+                                <Badge size="sm" color={statusColor} variant="filled">
+                                    {satPercent}%
+                                </Badge>
                             </Group>
-                            <Badge size="sm" color={statusColor} variant="filled">
-                                {satPercent}%
-                            </Badge>
-                        </Group>
-                    );
-                })}
-            </Stack>
-        </Paper>
+                        );
+                    })}
+                </Stack>
+            </Paper>
+        </motion.div>
     );
 }
 
@@ -465,58 +789,64 @@ function CameraControls({
     isAutoRotating, onToggleAutoRotate
 }: CameraControlsProps) {
     return (
-        <Paper
-            p="xs"
-            style={{
-                position: 'absolute',
-                bottom: 16,
-                right: 16,
-                background: 'rgba(10,10,15,0.95)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 14,
-                zIndex: 100,
-            }}
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
         >
-            <Group gap={6}>
-                <Tooltip label={isAutoRotating ? "Pausar" : "Auto-rotar"}>
-                    <ActionIcon
-                        variant={isAutoRotating ? "filled" : "subtle"}
-                        color={isAutoRotating ? "blue" : "gray"}
-                        onClick={onToggleAutoRotate}
-                        size="md"
-                    >
-                        {isAutoRotating ? <IconPlayerPause size={16} /> : <IconPlayerPlay size={16} />}
-                    </ActionIcon>
-                </Tooltip>
-                <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
-                <Tooltip label="Zoom +">
-                    <ActionIcon variant="subtle" color="gray" onClick={onZoomIn} size="md">
-                        <IconZoomIn size={16} />
-                    </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Zoom -">
-                    <ActionIcon variant="subtle" color="gray" onClick={onZoomOut} size="md">
-                        <IconZoomOut size={16} />
-                    </ActionIcon>
-                </Tooltip>
-                <Tooltip label="← Rotar">
-                    <ActionIcon variant="subtle" color="gray" onClick={onRotateLeft} size="md">
-                        <IconRotate size={16} style={{ transform: 'scaleX(-1)' }} />
-                    </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Rotar →">
-                    <ActionIcon variant="subtle" color="gray" onClick={onRotateRight} size="md">
-                        <IconRotate size={16} />
-                    </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Reset">
-                    <ActionIcon variant="subtle" color="gray" onClick={onReset} size="md">
-                        <IconHome size={16} />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
-        </Paper>
+            <Paper
+                p="xs"
+                style={{
+                    position: 'absolute',
+                    bottom: 16,
+                    right: 16,
+                    background: 'rgba(10,10,15,0.95)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 14,
+                    zIndex: 100,
+                }}
+            >
+                <Group gap={6}>
+                    <Tooltip label={isAutoRotating ? "Pausar" : "Auto-rotar"}>
+                        <ActionIcon
+                            variant={isAutoRotating ? "filled" : "subtle"}
+                            color={isAutoRotating ? "blue" : "gray"}
+                            onClick={onToggleAutoRotate}
+                            size="md"
+                        >
+                            {isAutoRotating ? <IconPlayerPause size={16} /> : <IconPlayerPlay size={16} />}
+                        </ActionIcon>
+                    </Tooltip>
+                    <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
+                    <Tooltip label="Zoom +">
+                        <ActionIcon variant="subtle" color="gray" onClick={onZoomIn} size="md">
+                            <IconZoomIn size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Zoom -">
+                        <ActionIcon variant="subtle" color="gray" onClick={onZoomOut} size="md">
+                            <IconZoomOut size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="← Rotar">
+                        <ActionIcon variant="subtle" color="gray" onClick={onRotateLeft} size="md">
+                            <IconRotate size={16} style={{ transform: 'scaleX(-1)' }} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Rotar →">
+                        <ActionIcon variant="subtle" color="gray" onClick={onRotateRight} size="md">
+                            <IconRotate size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Reset">
+                        <ActionIcon variant="subtle" color="gray" onClick={onReset} size="md">
+                            <IconHome size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
+            </Paper>
+        </motion.div>
     );
 }
 
@@ -526,11 +856,12 @@ function CameraControls({
 
 interface CSS3DHospitalSceneProps {
     consultasInfo?: ConsultaInfo[];
+    onFlowClick?: (hospitalId: string, area: 'ventanilla' | 'triaje' | 'consulta') => void;
 }
 
-export function CSS3DHospitalScene({ consultasInfo }: CSS3DHospitalSceneProps) {
-    const [camera, setCamera] = useState({ rotateX: 8, rotateY: -5, scale: 1 });
-    const [isAutoRotating, setIsAutoRotating] = useState(true);
+export function CSS3DHospitalScene({ consultasInfo, onFlowClick }: CSS3DHospitalSceneProps) {
+    const [camera, setCamera] = useState({ rotateX: 10, rotateY: -8, scale: 0.95 });
+    const [isAutoRotating, setIsAutoRotating] = useState(false);
     const isDragging = useRef(false);
     const lastPos = useRef({ x: 0, y: 0 });
     const animationRef = useRef<number>();
@@ -543,7 +874,7 @@ export function CSS3DHospitalScene({ consultasInfo }: CSS3DHospitalSceneProps) {
         }
 
         let lastTime = performance.now();
-        const speed = 3; // grados por segundo
+        const speed = 4;
 
         const animate = (now: number) => {
             const dt = (now - lastTime) / 1000;
@@ -568,8 +899,8 @@ export function CSS3DHospitalScene({ consultasInfo }: CSS3DHospitalSceneProps) {
         const dy = e.clientY - lastPos.current.y;
         setCamera(prev => ({
             ...prev,
-            rotateY: prev.rotateY + dx * 0.3,
-            rotateX: Math.max(0, Math.min(25, prev.rotateX - dy * 0.3)),
+            rotateY: prev.rotateY + dx * 0.4,
+            rotateX: Math.max(0, Math.min(30, prev.rotateX - dy * 0.3)),
         }));
         lastPos.current = { x: e.clientX, y: e.clientY };
     }, []);
@@ -580,123 +911,131 @@ export function CSS3DHospitalScene({ consultasInfo }: CSS3DHospitalSceneProps) {
         e.preventDefault();
         setCamera(prev => ({
             ...prev,
-            scale: Math.max(0.6, Math.min(1.5, prev.scale - e.deltaY * 0.001)),
+            scale: Math.max(0.5, Math.min(1.3, prev.scale - e.deltaY * 0.001)),
         }));
     }, []);
 
-    const handleZoomIn = useCallback(() => setCamera(p => ({ ...p, scale: Math.min(1.5, p.scale + 0.1) })), []);
-    const handleZoomOut = useCallback(() => setCamera(p => ({ ...p, scale: Math.max(0.6, p.scale - 0.1) })), []);
-    const handleRotateLeft = useCallback(() => setCamera(p => ({ ...p, rotateY: p.rotateY + 20 })), []);
-    const handleRotateRight = useCallback(() => setCamera(p => ({ ...p, rotateY: p.rotateY - 20 })), []);
+    const handleZoomIn = useCallback(() => setCamera(p => ({ ...p, scale: Math.min(1.3, p.scale + 0.1) })), []);
+    const handleZoomOut = useCallback(() => setCamera(p => ({ ...p, scale: Math.max(0.5, p.scale - 0.1) })), []);
+    const handleRotateLeft = useCallback(() => setCamera(p => ({ ...p, rotateY: p.rotateY + 25 })), []);
+    const handleRotateRight = useCallback(() => setCamera(p => ({ ...p, rotateY: p.rotateY - 25 })), []);
     const handleReset = useCallback(() => {
-        setCamera({ rotateX: 8, rotateY: -5, scale: 1 });
+        setCamera({ rotateX: 10, rotateY: -8, scale: 0.95 });
         setIsAutoRotating(true);
     }, []);
 
     return (
-        <Box
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onWheel={handleWheel}
-            style={{
-                width: '100%',
-                height: 650,
-                borderRadius: 24,
-                overflow: 'hidden',
-                background: 'linear-gradient(180deg, #0a0a12 0%, #12121a 50%, #0a0a12 100%)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                position: 'relative',
-                cursor: isDragging.current ? 'grabbing' : 'grab',
-                perspective: '1500px',
-            }}
-        >
-            {/* Fondo con gradientes de color */}
-            <div
+        <>
+            <style>{cssStyles}</style>
+            <Box
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onWheel={handleWheel}
                 style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: `
-                        radial-gradient(ellipse at 20% 50%, rgba(34,139,230,0.1) 0%, transparent 40%),
-                        radial-gradient(ellipse at 50% 50%, rgba(253,126,20,0.08) 0%, transparent 35%),
-                        radial-gradient(ellipse at 80% 50%, rgba(64,192,87,0.1) 0%, transparent 40%)
-                    `,
-                    pointerEvents: 'none',
-                }}
-            />
-
-            {/* Grid de fondo */}
-            <div
-                style={{
-                    position: 'absolute',
-                    inset: 0,
-                    backgroundImage: `
-                        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)
-                    `,
-                    backgroundSize: '50px 50px',
-                    pointerEvents: 'none',
-                }}
-            />
-
-            {/* Contenedor 3D */}
-            <div
-                style={{
-                    position: 'absolute',
-                    inset: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transformStyle: 'preserve-3d',
-                    transform: `rotateX(${camera.rotateX}deg) rotateY(${camera.rotateY}deg) scale(${camera.scale})`,
-                    transition: isDragging.current ? 'none' : 'transform 0.3s ease-out',
+                    width: '100%',
+                    height: 680,
+                    borderRadius: 24,
+                    overflow: 'hidden',
+                    background: 'linear-gradient(180deg, #080810 0%, #101018 50%, #080810 100%)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    position: 'relative',
+                    cursor: isDragging.current ? 'grabbing' : 'grab',
+                    perspective: '2000px',
                 }}
             >
-                {/* Hospitales en fila horizontal */}
-                <Group
-                    gap="xl"
-                    align="flex-start"
-                    wrap="nowrap"
+                {/* Partículas flotantes */}
+                <FloatingParticles />
+
+                {/* Fondo con gradientes */}
+                <div
                     style={{
-                        padding: '40px',
+                        position: 'absolute',
+                        inset: 0,
+                        background: `
+                            radial-gradient(ellipse at 15% 50%, rgba(34,139,230,0.12) 0%, transparent 45%),
+                            radial-gradient(ellipse at 50% 50%, rgba(253,126,20,0.1) 0%, transparent 40%),
+                            radial-gradient(ellipse at 85% 50%, rgba(64,192,87,0.12) 0%, transparent 45%)
+                        `,
+                        pointerEvents: 'none',
+                    }}
+                />
+
+                {/* Grid */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        backgroundImage: `
+                            linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
+                        `,
+                        backgroundSize: '60px 60px',
+                        pointerEvents: 'none',
+                    }}
+                />
+
+                {/* Contenedor 3D */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         transformStyle: 'preserve-3d',
+                        transform: `rotateX(${camera.rotateX}deg) rotateY(${camera.rotateY}deg) scale(${camera.scale})`,
+                        transition: isDragging.current ? 'none' : 'transform 0.3s ease-out',
                     }}
                 >
-                    {Object.entries(HOSPITAL_CONFIG).map(([id, config]) => (
-                        <Hospital3DCard
-                            key={id}
-                            config={config}
-                            consultasInfo={id === 'chuac' ? consultasInfo : undefined}
-                        />
-                    ))}
-                </Group>
-            </div>
+                    {/* Hospitales */}
+                    <Group
+                        gap={40}
+                        align="flex-start"
+                        wrap="nowrap"
+                        style={{
+                            padding: '30px',
+                            transformStyle: 'preserve-3d',
+                        }}
+                    >
+                        {Object.entries(HOSPITAL_CONFIG).map(([id, config], index) => (
+                            <Hospital3DCard
+                                key={id}
+                                config={config}
+                                consultasInfo={id === 'chuac' ? consultasInfo : undefined}
+                                delay={index * 0.2}
+                                onFlowClick={onFlowClick}
+                            />
+                        ))}
+                    </Group>
+                </div>
 
-            <MiniMap />
-            <CameraControls
-                onZoomIn={handleZoomIn}
-                onZoomOut={handleZoomOut}
-                onRotateLeft={handleRotateLeft}
-                onRotateRight={handleRotateRight}
-                onReset={handleReset}
-                isAutoRotating={isAutoRotating}
-                onToggleAutoRotate={() => setIsAutoRotating(p => !p)}
-            />
+                <MiniMap />
+                <CameraControls
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
+                    onRotateLeft={handleRotateLeft}
+                    onRotateRight={handleRotateRight}
+                    onReset={handleReset}
+                    isAutoRotating={isAutoRotating}
+                    onToggleAutoRotate={() => setIsAutoRotating(p => !p)}
+                />
 
-            <Text
-                size="xs"
-                c="dimmed"
-                style={{
-                    position: 'absolute',
-                    bottom: 18,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    opacity: 0.5,
-                }}
-            >
-                Arrastra para rotar • Scroll para zoom • Hover en cubos para detalles
-            </Text>
-        </Box>
+                <Text
+                    size="xs"
+                    c="dimmed"
+                    style={{
+                        position: 'absolute',
+                        bottom: 18,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        opacity: 0.5,
+                    }}
+                >
+                    Arrastra para rotar • Scroll para zoom • Hover en cubos para detalles
+                </Text>
+            </Box>
+        </>
     );
 }
