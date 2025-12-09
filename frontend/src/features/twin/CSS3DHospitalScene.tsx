@@ -197,43 +197,25 @@ function PatientFlow({ count, color }: { count: number; color: string }) {
     if (count === 0) return null;
 
     return (
-        <Box style={{ position: 'relative', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <IconArrowDown size={16} style={{ color, opacity: 0.5 }} />
-            {Array.from({ length: Math.min(count, 5) }).map((_, i) => (
-                <motion.div
+        <Box style={{ position: 'relative', height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            {/* Simple dots instead of animations */}
+            {Array.from({ length: Math.min(count, 3) }).map((_, i) => (
+                <div
                     key={i}
-                    animate={{
-                        y: [0, 40],
-                        opacity: [0.9, 0],
-                        scale: [1, 0.5],
-                    }}
-                    transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        delay: i * 0.3,
-                        ease: 'easeIn',
-                    }}
                     style={{
-                        position: 'absolute',
-                        width: 8,
-                        height: 8,
+                        width: 4,
+                        height: 4,
                         borderRadius: '50%',
                         background: color,
-                        boxShadow: `0 0 10px ${color}`,
+                        opacity: 0.5,
                     }}
                 />
             ))}
-            <Badge
-                size="xs"
-                style={{
-                    position: 'absolute',
-                    right: -30,
-                    background: color,
-                    boxShadow: `0 0 10px ${color}50`,
-                }}
-            >
-                +{count}
-            </Badge>
+            {count > 3 && (
+                <Text size="xs" c="dimmed" style={{ fontSize: 10 }}>
+                    +{count - 3}
+                </Text>
+            )}
         </Box>
     );
 }
@@ -294,17 +276,14 @@ function Cube3D({ size, color, occupied, isAccelerated, saturacion, label, index
             <motion.div
                 onHoverStart={() => setHovered(true)}
                 onHoverEnd={() => setHovered(false)}
-                initial={{ opacity: 0, scale: 0 }}
+                initial={{ opacity: 0 }}
                 animate={{
                     opacity: 1,
-                    scale: hovered ? 1.25 : 1,
-                    y: hovered ? -6 : 0,
+                    scale: hovered ? 1.1 : 1,
                 }}
                 transition={{
-                    type: 'spring',
-                    stiffness: 400,
-                    damping: 25,
-                    delay: index * 0.04,
+                    duration: 0.2,
+                    delay: index * 0.02,
                 }}
                 style={{
                     width: size,
@@ -323,68 +302,47 @@ function Cube3D({ size, color, occupied, isAccelerated, saturacion, label, index
                     overflow: 'hidden',
                 }}
             >
-                {/* Efecto de brillo interior */}
+                {/* Efecto de brillo interior - solo CSS */}
                 {occupied && (
-                    <motion.div
-                        animate={{
-                            opacity: [0.15, 0.3, 0.15],
-                        }}
-                        transition={{
-                            duration: isAccelerated ? 0.6 : 3,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                        }}
+                    <div
                         style={{
                             position: 'absolute',
                             inset: 0,
-                            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), transparent 60%)',
+                            background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1), transparent 60%)',
                         }}
                     />
                 )}
 
-                {/* Indicador central pulsante */}
+                {/* Indicador central simple */}
                 {occupied && (
-                    <motion.div
-                        animate={{
-                            scale: [1, 1.15, 1],
-                            opacity: [0.7, 0.85, 0.7],
-                        }}
-                        transition={{
-                            duration: isAccelerated ? 0.5 : 2,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                        }}
+                    <div
                         style={{
-                            width: size * 0.3,
-                            height: size * 0.3,
+                            width: size * 0.25,
+                            height: size * 0.25,
                             borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.7)',
-                            boxShadow: `0 0 6px rgba(255,255,255,0.4)`,
+                            background: 'rgba(255,255,255,0.6)',
                         }}
                     />
                 )}
 
-                {/* Indicador de velocidad */}
+                {/* Indicador de velocidad - sin rotación */}
                 {isAccelerated && occupied && (
-                    <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    <div
                         style={{
                             position: 'absolute',
-                            top: -7,
-                            right: -7,
-                            width: 18,
-                            height: 18,
+                            top: -5,
+                            right: -5,
+                            width: 16,
+                            height: 16,
                             borderRadius: '50%',
                             background: 'linear-gradient(135deg, #fab005, #fd7e14)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            boxShadow: '0 0 10px #fab005',
                         }}
                     >
                         <IconBolt size={10} style={{ color: '#000' }} />
-                    </motion.div>
+                    </div>
                 )}
             </motion.div>
         </Tooltip>
@@ -397,36 +355,16 @@ function Cube3D({ size, color, occupied, isAccelerated, saturacion, label, index
 
 function OrbitalRing({ color, size = 100 }: { color: string; size?: number }) {
     return (
-        <motion.div
-            animate={{ rotateZ: 360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+        <div
             style={{
                 position: 'absolute',
                 width: size,
                 height: size,
-                border: `1px solid ${color}30`,
+                border: `1px solid ${color}20`,
                 borderRadius: '50%',
-                transformStyle: 'preserve-3d',
                 transform: 'rotateX(75deg)',
             }}
-        >
-            <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                style={{
-                    position: 'absolute',
-                    width: 8,
-                    height: 8,
-                    background: color,
-                    borderRadius: '50%',
-                    boxShadow: `0 0 10px ${color}`,
-                    top: '50%',
-                    left: 0,
-                    marginTop: -4,
-                    marginLeft: -4,
-                }}
-            />
-        </motion.div>
+        />
     );
 }
 
