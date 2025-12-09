@@ -248,6 +248,68 @@ class SimulatorOrchestrator:
             self._staff_consumer.close()
         logger.info("Consumidor de staff detenido")
 
+    def _consume_control_commands(self):
+        """Thread que consume comandos de control de simulación desde Kafka"""
+        logger.info("⚙️ Iniciando consumidor de comandos de control...")
+        
+        control_consumer = Consumer({
+            'bootstrap.servers': settings.KAFKA_BOOTSTRAP_SERVERS,
+            'group.id': 'simulator-control',
+            'client.id': 'simulator-control-consumer',
+            'auto.offset.reset': 'latest',
+            'enable.auto.commit': True,
+        })
+        
+        control_consumer.subscribe(['simulation-control'])
+        logger.info("📡 Suscrito a topic: simulation-control")
+        
+        while self._running:
+            try:
+                msg = control_consumer.poll(timeout=0.5)
+                
+                if msg is None:
+                    continue
+                    
+                if msg.error():
+                    if msg.error().code() == KafkaError._PARTITION_EOF:
+                        continue
+                    logger.error(f"Error en consumidor de control: {msg.error()}")
+                    continue
+                
+                try:
+                    data = json.loads(msg.value().decode('utf-8'))
+                    command = data.get('command')
+                    
+                    if command == 'set_speed':
+                        new_speed = data.get('speed', 1.0)
+                        logger.info(f"⚡ Comando set_speed recibido: {new_speed}x")
+                        
+                        # Actualizar velocidad en todas las simulaciones
+                        self.speed = new_speed
+                        for hospital_id, sim in self.simulations.items():
+                            sim.set_speed(new_speed)
+                        
+                        logger.info(f"✅ Velocidad actualizada a {new_speed}x en todas las simulaciones")
+                        
+                    elif command == 'start':
+                        logger.info("▶️ Comando start recibido (ya en ejecución)")
+                        
+                    elif command == 'stop':
+                        logger.info("⏹️ Comando stop recibido")
+                        self._running = False
+                        
+                except json.JSONDecodeError as e:
+                    logger.error(f"Error parseando mensaje de control: {e}")
+                except Exception as e:
+                    logger.error(f"Error procesando comando de control: {e}")
+                    
+            except Exception as e:
+                logger.error(f"Error en consumidor de control: {e}")
+                time.sleep(1)
+        
+        control_consumer.close()
+        logger.info("Consumidor de control detenido")
+
     def run(self, duration_hours: float = None):
         """
         Ejecuta las simulaciones.
@@ -282,6 +344,14 @@ class SimulatorOrchestrator:
         )
         staff_thread.start()
         threads.append(staff_thread)
+
+        # Thread para consumir comandos de control (velocidad, etc.)
+        control_thread = Thread(
+            target=self._consume_control_commands,
+            name="control-consumer"
+        )
+        control_thread.start()
+        threads.append(control_thread)
 
         # Esperar a que terminen
         for thread in threads:

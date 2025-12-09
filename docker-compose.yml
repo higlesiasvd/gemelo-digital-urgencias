@@ -171,7 +171,7 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - INFLUX_URL=http://influxdb:8086
-      - SIMULATION_SPEED=1.0
+      - SIMULATION_SPEED=10.0
       - SIMULATION_DURATION=0
       - FOOTBALL_API_KEY=${FOOTBALL_API_KEY:-}
     depends_on:

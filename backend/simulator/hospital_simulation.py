@@ -175,11 +175,13 @@ class HospitalSimulation:
         last_sim_time = 0
 
         while self._running:
-            # Tiempo real transcurrido
+            # Tiempo real transcurrido en segundos
             real_elapsed = time.time() - start_time
 
-            # Tiempo simulado objetivo
-            sim_target = real_elapsed * self.speed
+            # Tiempo simulado objetivo (convertir segundos reales a minutos SimPy)
+            # Con speed=1.0: 60 segundos reales = 1 minuto SimPy (tiempo real)
+            # Con speed=10.0: 60 segundos reales = 10 minutos SimPy (10x más rápido)
+            sim_target = (real_elapsed / 60) * self.speed
 
             # Avanzar simulación
             if sim_target > last_sim_time:
@@ -203,6 +205,12 @@ class HospitalSimulation:
         if self.flow_engine:
             return self.flow_engine.scale_consulta(consulta_id, num_medicos)
         return False
+
+    def set_speed(self, new_speed: float):
+        """Cambia la velocidad de simulación dinámicamente"""
+        old_speed = self.speed
+        self.speed = new_speed
+        logger.info(f"Velocidad cambiada de {old_speed}x a {new_speed}x para {self.hospital_id.value}")
 
     def get_stats(self) -> Optional[HospitalStats]:
         """Obtiene estadísticas actuales"""

@@ -138,6 +138,39 @@ async def get_simulation_status():
     )
 
 
+class SpeedConfig(BaseModel):
+    speed: float
+
+
+@router.post("/speed")
+async def set_simulation_speed(config: SpeedConfig):
+    """
+    Cambia la velocidad de simulación en tiempo real.
+    
+    speed=1.0: Tiempo real (2 min ventanilla, 5 min triaje)
+    speed=10.0: 10x más rápido
+    speed=60.0: 1 hora en 1 minuto
+    """
+    if config.speed < 0.1 or config.speed > 100:
+        raise HTTPException(status_code=400, detail="La velocidad debe estar entre 0.1 y 100")
+    
+    # Enviar comando de cambio de velocidad a Kafka
+    kafka.produce("simulation-control", {
+        "command": "set_speed",
+        "speed": config.speed,
+        "timestamp": datetime.now().isoformat()
+    }, validate=False)
+    kafka.flush()
+    
+    simulation_state["speed"] = config.speed
+    
+    return {
+        "success": True,
+        "message": f"Velocidad cambiada a {config.speed}x",
+        "speed": config.speed
+    }
+
+
 @router.post("/load-sample", response_model=LoadSampleResponse)
 async def load_sample(
     sample_type: Literal["normal", "heavy"] = Query(default="normal")
