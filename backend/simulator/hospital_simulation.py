@@ -122,7 +122,7 @@ class HospitalSimulation:
     def _publish_stats(self):
         """Proceso de publicación periódica de estadísticas"""
         while self._running:
-            yield self.env.timeout(10)  # Cada 10 minutos simulados
+            yield self.env.timeout(2)  # Cada 2 minutos simulados (más frecuente para ver flujo)
 
             stats = self.flow_engine.get_stats()
             self.kafka.produce("hospital-stats", stats)
