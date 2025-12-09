@@ -55,12 +55,12 @@ import { cssVariables } from '@/shared/theme';
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const INCIDENT_TYPES = [
-    { value: 'accidente_trafico', label: 'Accidente de tráfico', icon: IconCar, color: '#fd7e14', emoji: '🚗' },
-    { value: 'incendio', label: 'Incendio', icon: IconFlame, color: '#fa5252', emoji: '🔥' },
-    { value: 'evento_deportivo', label: 'Evento deportivo', icon: IconBallFootball, color: '#228be6', emoji: '⚽' },
-    { value: 'intoxicacion_masiva', label: 'Intoxicación masiva', icon: IconVirus, color: '#be4bdb', emoji: '☠️' },
-    { value: 'colapso_estructura', label: 'Colapso estructura', icon: IconBuilding, color: '#495057', emoji: '🏚️' },
-    { value: 'accidente_laboral', label: 'Accidente laboral', icon: IconTool, color: '#fab005', emoji: '🏭' },
+    { value: 'accidente_trafico', label: 'Accidente de tráfico', icon: IconCar, color: '#fd7e14' },
+    { value: 'incendio', label: 'Incendio', icon: IconFlame, color: '#fa5252' },
+    { value: 'evento_deportivo', label: 'Evento deportivo', icon: IconBallFootball, color: '#228be6' },
+    { value: 'intoxicacion_masiva', label: 'Intoxicación masiva', icon: IconVirus, color: '#be4bdb' },
+    { value: 'colapso_estructura', label: 'Colapso estructura', icon: IconBuilding, color: '#495057' },
+    { value: 'accidente_laboral', label: 'Accidente laboral', icon: IconTool, color: '#fab005' },
 ];
 
 const SEVERITY_OPTIONS = [
@@ -118,7 +118,15 @@ function IncidentTypeSelector({ value, onChange }: IncidentTypeSelectorProps) {
                                 transition: 'all 0.2s ease',
                             }}
                         >
-                            <Text size="xl" mb={4}>{type.emoji}</Text>
+                            <ThemeIcon
+                                size={32}
+                                radius="md"
+                                variant={value === type.value ? 'filled' : 'light'}
+                                color={type.color}
+                                mb={4}
+                            >
+                                <type.icon size={18} />
+                            </ThemeIcon>
                             <Text size="xs" fw={500} lineClamp={1}>{type.label}</Text>
                         </Paper>
                     </motion.div>
@@ -180,6 +188,15 @@ function SeveritySelector({ value, onChange }: SeveritySelectorProps) {
 // INCIDENT CARD
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// Helper para obtener el icono basado en tipo
+function getIncidentIcon(tipo: string) {
+    const incidentType = INCIDENT_TYPES.find(t => t.value === tipo);
+    if (incidentType) {
+        return { Icon: incidentType.icon, color: incidentType.color };
+    }
+    return { Icon: IconAlertTriangle, color: '#fa5252' };
+}
+
 interface IncidentCardProps {
     incident: IncidentResponse;
     index: number;
@@ -187,6 +204,7 @@ interface IncidentCardProps {
 
 function IncidentCard({ incident, index }: IncidentCardProps) {
     const timeAgo = getTimeAgo(incident.timestamp);
+    const { Icon, color } = getIncidentIcon(incident.tipo);
 
     return (
         <motion.div
@@ -200,12 +218,14 @@ function IncidentCard({ incident, index }: IncidentCardProps) {
                 style={{
                     background: cssVariables.glassBg,
                     border: `1px solid ${cssVariables.glassBorder}`,
-                    borderLeft: '3px solid #fa5252',
+                    borderLeft: `3px solid ${color}`,
                 }}
             >
                 <Group justify="space-between" mb="xs">
                     <Group gap="sm">
-                        <Text size="xl">{incident.icono}</Text>
+                        <ThemeIcon size="lg" radius="md" variant="light" color={color}>
+                            <Icon size={20} />
+                        </ThemeIcon>
                         <Box>
                             <Text fw={600} size="sm">{incident.nombre}</Text>
                             <Text size="xs" c="dimmed">{timeAgo}</Text>
@@ -255,6 +275,8 @@ interface ResultPanelProps {
 }
 
 function ResultPanel({ incident }: ResultPanelProps) {
+    const { Icon, color } = incident ? getIncidentIcon(incident.tipo) : { Icon: IconAlertTriangle, color: '#fa5252' };
+
     const getTriageColor = (nivel: string) => {
         switch (nivel) {
             case 'rojo': return 'red';
@@ -306,14 +328,16 @@ function ResultPanel({ incident }: ResultPanelProps) {
                 p="lg"
                 radius="lg"
                 style={{
-                    background: 'linear-gradient(135deg, rgba(250, 82, 82, 0.12) 0%, rgba(253, 126, 20, 0.08) 100%)',
-                    border: '1px solid rgba(250, 82, 82, 0.25)',
+                    background: `linear-gradient(135deg, ${color}18 0%, ${color}08 100%)`,
+                    border: `1px solid ${color}40`,
                 }}
             >
                 <Stack gap="md">
                     <Group justify="space-between">
                         <Group gap="sm">
-                            <Text size="2rem">{incident.icono}</Text>
+                            <ThemeIcon size={48} radius="md" variant="filled" color={color}>
+                                <Icon size={26} />
+                            </ThemeIcon>
                             <Box>
                                 <Text fw={700}>{incident.nombre}</Text>
                                 <Text size="xs" c="dimmed">{incident.incident_id}</Text>

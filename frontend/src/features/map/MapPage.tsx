@@ -68,68 +68,39 @@ const HOSPITALES = {
   },
 };
 
-// Crear iconos personalizados premium con SVG
-const createHospitalIcon = (color: string, saturacion: number) => {
-  const statusColor = saturacion > 0.85 ? '#ef4444' : saturacion > 0.7 ? '#f97316' : saturacion > 0.5 ? '#eab308' : '#22c55e';
-  const statusGlow = saturacion > 0.85 ? 'rgba(239, 68, 68, 0.6)' : saturacion > 0.7 ? 'rgba(249, 115, 22, 0.6)' : 'rgba(34, 197, 94, 0.5)';
-  const pulseAnimation = saturacion > 0.7 ? `
-    @keyframes statusPulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(1.2); }
-    }
-  ` : '';
-
+// Crear iconos de hospital limpios y simples (sin indicador de estado, lo muestra el aro)
+const createHospitalIcon = (color: string) => {
   return L.divIcon({
-    className: 'custom-hospital-marker',
+    className: '',
     html: `
       <div style="
         position: relative;
-        width: 48px;
-        height: 48px;
-        filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+        width: 46px;
+        height: 46px;
+        filter: drop-shadow(0 3px 8px rgba(0,0,0,0.4));
       ">
-        <!-- Círculo principal con gradiente -->
+        <!-- Círculo principal -->
         <div style="
-          position: absolute;
-          top: 4px;
-          left: 4px;
-          width: 40px;
-          height: 40px;
+          width: 46px;
+          height: 46px;
           border-radius: 50%;
-          background: linear-gradient(145deg, ${color}, ${color}dd);
-          border: 3px solid rgba(255,255,255,0.9);
+          background: ${color};
+          border: 3px solid white;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: inset 0 -3px 8px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.3);
         ">
-          <!-- Icono SVG de hospital -->
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L4 6V12H2V22H22V12H20V6L12 2Z" fill="white" fill-opacity="0.15"/>
-            <path d="M19 10V7.5L12 4L5 7.5V10H4V20H20V10H19ZM15 15H13V17H11V15H9V13H11V11H13V13H15V15Z" fill="white"/>
+          <!-- Cruz médica simple -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+            <rect x="10" y="4" width="4" height="16" rx="1"/>
+            <rect x="4" y="10" width="16" height="4" rx="1"/>
           </svg>
         </div>
-        <!-- Indicador de estado -->
-        <div style="
-          position: absolute;
-          top: 0;
-          right: 0;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: ${statusColor};
-          border: 2px solid white;
-          box-shadow: 0 2px 6px ${statusGlow};
-          ${saturacion > 0.7 ? 'animation: statusPulse 1.5s ease-in-out infinite;' : ''}
-        "></div>
       </div>
-      <style>
-        ${pulseAnimation}
-      </style>
     `,
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
-    popupAnchor: [0, -24],
+    iconSize: [46, 46],
+    iconAnchor: [23, 23],
+    popupAnchor: [0, -23],
   });
 };
 
@@ -251,12 +222,19 @@ const createEventIcon = (tipo: string, color: string) => {
   // SVG paths para diferentes tipos de eventos
   const getEventSvg = () => {
     if (tipo === 'football') {
-      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 4.3l2.12.41.02.02 1.29 1.77-.71 2.1-2.08.57L12 9.43V6.3zm-2 0v3.13l-1.64 1.74-2.08-.57-.71-2.1 1.29-1.77.02-.02L10 6.3zM5.51 13.83l.71-2.1.02-.02 1.77-1.29 2.1.71.57 2.08L9.43 15H6.3l-.79-1.17zm5.49 4.87l-2.12-.41-.02-.02-1.29-1.77.71-2.1 2.08-.57L12 15.57v3.13zm1 0v-3.13l1.64-1.74 2.08.57.71 2.1-1.29 1.77-.02.02-2.12.41zm5.49-4.87L16.7 15h-3.13l-1.57-1.43.57-2.08 2.1-.71 1.77 1.29.02.02.71 2.1z"/></svg>`;
+      // Balón de fútbol Tabler Icons
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 7l4.76 3.45l-1.76 5.55h-6l-1.76 -5.55z"/>
+        <path d="M12 7v-4m4.76 7.45l3.24 -1.45m-5 6.55l2 3.45m-6 0l2 -3.45m-5 -5.1l3.24 1.45"/>
+      </svg>`;
     }
     if (tipo === 'concierto') {
+      // Nota musical
       return `<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
     }
-    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
+    // Estrella para eventos/monumentos (Torre de Hércules)
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
   };
 
   return L.divIcon({
@@ -289,59 +267,86 @@ const createEventIcon = (tipo: string, color: string) => {
   });
 };
 
-// Crear icono para incidentes activos (con animación de pulso)
-const createIncidentIcon = (icono: string, gravedad: string) => {
+// Crear icono para incidentes activos - Usando iconos estilo Tabler
+const createIncidentIcon = (tipo: string, gravedad: string) => {
   const color = gravedad === 'catastrofico' ? '#dc2626'
     : gravedad === 'grave' ? '#ea580c'
       : gravedad === 'moderado' ? '#f59e0b'
         : '#84cc16';
 
+  // SVG Tabler icons paths (stroke-based like the simulator)
+  const getIncidentSvg = () => {
+    switch (tipo) {
+      case 'accidente_trafico':
+        // IconCar path
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M5 17h-2v-6l2 -5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0h-6m-6 -6h15m-6 0v-5"/></svg>`;
+      case 'incendio':
+        // IconFlame path
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2 -2.96 0 -7 -1 -8c0 3.038 -1.773 4.741 -3 6c-1.226 1.26 -2 3.24 -2 5a6 6 0 1 0 12 0c0 -1.532 -1.056 -3.94 -2 -5c-1.786 3 -2 4 -4 2z"/></svg>`;
+      case 'evento_deportivo':
+        // IconBallFootball path
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M12 7l4.76 3.45l-1.76 5.55h-6l-1.76 -5.55z"/></svg>`;
+      case 'intoxicacion_masiva':
+        // IconVirus path
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12m-5 0a5 5 0 1 0 10 0a5 5 0 1 0 -10 0"/><path d="M12 3v4"/><path d="M12 17v4"/><path d="M3 12h4"/><path d="M17 12h4"/><path d="M5.64 5.64l2.82 2.82"/><path d="M15.54 15.54l2.82 2.82"/><path d="M5.64 18.36l2.82 -2.82"/><path d="M15.54 8.46l2.82 -2.82"/></svg>`;
+      case 'colapso_estructura':
+        // IconBuilding path
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l18 0"/><path d="M9 8l1 0"/><path d="M9 12l1 0"/><path d="M9 16l1 0"/><path d="M14 8l1 0"/><path d="M14 12l1 0"/><path d="M14 16l1 0"/><path d="M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16"/></svg>`;
+      case 'accidente_laboral':
+        // IconTool path
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10h3v-3l-3.5 -3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1 -3 3l-6 -6a6 6 0 0 1 -8 -8l3.5 3.5"/></svg>`;
+      default:
+        // IconAlertTriangle path
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg>`;
+    }
+  };
+
   return L.divIcon({
-    className: 'custom-incident-marker',
+    className: '',
     html: `
       <div style="
         position: relative;
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       ">
         <!-- Círculo pulsante de fondo -->
         <div style="
           position: absolute;
-          top: 0;
-          left: 0;
+          top: 2px;
+          left: 2px;
           width: 40px;
           height: 40px;
           border-radius: 50%;
-          background-color: ${color}55;
+          background-color: ${color}40;
           animation: incidentPulse 1.5s ease-out infinite;
         "></div>
         <!-- Icono principal -->
         <div style="
-          position: absolute;
-          top: 4px;
-          left: 4px;
-          background-color: ${color};
-          width: 32px;
-          height: 32px;
+          position: relative;
+          background: linear-gradient(135deg, ${color} 0%, ${color}dd 100%);
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
-          border: 3px solid white;
-          box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+          border: 3px solid rgba(255,255,255,0.95);
+          box-shadow: 0 3px 12px rgba(0,0,0,0.4);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 16px;
-        ">${icono}</div>
+        ">${getIncidentSvg()}</div>
       </div>
       <style>
         @keyframes incidentPulse {
           0% { transform: scale(1); opacity: 0.8; }
-          100% { transform: scale(2.5); opacity: 0; }
+          100% { transform: scale(2); opacity: 0; }
         }
       </style>
     `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-    popupAnchor: [0, -20],
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+    popupAnchor: [0, -22],
   });
 };
 
@@ -557,7 +562,7 @@ export function MapPage() {
               <IconCalendarEvent size={22} />
             </ThemeIcon>
             <Box>
-              <Text size="xl" fw={700}>{contexto?.es_festivo ? '🎉 Festivo' : 'Laboral'}</Text>
+              <Text size="xl" fw={700}>{contexto?.es_festivo ? 'Festivo' : 'Laboral'}</Text>
               <Text size="xs" c="dimmed">Tipo de día</Text>
             </Box>
           </Group>
@@ -607,16 +612,36 @@ export function MapPage() {
             gridColumn: 'span 2',
           }}
         >
-          <div style={{ height: 500, width: '100%' }}>
+          {/* Contenedor con filtro azul para los tiles */}
+          <div style={{
+            height: 500,
+            width: '100%',
+            position: 'relative',
+          }}>
+            {/* Estilo inline para aplicar filtro azul oscuro a las tiles del mapa */}
+            <style>{`
+              .leaflet-tile-pane {
+                filter: sepia(0.5) hue-rotate(170deg) saturate(1.8) brightness(0.7);
+              }
+              .leaflet-marker-pane,
+              .leaflet-shadow-pane,
+              .leaflet-overlay-pane {
+                filter: none !important;
+              }
+            `}</style>
             <MapContainer
               center={MAP_CENTER}
               zoom={MAP_ZOOM}
-              style={{ height: '100%', width: '100%' }}
+              style={{
+                height: '100%',
+                width: '100%',
+                background: '#0a1929',
+              }}
               scrollWheelZoom={true}
             >
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>'
+                url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
               />
 
               {hospitalIds.map((id) => {
@@ -642,7 +667,7 @@ export function MapPage() {
                     {/* Marcador del hospital */}
                     <Marker
                       position={[hospital.coordenadas.lat, hospital.coordenadas.lon]}
-                      icon={createHospitalIcon(hospital.color, saturacion)}
+                      icon={createHospitalIcon(hospital.color)}
                       eventHandlers={{
                         click: () => {
                           const route = id === 'san_rafael' ? 'san-rafael' : id;
@@ -699,7 +724,7 @@ export function MapPage() {
                   <Popup>
                     <div style={{ minWidth: 150, color: '#333' }}>
                       <h4 style={{ margin: '0 0 8px 0' }}>
-                        {evento.tipo === 'football' ? '⚽' : evento.tipo === 'concierto' ? '🎵' : '🎉'} {evento.nombre}
+                        {evento.nombre}
                       </h4>
                       <p style={{ fontSize: 12, margin: 0 }}>{evento.descripcion}</p>
                       {(contexto?.factor_eventos || 1) > 1.1 && (
@@ -731,12 +756,12 @@ export function MapPage() {
                   {/* Marcador del incidente */}
                   <Marker
                     position={[incident.ubicacion.lat, incident.ubicacion.lon]}
-                    icon={createIncidentIcon(incident.icono, 'grave')}
+                    icon={createIncidentIcon(incident.tipo || incident.icono, 'grave')}
                   >
                     <Popup>
                       <div style={{ minWidth: 200, color: '#333' }}>
                         <h4 style={{ margin: '0 0 8px 0', color: '#dc2626' }}>
-                          {incident.icono} {incident.nombre}
+                          {incident.nombre}
                         </h4>
                         <div style={{
                           padding: '4px 8px',
@@ -747,7 +772,7 @@ export function MapPage() {
                           marginBottom: 8,
                           fontSize: 12,
                         }}>
-                          🚨 INCIDENTE ACTIVO
+                          INCIDENTE ACTIVO
                         </div>
                         <table style={{ width: '100%', fontSize: 12 }}>
                           <tbody>
@@ -778,7 +803,14 @@ export function MapPage() {
           </div>
 
           {/* Leyenda */}
-          <Group p="md" justify="center" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <Group
+            p="md"
+            justify="center"
+            style={{
+              borderTop: '1px solid rgba(0, 196, 220, 0.15)',
+              background: 'linear-gradient(180deg, rgba(10,22,40,0.5) 0%, transparent 100%)',
+            }}
+          >
             <Badge color="green" variant="filled" size="sm">Normal &lt;50%</Badge>
             <Badge color="yellow" variant="filled" size="sm">Atención 50-70%</Badge>
             <Badge color="orange" variant="filled" size="sm">Alerta 70-85%</Badge>
@@ -881,11 +913,6 @@ export function MapPage() {
                 : evento.impacto === 'medio' ? 'yellow'
                   : 'green';
 
-            const tipoEmoji = evento.tipo === 'football' ? '⚽'
-              : evento.tipo === 'concierto' ? '🎵'
-                : evento.tipo === 'deportes' ? '🏀'
-                  : '🎉';
-
             return (
               <Paper
                 key={evento.id}
@@ -920,18 +947,18 @@ export function MapPage() {
                     variant={esHoy ? 'filled' : 'light'}
                     color={esHoy ? 'red' : esProximo ? 'orange' : 'gray'}
                   >
-                    {esHoy ? '🔴 HOY' : diasHasta < 0 ? 'Pasado' : `${diasHasta}d`}
+                    {esHoy ? 'HOY' : diasHasta < 0 ? 'Pasado' : `${diasHasta}d`}
                   </Badge>
                 </Group>
 
                 {/* Nombre del evento */}
                 <Text fw={600} size="sm" mb={4} lineClamp={2}>
-                  {tipoEmoji} {evento.nombre}
+                  {evento.nombre}
                 </Text>
 
                 {/* Ubicación */}
                 <Text size="xs" c="dimmed" mb="sm">
-                  📍 {evento.ubicacion}
+                  {evento.ubicacion}
                 </Text>
 
                 {/* Asistencia estimada */}
