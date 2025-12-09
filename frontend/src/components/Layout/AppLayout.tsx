@@ -163,9 +163,11 @@ export function AppLayout() {
                 {/* Header */}
                 <AppShell.Header
                     style={{
-                        background: 'linear-gradient(180deg, rgba(20,20,35,0.98) 0%, rgba(20,20,35,0.9) 100%)',
-                        backdropFilter: 'blur(20px)',
-                        borderBottom: '1px solid rgba(34,139,230,0.15)',
+                        background: 'linear-gradient(180deg, rgba(8,18,38,0.99) 0%, rgba(12,24,48,0.98) 100%)',
+                        backdropFilter: 'blur(24px)',
+                        borderBottom: '1px solid rgba(56,189,248,0.12)',
+                        borderBottomLeftRadius: 12,
+                        borderBottomRightRadius: 12,
                     }}
                 >
                     <Group h="100%" px="lg" justify="space-between">
@@ -279,9 +281,11 @@ export function AppLayout() {
                 <AppShell.Navbar
                     p="md"
                     style={{
-                        background: 'linear-gradient(180deg, rgba(20,20,35,0.98) 0%, rgba(15,15,28,0.99) 100%)',
-                        backdropFilter: 'blur(20px)',
-                        borderRight: '1px solid rgba(34,139,230,0.1)',
+                        background: 'linear-gradient(180deg, rgba(8,18,38,0.99) 0%, rgba(6,14,30,0.99) 100%)',
+                        backdropFilter: 'blur(24px)',
+                        borderRight: '1px solid rgba(56,189,248,0.08)',
+                        borderTopRightRadius: 16,
+                        borderBottomRightRadius: 16,
                     }}
                 >
                     <Stack gap={6} style={{ height: '100%' }}>
@@ -301,21 +305,6 @@ export function AppLayout() {
                             </motion.div>
                         ))}
 
-                        {/* Spacer */}
-                        <Box style={{ flex: 1 }} />
-
-                        {/* Version footer */}
-                        <Box
-                            py="sm"
-                            style={{
-                                borderTop: '1px solid rgba(255,255,255,0.05)',
-                                textAlign: 'center',
-                            }}
-                        >
-                            <Text size="xs" c="dimmed" style={{ opacity: 0.4 }}>
-                                HealthVerse v1.0
-                            </Text>
-                        </Box>
                     </Stack>
                 </AppShell.Navbar>
 
