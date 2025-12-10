@@ -15,6 +15,7 @@ import time
 import json
 from threading import Thread
 from typing import Dict
+import queue
 
 # Configurar path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -44,6 +45,8 @@ class SimulatorOrchestrator:
         self._running = False
         self._incident_consumer: Consumer = None
         self._staff_consumer: Consumer = None
+        # Thread-safe queue for incident patients (SimPy is not thread-safe)
+        self._incident_queue: queue.Queue = queue.Queue()
 
     def setup(self):
         """Configura el simulador"""
@@ -140,9 +143,9 @@ class SimulatorOrchestrator:
                     # Usar el método from_arrival para crear el paciente correctamente
                     patient = Patient.from_arrival(arrival)
                     
-                    # Inyectar al flujo del hospital
-                    sim.env.process(sim.flow_engine.process_patient(patient))
-                    logger.info(f"🚑 Paciente de incidente inyectado: {patient.patient_id} → {hospital_id.value}")
+                    # Encolar paciente para ser procesado por el thread principal (SimPy no es thread-safe)
+                    self._incident_queue.put((hospital_id, patient))
+                    logger.info(f"🚑 Paciente de incidente encolado: {patient.patient_id} → {hospital_id.value}")
                     
                 except json.JSONDecodeError as e:
                     logger.error(f"Error parseando mensaje: {e}")
@@ -156,6 +159,48 @@ class SimulatorOrchestrator:
         if self._incident_consumer:
             self._incident_consumer.close()
         logger.info("Consumidor de incidentes detenido")
+
+    def _process_incident_queue(self):
+        """Thread que procesa la cola de incidentes y los inyecta en SimPy de forma segura"""
+        logger.info("🔄 Iniciando procesador de cola de incidentes...")
+        
+        while self._running:
+            try:
+                # Obtener paciente de la cola con timeout
+                try:
+                    hospital_id, patient = self._incident_queue.get(timeout=0.5)
+                except queue.Empty:
+                    continue
+                
+                # Obtener simulación
+                sim = self.simulations.get(hospital_id)
+                if not sim or not sim.flow_engine:
+                    logger.warning(f"Simulación no activa para {hospital_id}")
+                    continue
+                
+                # Inyectar al flujo del hospital (ahora es seguro porque estamos en el contexto correcto)
+                # Usamos el receive_diverted_patient que es thread-safe
+                from common.schemas import PatientArrival
+                from datetime import datetime
+                
+                arrival = PatientArrival(
+                    patient_id=patient.patient_id,
+                    hospital_id=hospital_id,
+                    edad=patient.edad,
+                    sexo=patient.sexo,
+                    patologia=patient.patologia,
+                    hora_llegada=datetime.now(),
+                    factor_demanda=1.5
+                )
+                
+                sim.receive_diverted_patient(arrival)
+                logger.info(f"🚑 Paciente de incidente procesado: {patient.patient_id} → {hospital_id.value}")
+                
+            except Exception as e:
+                logger.error(f"Error procesando cola de incidentes: {e}")
+                time.sleep(0.5)
+        
+        logger.info("Procesador de cola de incidentes detenido")
 
     def _consume_staff_events(self):
         """Thread que consume eventos de personal desde Kafka para escalar consultas"""
@@ -336,6 +381,14 @@ class SimulatorOrchestrator:
         )
         incident_thread.start()
         threads.append(incident_thread)
+        
+        # Thread para procesar la cola de incidentes y pasarlos a SimPy
+        queue_thread = Thread(
+            target=self._process_incident_queue,
+            name="incident-queue-processor"
+        )
+        queue_thread.start()
+        threads.append(queue_thread)
 
         # Thread para consumir eventos de personal (doctor-assigned, etc.)
         staff_thread = Thread(
