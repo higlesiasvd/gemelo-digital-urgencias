@@ -194,9 +194,9 @@ class PatientGenerator:
             Pacientes por hora
         """
         base_rates = {
-            HospitalId.CHUAC: 25,         # ~600 pacientes/día (más visible)
-            HospitalId.MODELO: 10,        # ~240 pacientes/día
-            HospitalId.SAN_RAFAEL: 8      # ~192 pacientes/día
+            HospitalId.CHUAC: 40,         # ~960 pacientes/día (alto flujo)
+            HospitalId.MODELO: 18,        # ~432 pacientes/día
+            HospitalId.SAN_RAFAEL: 15     # ~360 pacientes/día
         }
 
         base_rate = base_rates.get(hospital_id, 3.0)
