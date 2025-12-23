@@ -23,6 +23,7 @@ import {
     Progress,
     Tooltip,
     Transition,
+    TextInput,
 } from '@mantine/core';
 import {
     IconStethoscope,
@@ -39,9 +40,17 @@ import {
     IconShieldCheck,
     IconGauge,
     IconBolt,
+    IconBrain,
+    IconRocket,
+    IconChartBar,
+    IconCheck,
+    IconRefresh,
+    IconSearch,
+    IconChevronDown,
+    IconChevronUp,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { fetchListaSergas, assignDoctor, unassignDoctor, fetchChuacConsultas } from '@/shared/api/client';
+import { fetchListaSergas, assignDoctor, unassignDoctor, fetchChuacConsultas, fetchStaffOptimization, applyStaffOptimization } from '@/shared/api/client';
 import { cssVariables } from '@/shared/theme';
 
 // Gradientes para tarjetas de hospitales
@@ -101,6 +110,13 @@ export function StaffPage() {
     const [selectedConsulta, setSelectedConsulta] = useState<string | null>(null);
     const [hoveredDoctor, setHoveredDoctor] = useState<string | null>(null);
 
+    // Estados para búsqueda y paginación de listas SERGAS
+    const [searchDisponible, setSearchDisponible] = useState('');
+    const [searchAsignado, setSearchAsignado] = useState('');
+    const [showAllDisponible, setShowAllDisponible] = useState(false);
+    const [showAllAsignado, setShowAllAsignado] = useState(false);
+    const ITEMS_PER_PAGE = 9;
+
     const { data: sergasDisponible } = useQuery({
         queryKey: ['sergas', 'disponible'],
         queryFn: () => fetchListaSergas(true),
@@ -115,6 +131,35 @@ export function StaffPage() {
         queryKey: ['chuac', 'consultas'],
         queryFn: () => fetchChuacConsultas(),
         refetchInterval: 5000,  // Refrescar cada 5s para ver cambios de velocidad
+    });
+
+    // Query y mutation para optimización
+    const { data: optimization, isLoading: isOptimizing, refetch: refetchOptimization } = useQuery({
+        queryKey: ['staff', 'optimization'],
+        queryFn: () => fetchStaffOptimization(false),
+        refetchInterval: 30000,  // Refrescar cada 30s
+    });
+
+    const applyOptimizationMutation = useMutation({
+        mutationFn: () => applyStaffOptimization(),
+        onSuccess: (result) => {
+            notifications.show({
+                title: 'Optimización Aplicada',
+                message: `${result.medicos_a_asignar} médicos asignados. Mejora estimada: ${result.mejora_estimada}%`,
+                color: 'green',
+                icon: <IconRocket size={18} />,
+            });
+            queryClient.invalidateQueries({ queryKey: ['sergas'] });
+            queryClient.invalidateQueries({ queryKey: ['chuac', 'consultas'] });
+            queryClient.invalidateQueries({ queryKey: ['staff', 'optimization'] });
+        },
+        onError: (error) => {
+            notifications.show({
+                title: 'Error en Optimización',
+                message: error instanceof Error ? error.message : 'Error al aplicar optimización',
+                color: 'red',
+            });
+        },
     });
 
     const assignMutation = useMutation({
@@ -287,6 +332,222 @@ export function StaffPage() {
                 </Group>
             </Alert>
 
+            {/* ═══════════════════════════════════════════════════════════════════ */}
+            {/* SECCIÓN OPTIMIZADOR AI */}
+            {/* ═══════════════════════════════════════════════════════════════════ */}
+            <Card
+                padding="xl"
+                radius="lg"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(236, 72, 153, 0.08) 100%)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    boxShadow: '0 8px 32px rgba(139, 92, 246, 0.15)',
+                }}
+            >
+                <Group justify="space-between" mb="lg">
+                    <Group gap="md">
+                        <ThemeIcon
+                            size={50}
+                            radius="xl"
+                            variant="gradient"
+                            gradient={{ from: 'violet', to: 'pink' }}
+                            style={{ boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)' }}
+                        >
+                            <IconBrain size={26} />
+                        </ThemeIcon>
+                        <Box>
+                            <Group gap="xs">
+                                <Title order={3}>Optimizador AI</Title>
+                                <Badge variant="gradient" gradient={{ from: 'violet', to: 'pink' }} size="sm">
+                                    BETA
+                                </Badge>
+                            </Group>
+                            <Text size="sm" c="dimmed">Distribución óptima automática de personal SERGAS</Text>
+                        </Box>
+                    </Group>
+                    <Group gap="sm">
+                        <Button
+                            variant="light"
+                            color="violet"
+                            size="sm"
+                            leftSection={<IconRefresh size={16} />}
+                            onClick={() => refetchOptimization()}
+                            loading={isOptimizing}
+                        >
+                            Recalcular
+                        </Button>
+                        <Button
+                            variant="gradient"
+                            gradient={{ from: 'violet', to: 'pink' }}
+                            size="md"
+                            leftSection={<IconRocket size={18} />}
+                            onClick={() => applyOptimizationMutation.mutate()}
+                            loading={applyOptimizationMutation.isPending}
+                            disabled={!optimization?.recomendaciones?.length}
+                            style={{ boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)' }}
+                        >
+                            Aplicar Optimización
+                        </Button>
+                    </Group>
+                </Group>
+
+                {/* Métricas de mejora estimada */}
+                {optimization && (
+                    <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md" mb="lg">
+                        <Paper
+                            p="md"
+                            radius="lg"
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(52, 211, 153, 0.08) 100%)',
+                                border: '1px solid rgba(16, 185, 129, 0.2)',
+                            }}
+                        >
+                            <Group gap="sm">
+                                <ThemeIcon size={36} radius="xl" color="green" variant="light">
+                                    <IconChartBar size={20} />
+                                </ThemeIcon>
+                                <Box>
+                                    <Text size="1.5rem" fw={700} lh={1} c="green">
+                                        {optimization.mejora_estimada > 0 ? '+' : ''}{optimization.mejora_estimada}%
+                                    </Text>
+                                    <Text size="xs" c="dimmed">Mejora Estimada</Text>
+                                </Box>
+                            </Group>
+                        </Paper>
+
+                        <Paper
+                            p="md"
+                            radius="lg"
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(99, 102, 241, 0.08) 100%)',
+                                border: '1px solid rgba(59, 130, 246, 0.2)',
+                            }}
+                        >
+                            <Group gap="sm">
+                                <ThemeIcon size={36} radius="xl" color="blue" variant="light">
+                                    <IconUsers size={20} />
+                                </ThemeIcon>
+                                <Box>
+                                    <Text size="1.5rem" fw={700} lh={1}>{optimization.medicos_disponibles}</Text>
+                                    <Text size="xs" c="dimmed">Disponibles</Text>
+                                </Box>
+                            </Group>
+                        </Paper>
+
+                        <Paper
+                            p="md"
+                            radius="lg"
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(253, 126, 20, 0.15) 0%, rgba(255, 183, 77, 0.08) 100%)',
+                                border: '1px solid rgba(253, 126, 20, 0.2)',
+                            }}
+                        >
+                            <Group gap="sm">
+                                <ThemeIcon size={36} radius="xl" color="orange" variant="light">
+                                    <IconUserPlus size={20} />
+                                </ThemeIcon>
+                                <Box>
+                                    <Text size="1.5rem" fw={700} lh={1}>{optimization.medicos_a_asignar}</Text>
+                                    <Text size="xs" c="dimmed">A Asignar</Text>
+                                </Box>
+                            </Group>
+                        </Paper>
+
+                        <Paper
+                            p="md"
+                            radius="lg"
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(248, 113, 113, 0.08) 100%)',
+                                border: '1px solid rgba(236, 72, 153, 0.2)',
+                            }}
+                        >
+                            <Group gap="sm">
+                                <ThemeIcon size={36} radius="xl" color="pink" variant="light">
+                                    <IconGauge size={20} />
+                                </ThemeIcon>
+                                <Box>
+                                    <Text size="1.5rem" fw={700} lh={1}>
+                                        {optimization.metricas_actuales.tiempo_espera_promedio.toFixed(0)}→{optimization.metricas_proyectadas.tiempo_espera_promedio.toFixed(0)}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">Espera (min)</Text>
+                                </Box>
+                            </Group>
+                        </Paper>
+                    </SimpleGrid>
+                )}
+
+                {/* Lista de recomendaciones */}
+                {optimization?.recomendaciones && optimization.recomendaciones.length > 0 ? (
+                    <Box>
+                        <Text size="sm" fw={600} mb="sm" c="dimmed">
+                            <IconSparkles size={14} style={{ display: 'inline', marginRight: 4 }} />
+                            Recomendaciones de asignación
+                        </Text>
+                        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm">
+                            {optimization.recomendaciones.map((rec, index) => (
+                                <Paper
+                                    key={`${rec.medico_id}-${index}`}
+                                    p="sm"
+                                    radius="md"
+                                    style={{
+                                        background: rec.prioridad === 1
+                                            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(52, 211, 153, 0.06) 100%)'
+                                            : rec.prioridad === 2
+                                                ? 'linear-gradient(135deg, rgba(253, 126, 20, 0.12) 0%, rgba(255, 183, 77, 0.06) 100%)'
+                                                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                                        border: rec.prioridad === 1
+                                            ? '1px solid rgba(16, 185, 129, 0.3)'
+                                            : rec.prioridad === 2
+                                                ? '1px solid rgba(253, 126, 20, 0.3)'
+                                                : '1px solid rgba(255, 255, 255, 0.1)',
+                                    }}
+                                >
+                                    <Group justify="space-between" wrap="nowrap">
+                                        <Group gap="xs" wrap="nowrap">
+                                            <Avatar size={32} radius="xl" color={rec.prioridad === 1 ? 'green' : rec.prioridad === 2 ? 'orange' : 'gray'}>
+                                                {rec.medico_nombre.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                            </Avatar>
+                                            <Box>
+                                                <Text size="sm" fw={500} lineClamp={1}>{rec.medico_nombre}</Text>
+                                                <Text size="xs" c="dimmed">{rec.impacto_estimado}</Text>
+                                            </Box>
+                                        </Group>
+                                        <Group gap={4} wrap="nowrap">
+                                            <IconArrowRight size={14} style={{ opacity: 0.5 }} />
+                                            <Badge
+                                                size="lg"
+                                                variant={rec.prioridad === 1 ? 'filled' : 'light'}
+                                                color={rec.hospital_destino === 'chuac' ? 'blue' : rec.hospital_destino === 'modelo' ? 'orange' : 'teal'}
+                                            >
+                                                {rec.hospital_destino === 'chuac' ? 'CHU' : rec.hospital_destino === 'modelo' ? 'MOD' : 'SRF'}-C{rec.consulta_destino}
+                                            </Badge>
+                                        </Group>
+                                    </Group>
+                                </Paper>
+                            ))}
+                        </SimpleGrid>
+                    </Box>
+                ) : (
+                    <Paper
+                        p="xl"
+                        radius="md"
+                        ta="center"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                        }}
+                    >
+                        <ThemeIcon size={50} radius="xl" color="violet" variant="light" mx="auto" mb="sm">
+                            <IconCheck size={26} />
+                        </ThemeIcon>
+                        <Text fw={500}>Distribución Óptima</Text>
+                        <Text size="sm" c="dimmed">
+                            {optimization?.mensaje || 'No hay recomendaciones de cambios en este momento'}
+                        </Text>
+                    </Paper>
+                )}
+            </Card>
+
             {/* Sección de Velocidad de Consultas del CHUAC */}
             <Card
                 padding="xl"
@@ -389,14 +650,14 @@ export function StaffPage() {
                     border: `1px solid ${cssVariables.glassBorder}`,
                 }}
             >
-                <Group justify="space-between" mb="lg">
+                <Group justify="space-between" mb="md">
                     <Group gap="md">
                         <ThemeIcon size={50} radius="xl" variant="gradient" gradient={{ from: 'green', to: 'teal' }}>
                             <IconShieldCheck size={26} />
                         </ThemeIcon>
                         <Box>
                             <Title order={3}>Lista SERGAS - Disponibles</Title>
-                            <Text size="sm" c="dimmed">Médicos que pueden ser asignados al CHUAC</Text>
+                            <Text size="sm" c="dimmed">Médicos que pueden ser asignados a cualquier hospital</Text>
                         </Box>
                     </Group>
                     <Badge
@@ -409,81 +670,135 @@ export function StaffPage() {
                     </Badge>
                 </Group>
 
-                {(!sergasDisponible || sergasDisponible.length === 0) ? (
-                    <Paper
-                        p="xl"
-                        radius="md"
-                        style={{
-                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
-                            textAlign: 'center',
-                        }}
-                    >
-                        <ThemeIcon size={60} radius="xl" color="gray" variant="light" mx="auto" mb="md">
-                            <IconUsers size={30} />
-                        </ThemeIcon>
-                        <Text size="lg" fw={500} c="dimmed">No hay médicos disponibles</Text>
-                        <Text size="sm" c="dimmed" mt="xs">Todos los médicos SERGAS están asignados</Text>
-                    </Paper>
-                ) : (
-                    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-                        {sergasDisponible?.map((medico) => (
+                {/* Barra de búsqueda */}
+                <TextInput
+                    placeholder="Buscar médico por nombre..."
+                    leftSection={<IconSearch size={16} />}
+                    value={searchDisponible}
+                    onChange={(e) => setSearchDisponible(e.currentTarget.value)}
+                    mb="md"
+                    styles={{
+                        input: {
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                        }
+                    }}
+                />
+
+                {(() => {
+                    // Filtrar y ordenar alfabéticamente
+                    const filteredDisponible = (sergasDisponible || [])
+                        .filter(m => m.nombre.toLowerCase().includes(searchDisponible.toLowerCase()))
+                        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+                    const displayedDisponible = showAllDisponible
+                        ? filteredDisponible
+                        : filteredDisponible.slice(0, ITEMS_PER_PAGE);
+
+                    const hasMoreDisponible = filteredDisponible.length > ITEMS_PER_PAGE;
+
+                    if (filteredDisponible.length === 0) {
+                        return (
                             <Paper
-                                key={medico.medico_id}
-                                p="md"
-                                radius="lg"
-                                onMouseEnter={() => setHoveredDoctor(medico.medico_id)}
-                                onMouseLeave={() => setHoveredDoctor(null)}
+                                p="xl"
+                                radius="md"
                                 style={{
-                                    background: hoveredDoctor === medico.medico_id
-                                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(52, 211, 153, 0.08) 100%)'
-                                        : 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
-                                    border: hoveredDoctor === medico.medico_id
-                                        ? '1px solid rgba(16, 185, 129, 0.4)'
-                                        : '1px solid rgba(255, 255, 255, 0.1)',
-                                    transition: 'all 0.3s ease',
-                                    cursor: 'pointer',
+                                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                                    textAlign: 'center',
                                 }}
                             >
-                                <Group justify="space-between" mb="sm">
-                                    <Group gap="sm">
-                                        <Avatar
-                                            size={44}
-                                            radius="xl"
-                                            color="green"
-                                            variant="gradient"
-                                            gradient={{ from: 'green', to: 'teal' }}
-                                        >
-                                            {medico.nombre.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                        </Avatar>
-                                        <Box>
-                                            <Text fw={600} size="sm">{medico.nombre}</Text>
-                                            <Badge size="xs" color="teal" variant="light">
-                                                {medico.especialidad || 'General'}
-                                            </Badge>
-                                        </Box>
-                                    </Group>
-                                    <Badge color="green" variant="dot">Disponible</Badge>
-                                </Group>
-                                <Transition mounted={hoveredDoctor === medico.medico_id} transition="fade" duration={200}>
-                                    {(styles) => (
-                                        <Button
-                                            style={styles}
-                                            fullWidth
-                                            variant="gradient"
-                                            gradient={{ from: 'green', to: 'teal' }}
-                                            size="sm"
-                                            leftSection={<IconUserPlus size={16} />}
-                                            rightSection={<IconArrowRight size={16} />}
-                                            onClick={() => { setSelectedMedico(medico.medico_id); setAssignModalOpen(true); }}
-                                        >
-                                            Asignar a CHUAC
-                                        </Button>
-                                    )}
-                                </Transition>
+                                <ThemeIcon size={60} radius="xl" color="gray" variant="light" mx="auto" mb="md">
+                                    <IconUsers size={30} />
+                                </ThemeIcon>
+                                <Text size="lg" fw={500} c="dimmed">
+                                    {searchDisponible ? 'No se encontraron médicos' : 'No hay médicos disponibles'}
+                                </Text>
+                                <Text size="sm" c="dimmed" mt="xs">
+                                    {searchDisponible ? 'Intenta con otro término de búsqueda' : 'Todos los médicos SERGAS están asignados'}
+                                </Text>
                             </Paper>
-                        ))}
-                    </SimpleGrid>
-                )}
+                        );
+                    }
+
+                    return (
+                        <>
+                            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                                {displayedDisponible.map((medico) => (
+                                    <Paper
+                                        key={medico.medico_id}
+                                        p="md"
+                                        radius="lg"
+                                        onMouseEnter={() => setHoveredDoctor(medico.medico_id)}
+                                        onMouseLeave={() => setHoveredDoctor(null)}
+                                        style={{
+                                            background: hoveredDoctor === medico.medico_id
+                                                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(52, 211, 153, 0.08) 100%)'
+                                                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                                            border: hoveredDoctor === medico.medico_id
+                                                ? '1px solid rgba(16, 185, 129, 0.4)'
+                                                : '1px solid rgba(255, 255, 255, 0.1)',
+                                            transition: 'all 0.3s ease',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        <Group justify="space-between" mb="sm">
+                                            <Group gap="sm">
+                                                <Avatar
+                                                    size={44}
+                                                    radius="xl"
+                                                    color="green"
+                                                    variant="gradient"
+                                                    gradient={{ from: 'green', to: 'teal' }}
+                                                >
+                                                    {medico.nombre.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                </Avatar>
+                                                <Box>
+                                                    <Text fw={600} size="sm">{medico.nombre}</Text>
+                                                    <Badge size="xs" color="teal" variant="light">
+                                                        {medico.especialidad || 'General'}
+                                                    </Badge>
+                                                </Box>
+                                            </Group>
+                                            <Badge color="green" variant="dot">Disponible</Badge>
+                                        </Group>
+                                        <Transition mounted={hoveredDoctor === medico.medico_id} transition="fade" duration={200}>
+                                            {(styles) => (
+                                                <Button
+                                                    style={styles}
+                                                    fullWidth
+                                                    variant="gradient"
+                                                    gradient={{ from: 'green', to: 'teal' }}
+                                                    size="sm"
+                                                    leftSection={<IconUserPlus size={16} />}
+                                                    rightSection={<IconArrowRight size={16} />}
+                                                    onClick={() => { setSelectedMedico(medico.medico_id); setAssignModalOpen(true); }}
+                                                >
+                                                    Asignar
+                                                </Button>
+                                            )}
+                                        </Transition>
+                                    </Paper>
+                                ))}
+                            </SimpleGrid>
+
+                            {/* Botón Ver más / Ver menos */}
+                            {hasMoreDisponible && (
+                                <Button
+                                    variant="subtle"
+                                    color="gray"
+                                    fullWidth
+                                    mt="md"
+                                    leftSection={showAllDisponible ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+                                    onClick={() => setShowAllDisponible(!showAllDisponible)}
+                                >
+                                    {showAllDisponible
+                                        ? 'Ver menos'
+                                        : `Ver ${filteredDisponible.length - ITEMS_PER_PAGE} más`}
+                                </Button>
+                            )}
+                        </>
+                    );
+                })()}
             </Card>
 
             {/* Sección de médicos SERGAS asignados */}
@@ -496,14 +811,14 @@ export function StaffPage() {
                     border: `1px solid ${cssVariables.glassBorder}`,
                 }}
             >
-                <Group justify="space-between" mb="lg">
+                <Group justify="space-between" mb="md">
                     <Group gap="md">
                         <ThemeIcon size={50} radius="xl" variant="gradient" gradient={{ from: 'violet', to: 'grape' }}>
                             <IconClipboardCheck size={26} />
                         </ThemeIcon>
                         <Box>
                             <Title order={3}>Médicos SERGAS Asignados</Title>
-                            <Text size="sm" c="dimmed">Médicos del SERGAS actualmente en consultas del CHUAC</Text>
+                            <Text size="sm" c="dimmed">Médicos del SERGAS actualmente en consultas</Text>
                         </Box>
                     </Group>
                     <Badge
@@ -516,81 +831,137 @@ export function StaffPage() {
                     </Badge>
                 </Group>
 
-                {(!sergasAsignados || sergasAsignados.length === 0) ? (
-                    <Paper
-                        p="xl"
-                        radius="md"
-                        style={{
-                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
-                            textAlign: 'center',
-                        }}
-                    >
-                        <ThemeIcon size={60} radius="xl" color="gray" variant="light" mx="auto" mb="md">
-                            <IconClipboardCheck size={30} />
-                        </ThemeIcon>
-                        <Text size="lg" fw={500} c="dimmed">No hay médicos asignados</Text>
-                        <Text size="sm" c="dimmed" mt="xs">Asigna médicos del SERGAS a las consultas del CHUAC</Text>
-                    </Paper>
-                ) : (
-                    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-                        {sergasAsignados?.map((medico) => (
+                {/* Barra de búsqueda */}
+                <TextInput
+                    placeholder="Buscar médico asignado..."
+                    leftSection={<IconSearch size={16} />}
+                    value={searchAsignado}
+                    onChange={(e) => setSearchAsignado(e.currentTarget.value)}
+                    mb="md"
+                    styles={{
+                        input: {
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                        }
+                    }}
+                />
+
+                {(() => {
+                    // Filtrar y ordenar alfabéticamente
+                    const filteredAsignado = (sergasAsignados || [])
+                        .filter(m => m.nombre.toLowerCase().includes(searchAsignado.toLowerCase()))
+                        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+                    const displayedAsignado = showAllAsignado
+                        ? filteredAsignado
+                        : filteredAsignado.slice(0, ITEMS_PER_PAGE);
+
+                    const hasMoreAsignado = filteredAsignado.length > ITEMS_PER_PAGE;
+
+                    if (filteredAsignado.length === 0) {
+                        return (
                             <Paper
-                                key={medico.medico_id}
-                                p="md"
-                                radius="lg"
+                                p="xl"
+                                radius="md"
                                 style={{
-                                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(167, 139, 250, 0.06) 100%)',
-                                    border: '1px solid rgba(139, 92, 246, 0.2)',
+                                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                                    textAlign: 'center',
                                 }}
                             >
-                                <Group justify="space-between" mb="sm">
-                                    <Group gap="sm">
-                                        <Avatar
-                                            size={44}
-                                            radius="xl"
-                                            color="violet"
-                                            variant="gradient"
-                                            gradient={{ from: 'violet', to: 'grape' }}
-                                        >
-                                            {medico.nombre.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                        </Avatar>
-                                        <Box>
-                                            <Text fw={600} size="sm">{medico.nombre}</Text>
-                                            <Badge size="xs" color="violet" variant="light">
-                                                {medico.especialidad || 'General'}
-                                            </Badge>
-                                        </Box>
-                                    </Group>
-                                </Group>
-
-                                <Stack gap="xs" mb="sm">
-                                    <Group justify="space-between">
-                                        <Text size="xs" c="dimmed">Hospital:</Text>
-                                        <Badge size="sm" color="blue">{medico.asignado_a_hospital?.toUpperCase()}</Badge>
-                                    </Group>
-                                    <Group justify="space-between">
-                                        <Text size="xs" c="dimmed">Consulta:</Text>
-                                        <Badge size="sm" variant="outline" color="violet">
-                                            Consulta {medico.asignado_a_consulta}
-                                        </Badge>
-                                    </Group>
-                                </Stack>
-
-                                <Button
-                                    fullWidth
-                                    variant="light"
-                                    color="red"
-                                    size="sm"
-                                    leftSection={<IconUserMinus size={16} />}
-                                    onClick={() => unassignMutation.mutate(medico.medico_id)}
-                                    loading={unassignMutation.isPending}
-                                >
-                                    Desasignar
-                                </Button>
+                                <ThemeIcon size={60} radius="xl" color="gray" variant="light" mx="auto" mb="md">
+                                    <IconClipboardCheck size={30} />
+                                </ThemeIcon>
+                                <Text size="lg" fw={500} c="dimmed">
+                                    {searchAsignado ? 'No se encontraron médicos' : 'No hay médicos asignados'}
+                                </Text>
+                                <Text size="sm" c="dimmed" mt="xs">
+                                    {searchAsignado ? 'Intenta con otro término de búsqueda' : 'Asigna médicos del SERGAS a las consultas'}
+                                </Text>
                             </Paper>
-                        ))}
-                    </SimpleGrid>
-                )}
+                        );
+                    }
+
+                    return (
+                        <>
+                            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                                {displayedAsignado.map((medico) => (
+                                    <Paper
+                                        key={medico.medico_id}
+                                        p="md"
+                                        radius="lg"
+                                        style={{
+                                            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(167, 139, 250, 0.06) 100%)',
+                                            border: '1px solid rgba(139, 92, 246, 0.2)',
+                                        }}
+                                    >
+                                        <Group justify="space-between" mb="sm">
+                                            <Group gap="sm">
+                                                <Avatar
+                                                    size={44}
+                                                    radius="xl"
+                                                    color="violet"
+                                                    variant="gradient"
+                                                    gradient={{ from: 'violet', to: 'grape' }}
+                                                >
+                                                    {medico.nombre.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                </Avatar>
+                                                <Box>
+                                                    <Text fw={600} size="sm">{medico.nombre}</Text>
+                                                    <Badge size="xs" color="violet" variant="light">
+                                                        {medico.especialidad || 'General'}
+                                                    </Badge>
+                                                </Box>
+                                            </Group>
+                                        </Group>
+
+                                        <Stack gap="xs" mb="sm">
+                                            <Group justify="space-between">
+                                                <Text size="xs" c="dimmed">Hospital:</Text>
+                                                <Badge size="sm" color={medico.asignado_a_hospital === 'chuac' ? 'blue' : medico.asignado_a_hospital === 'modelo' ? 'orange' : 'teal'}>
+                                                    {medico.asignado_a_hospital === 'chuac' ? 'CHUAC' : medico.asignado_a_hospital === 'modelo' ? 'Modelo' : 'San Rafael'}
+                                                </Badge>
+                                            </Group>
+                                            <Group justify="space-between">
+                                                <Text size="xs" c="dimmed">Consulta:</Text>
+                                                <Badge size="sm" variant="outline" color="violet">
+                                                    Consulta {medico.asignado_a_consulta}
+                                                </Badge>
+                                            </Group>
+                                        </Stack>
+
+                                        <Button
+                                            fullWidth
+                                            variant="light"
+                                            color="red"
+                                            size="sm"
+                                            leftSection={<IconUserMinus size={16} />}
+                                            onClick={() => unassignMutation.mutate(medico.medico_id)}
+                                            loading={unassignMutation.isPending}
+                                        >
+                                            Desasignar
+                                        </Button>
+                                    </Paper>
+                                ))}
+                            </SimpleGrid>
+
+                            {/* Botón Ver más / Ver menos */}
+                            {hasMoreAsignado && (
+                                <Button
+                                    variant="subtle"
+                                    color="gray"
+                                    fullWidth
+                                    mt="md"
+                                    leftSection={showAllAsignado ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+                                    onClick={() => setShowAllAsignado(!showAllAsignado)}
+                                >
+                                    {showAllAsignado
+                                        ? 'Ver menos'
+                                        : `Ver ${filteredAsignado.length - ITEMS_PER_PAGE} más`}
+                                </Button>
+                            )}
+                        </>
+                    );
+                })()}
             </Card>
 
             {/* Personal Base por Hospital - Diseño premium */}

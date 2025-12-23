@@ -110,6 +110,61 @@ export async function fetchChuacConsultas(): Promise<ConsultaInfo[]> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// OPTIMIZACIÓN DE PERSONAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface StaffRecommendation {
+    medico_id: string;
+    medico_nombre: string;
+    hospital_destino: string;  // chuac, modelo, san_rafael
+    consulta_destino: number;
+    prioridad: number;
+    impacto_estimado: string;
+    accion: string;
+}
+
+export interface OptimizationMetrics {
+    tiempo_espera_total: number;
+    tiempo_espera_promedio: number;
+    tiempo_espera_max: number;
+    consultas_con_cola: number;
+    cola_total: number;
+}
+
+export interface OptimizationResponse {
+    exito: boolean;
+    mensaje: string;
+    estado_actual: {
+        consultas: Array<{
+            numero: number;
+            medicos_total: number;
+            medicos_base: number;
+            medicos_sergas: number;
+            cola: number;
+            tiempo_espera_estimado: number;
+        }>;
+        total_medicos_sergas_asignados: number;
+        total_cola: number;
+    };
+    recomendaciones: StaffRecommendation[];
+    metricas_actuales: OptimizationMetrics;
+    metricas_proyectadas: OptimizationMetrics;
+    mejora_estimada: number;
+    medicos_disponibles: number;
+    medicos_a_asignar: number;
+    cambios_aplicados: boolean;
+}
+
+export async function fetchStaffOptimization(apply: boolean = false): Promise<OptimizationResponse> {
+    return fetchAPI(`/staff/optimize?apply=${apply}`);
+}
+
+export async function applyStaffOptimization(): Promise<OptimizationResponse> {
+    return fetchAPI('/staff/optimize?apply=true');
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SIMULACIÓN
 // ═══════════════════════════════════════════════════════════════════════════════
 

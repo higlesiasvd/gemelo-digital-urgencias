@@ -224,7 +224,22 @@ INSERT INTO lista_sergas (nombre, especialidad, disponible) VALUES
     ('Dra. Regina Lara', 'Urgencias', true),
     ('Dr. Nicolás Contreras', 'Medicina General', true),
     ('Dra. Antonella Pacheco', 'Urgencias', true),
-    ('Dr. Mateo Suárez', 'Medicina Interna', true);
+    ('Dr. Mateo Suárez', 'Medicina Interna', true),
+    ('Dr. Rodrigo Fernández', 'Cardiología', true),
+    ('Dra. Valentina Herrera', 'Traumatología', true),
+    ('Dr. Álvaro Mendoza', 'Urgencias', true),
+    ('Dra. Camila Reyes', 'Pediatría', true),
+    ('Dr. Diego Paredes', 'Medicina Interna', true),
+    ('Dra. Isabella Vega', 'Medicina General', true),
+    ('Dr. Fernando Castillo', 'Urgencias', true),
+    ('Dra. Martina Ruiz', 'Cardiología', true),
+    ('Dr. Alejandro Soto', 'Traumatología', true),
+    ('Dra. Sofía Navarro', 'Urgencias', true),
+    ('Dr. Gabriel Morales', 'Medicina Interna', true),
+    ('Dra. Daniela Ortiz', 'Pediatría', true),
+    ('Dr. Lucas Guerrero', 'Medicina General', true),
+    ('Dra. Paula Campos', 'Urgencias', true),
+    ('Dr. Adrián Rojas', 'Cardiología', true);
 
 -- ============================================================================
 -- FIN

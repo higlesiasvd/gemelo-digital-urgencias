@@ -39,3 +39,6 @@ groq>=0.4.0
 
 # Logging
 structlog>=23.2.0
+
+# Optimization
+pulp>=2.7.0

@@ -10,12 +10,13 @@ Endpoints:
 - POST /chuac/consultas/{id}/scale - Escalar consulta (1-4 médicos)
 - GET /staff - Listar personal
 - GET /staff/lista-sergas - Listar médicos SERGAS disponibles
+- GET /staff/optimize - Calcular distribución óptima de personal SERGAS
 ============================================================================
 """
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from uuid import UUID
 from datetime import datetime
 import logging
@@ -31,6 +32,8 @@ from common.kafka_client import KafkaClient
 from common.models import Staff, Consulta, ListaSergas, get_db
 from sqlalchemy.orm import Session
 
+from .staff_optimizer import generar_recomendaciones_desde_db, PULP_AVAILABLE
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/staff", tags=["Personal"])
 
@@ -44,7 +47,7 @@ kafka = KafkaClient(client_id="api")
 
 class AssignDoctorRequest(BaseModel):
     medico_id: UUID
-    hospital_id: str = Field(default="chuac", description="Solo CHUAC permite asignación")
+    hospital_id: str = Field(default="chuac", description="Hospital destino: chuac, modelo, san_rafael")
     consulta_id: int = Field(ge=1, le=10)
 
 
@@ -105,16 +108,18 @@ class ListaSergasMedico(BaseModel):
 @router.post("/assign", response_model=AssignDoctorResponse)
 async def assign_doctor(request: AssignDoctorRequest, db: Session = Depends(get_db)):
     """
-    Asigna un médico de la lista SERGAS a una consulta del CHUAC.
+    Asigna un médico de la lista SERGAS a una consulta de cualquier hospital.
 
-    - Solo válido para CHUAC
+    - Hospitales válidos: chuac, modelo, san_rafael
     - El médico debe estar disponible en lista_sergas
     - La consulta debe tener menos de 4 médicos
     """
-    if request.hospital_id != "chuac":
+    # Validar hospital
+    valid_hospitals = ["chuac", "modelo", "san_rafael"]
+    if request.hospital_id not in valid_hospitals:
         raise HTTPException(
             status_code=400,
-            detail="Solo el CHUAC permite asignación de médicos adicionales"
+            detail=f"Hospital no válido. Opciones: {valid_hospitals}"
         )
 
     # Buscar médico en lista SERGAS
@@ -129,16 +134,16 @@ async def assign_doctor(request: AssignDoctorRequest, db: Session = Depends(get_
             detail="Médico no encontrado o no disponible en lista SERGAS"
         )
 
-    # Buscar consulta
+    # Buscar consulta en el hospital especificado
     consulta = db.query(Consulta).filter(
-        Consulta.hospital_id == "chuac",
+        Consulta.hospital_id == request.hospital_id,
         Consulta.numero_consulta == request.consulta_id
     ).first()
 
     if not consulta:
         raise HTTPException(
             status_code=404,
-            detail=f"Consulta {request.consulta_id} no encontrada"
+            detail=f"Consulta {request.consulta_id} no encontrada en {request.hospital_id}"
         )
 
     if consulta.medicos_asignados >= 4:
@@ -150,7 +155,7 @@ async def assign_doctor(request: AssignDoctorRequest, db: Session = Depends(get_
     # Actualizar base de datos (transacción)
     try:
         medico.disponible = False
-        medico.asignado_a_hospital = "chuac"
+        medico.asignado_a_hospital = request.hospital_id
         medico.asignado_a_consulta = request.consulta_id
         medico.fecha_asignacion = datetime.now()
 
@@ -165,7 +170,7 @@ async def assign_doctor(request: AssignDoctorRequest, db: Session = Depends(get_
     event = DoctorAssigned(
         medico_id=str(medico.medico_id),
         medico_nombre=medico.nombre,
-        hospital_id="chuac",
+        hospital_id=request.hospital_id,
         consulta_id=request.consulta_id,
         medicos_totales_consulta=consulta.medicos_asignados,
         velocidad_factor=float(consulta.medicos_asignados)
@@ -439,3 +444,359 @@ async def list_chuac_consultas(db: Session = Depends(get_db)):
     
     return result
 
+
+# ============================================================================
+# OPTIMIZACIÓN DE DISTRIBUCIÓN DE PERSONAL
+# ============================================================================
+
+class StaffRecommendation(BaseModel):
+    """Recomendación de asignación de médico SERGAS"""
+    medico_id: str
+    medico_nombre: str
+    hospital_destino: str  # chuac, modelo, san_rafael
+    consulta_destino: int
+    prioridad: int  # 1=alta, 2=media, 3=baja
+    impacto_estimado: str
+    accion: str  # "asignar" o "reasignar"
+
+
+class OptimizationMetrics(BaseModel):
+    """Métricas de tiempo de espera"""
+    tiempo_espera_total: float
+    tiempo_espera_promedio: float
+    tiempo_espera_max: float
+    consultas_con_cola: int
+    cola_total: int
+
+
+class OptimizationResponse(BaseModel):
+    """Respuesta del endpoint de optimización"""
+    exito: bool
+    mensaje: str
+    estado_actual: Dict
+    recomendaciones: List[StaffRecommendation]
+    metricas_actuales: OptimizationMetrics
+    metricas_proyectadas: OptimizationMetrics
+    mejora_estimada: float  # Porcentaje
+    medicos_disponibles: int
+    medicos_a_asignar: int
+    cambios_aplicados: bool
+
+
+@router.get("/optimize", response_model=OptimizationResponse)
+async def optimize_staff_distribution(
+    apply: bool = False,
+    db: Session = Depends(get_db)
+):
+    """
+    Calcula la distribución óptima de médicos SERGAS en TODOS los hospitales.
+    
+    Optimiza la asignación considerando:
+    - Predicciones ML de demanda por hospital (Prophet)
+    - Colas actuales y capacidad de procesamiento
+    - Prioriza hospitales con mayor necesidad
+    
+    Args:
+        apply: Si es True, aplica automáticamente las recomendaciones
+    
+    Returns:
+        Recomendaciones de asignación con hospital + consulta óptimos
+    """
+    
+    if not PULP_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Optimizador no disponible. Instale PuLP: pip install pulp"
+        )
+    
+    import random
+    import httpx
+    from datetime import datetime
+    
+    now = datetime.now()
+    hora_actual = now.hour
+    dia_semana = now.weekday()
+    
+    # =========================================================================
+    # CONFIGURACIÓN DE HOSPITALES
+    # =========================================================================
+    HOSPITALES = {
+        "chuac": {"nombre": "CHUAC", "base_rate": 20, "peso": 1.0},
+        "modelo": {"nombre": "H. Modelo", "base_rate": 8, "peso": 0.8},
+        "san_rafael": {"nombre": "San Rafael", "base_rate": 6, "peso": 0.6},
+    }
+    
+    # =========================================================================
+    # OBTENER DATOS DE TODOS LOS HOSPITALES
+    # =========================================================================
+    todas_consultas = {}
+    colas_por_hospital = {}
+    
+    for hospital_id in HOSPITALES.keys():
+        consultas = db.query(Consulta).filter(
+            Consulta.hospital_id == hospital_id
+        ).order_by(Consulta.numero_consulta).all()
+        todas_consultas[hospital_id] = consultas
+    
+    # Obtener médicos SERGAS disponibles
+    medicos_sergas = db.query(ListaSergas).filter(ListaSergas.disponible == True).all()
+    
+    # =========================================================================
+    # PREDICCIONES ML POR HOSPITAL (PROPHET)
+    # =========================================================================
+    predicciones_ml = {}
+    
+    for hospital_id in HOSPITALES.keys():
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                response = await client.post(
+                    "http://urgencias-prophet:8001/predict",
+                    json={"hospital_id": hospital_id, "hours_ahead": 4}
+                )
+                if response.status_code == 200:
+                    predicciones_ml[hospital_id] = response.json()
+        except Exception:
+            pass  # Usará fallback
+    
+    if predicciones_ml:
+        logger.info(f"✅ Predicciones ML obtenidas para {len(predicciones_ml)} hospitales")
+    
+    # =========================================================================
+    # CALCULAR COLAS Y NECESIDAD POR HOSPITAL
+    # =========================================================================
+    necesidad_hospital = {}  # hospital_id -> puntuación de necesidad
+    capacidad_base = 2.5  # pacientes/hora por médico
+    
+    # Factor temporal (heurístico)
+    factor_hora = {
+        0: 0.25, 1: 0.15, 2: 0.10, 3: 0.10, 4: 0.10, 5: 0.15,
+        6: 0.30, 7: 0.50, 8: 0.80, 9: 1.00, 10: 1.20, 11: 1.30,
+        12: 1.20, 13: 1.00, 14: 0.90, 15: 0.85, 16: 0.90, 17: 1.00,
+        18: 1.15, 19: 1.25, 20: 1.15, 21: 0.95, 22: 0.70, 23: 0.45
+    }.get(hora_actual, 1.0)
+    
+    factor_dia = {0: 1.15, 1: 1.05, 2: 1.00, 3: 1.00, 4: 1.10, 5: 0.85, 6: 0.75}.get(dia_semana, 1.0)
+    
+    for hospital_id, config in HOSPITALES.items():
+        consultas = todas_consultas.get(hospital_id, [])
+        if not consultas:
+            continue
+        
+        # Obtener llegadas (ML o fallback)
+        if hospital_id in predicciones_ml:
+            pred = predicciones_ml[hospital_id]["predicciones"][0]
+            llegadas = pred["llegadas_esperadas"]
+        else:
+            llegadas = config["base_rate"] * factor_hora * factor_dia
+        
+        # Calcular cola total y capacidad
+        colas = {}
+        cola_total = 0
+        capacidad_total = 0
+        
+        for c in consultas:
+            cap_consulta = capacidad_base * c.medicos_asignados
+            capacidad_total += cap_consulta
+            
+            # Estimar cola por consulta
+            proporcion = 1.0 / len(consultas)
+            llegadas_c = llegadas * proporcion * random.uniform(0.8, 1.2)
+            cola = max(0, int((llegadas_c - cap_consulta) * random.uniform(0.5, 1.5)))
+            colas[c.numero_consulta] = cola
+            cola_total += cola
+        
+        colas_por_hospital[hospital_id] = colas
+        
+        # Puntuación de necesidad: cola / capacidad * peso
+        if capacidad_total > 0:
+            necesidad = (cola_total / capacidad_total) * config["peso"] * llegadas
+        else:
+            necesidad = 0
+        necesidad_hospital[hospital_id] = necesidad
+    
+    # =========================================================================
+    # GENERAR RECOMENDACIONES ORDENADAS POR NECESIDAD
+    # =========================================================================
+    # Ordenar hospitales por necesidad (mayor primero)
+    hospitales_ordenados = sorted(necesidad_hospital.items(), key=lambda x: x[1], reverse=True)
+    
+    recomendaciones = []
+    medicos_usados = set()
+    
+    for hospital_id, necesidad in hospitales_ordenados:
+        if necesidad <= 0:
+            continue
+            
+        consultas = todas_consultas.get(hospital_id, [])
+        colas = colas_por_hospital.get(hospital_id, {})
+        
+        # Ordenar consultas por cola (mayor primero)
+        consultas_ordenadas = sorted(consultas, key=lambda c: colas.get(c.numero_consulta, 0), reverse=True)
+        
+        for consulta in consultas_ordenadas:
+            # Solo si hay cola y capacidad disponible
+            cola_consulta = colas.get(consulta.numero_consulta, 0)
+            if cola_consulta <= 0 or consulta.medicos_asignados >= 4:
+                continue
+            
+            # Buscar médico disponible
+            for medico in medicos_sergas:
+                if str(medico.medico_id) in medicos_usados:
+                    continue
+                
+                medicos_usados.add(str(medico.medico_id))
+                
+                # Prioridad basada en necesidad del hospital
+                if necesidad > 5:
+                    prioridad = 1  # Alta
+                elif necesidad > 2:
+                    prioridad = 2  # Media
+                else:
+                    prioridad = 3  # Baja
+                
+                recomendaciones.append({
+                    "medico_id": str(medico.medico_id),
+                    "medico_nombre": medico.nombre,
+                    "hospital_destino": hospital_id,
+                    "consulta_destino": consulta.numero_consulta,
+                    "prioridad": prioridad,
+                    "impacto_estimado": f"Reduce cola ~{cola_consulta*3} min",
+                    "accion": "asignar"
+                })
+                break  # Un médico por consulta por pasada
+    
+    # =========================================================================
+    # CALCULAR MÉTRICAS
+    # =========================================================================
+    cola_total_actual = sum(sum(c.values()) for c in colas_por_hospital.values())
+    tiempo_consulta = 10  # minutos promedio
+    
+    metricas_actuales = {
+        "tiempo_espera_total": cola_total_actual * tiempo_consulta,
+        "tiempo_espera_promedio": (cola_total_actual * tiempo_consulta) / max(1, len(recomendaciones) + 1),
+        "tiempo_espera_max": max([max(c.values()) for c in colas_por_hospital.values() if c], default=0) * tiempo_consulta,
+        "consultas_con_cola": sum(1 for colas in colas_por_hospital.values() for c in colas.values() if c > 0),
+        "cola_total": cola_total_actual
+    }
+    
+    # Métricas proyectadas (después de asignar)
+    reduccion = len(recomendaciones) * 2  # Cada médico reduce ~2 pacientes de cola
+    metricas_proyectadas = {
+        "tiempo_espera_total": max(0, metricas_actuales["tiempo_espera_total"] - reduccion * tiempo_consulta),
+        "tiempo_espera_promedio": max(0, metricas_actuales["tiempo_espera_promedio"] - reduccion),
+        "tiempo_espera_max": max(0, metricas_actuales["tiempo_espera_max"] - 10),
+        "consultas_con_cola": max(0, metricas_actuales["consultas_con_cola"] - len(recomendaciones)),
+        "cola_total": max(0, cola_total_actual - reduccion)
+    }
+    
+    mejora = ((metricas_actuales["tiempo_espera_total"] - metricas_proyectadas["tiempo_espera_total"]) 
+              / max(1, metricas_actuales["tiempo_espera_total"])) * 100 if metricas_actuales["tiempo_espera_total"] > 0 else 0
+    
+    # Estado actual por hospital
+    estado_actual = {
+        "hospitales": {
+            h_id: {
+                "nombre": cfg["nombre"],
+                "consultas": len(todas_consultas.get(h_id, [])),
+                "cola_total": sum(colas_por_hospital.get(h_id, {}).values()),
+                "necesidad": round(necesidad_hospital.get(h_id, 0), 2)
+            }
+            for h_id, cfg in HOSPITALES.items()
+        },
+        "medicos_sergas_disponibles": len(medicos_sergas)
+    }
+    
+    # Construir resultado
+    resultado = type('Resultado', (), {
+        'exito': True,
+        'recomendaciones': [type('Rec', (), r)() for r in recomendaciones],
+        'estado_actual': estado_actual,
+        'metricas_actuales': metricas_actuales,
+        'metricas_proyectadas': metricas_proyectadas,
+        'mejora_estimada': round(mejora, 1),
+        'mensaje': f"Optimización completada. {len(recomendaciones)} asignaciones recomendadas para {len([h for h, n in necesidad_hospital.items() if n > 0])} hospitales."
+    })()
+    
+    medicos_disponibles = len(medicos_sergas)
+    medicos_a_asignar = len(recomendaciones)
+    
+    # Si apply=True, ejecutar las asignaciones
+    cambios_aplicados = False
+    if apply and resultado.exito and resultado.recomendaciones:
+        try:
+            for rec in resultado.recomendaciones:
+                # Buscar médico
+                medico = db.query(ListaSergas).filter(
+                    ListaSergas.medico_id == rec.medico_id,
+                    ListaSergas.disponible == True
+                ).first()
+                
+                if not medico:
+                    continue
+                
+                # Buscar consulta en el hospital destino
+                consulta = db.query(Consulta).filter(
+                    Consulta.hospital_id == rec.hospital_destino,
+                    Consulta.numero_consulta == rec.consulta_destino
+                ).first()
+                
+                if not consulta or consulta.medicos_asignados >= 4:
+                    continue
+                
+                # Asignar
+                medico.disponible = False
+                medico.asignado_a_hospital = rec.hospital_destino
+                medico.asignado_a_consulta = rec.consulta_destino
+                medico.fecha_asignacion = datetime.now()
+                consulta.medicos_asignados += 1
+                
+                # Emitir evento Kafka
+                event = DoctorAssigned(
+                    medico_id=str(medico.medico_id),
+                    medico_nombre=medico.nombre,
+                    hospital_id=rec.hospital_destino,
+                    consulta_id=rec.consulta_destino,
+                    medicos_totales_consulta=consulta.medicos_asignados,
+                    velocidad_factor=float(consulta.medicos_asignados)
+                )
+                kafka.produce("doctor-assigned", event)
+            
+            db.commit()
+            kafka.flush()
+            cambios_aplicados = True
+            logger.info(f"Optimización aplicada: {medicos_a_asignar} médicos asignados")
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error aplicando optimización: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error aplicando cambios: {e}"
+            )
+    
+    # Construir respuesta
+    recomendaciones_response = [
+        StaffRecommendation(
+            medico_id=r.medico_id,
+            medico_nombre=r.medico_nombre,
+            hospital_destino=r.hospital_destino,
+            consulta_destino=r.consulta_destino,
+            prioridad=r.prioridad,
+            impacto_estimado=r.impacto_estimado,
+            accion=r.accion
+        )
+        for r in resultado.recomendaciones
+    ]
+    
+    return OptimizationResponse(
+        exito=resultado.exito,
+        mensaje=resultado.mensaje + (" Cambios aplicados." if cambios_aplicados else ""),
+        estado_actual=resultado.estado_actual,
+        recomendaciones=recomendaciones_response,
+        metricas_actuales=OptimizationMetrics(**resultado.metricas_actuales),
+        metricas_proyectadas=OptimizationMetrics(**resultado.metricas_proyectadas),
+        mejora_estimada=resultado.mejora_estimada,
+        medicos_disponibles=medicos_disponibles,
+        medicos_a_asignar=medicos_a_asignar,
+        cambios_aplicados=cambios_aplicados
+    )

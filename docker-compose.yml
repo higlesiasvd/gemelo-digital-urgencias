@@ -262,7 +262,7 @@ services:
       - "8080:8080"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - GROQ_API_KEY=${GROQ_API_KEY:-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}
+      - GROQ_API_KEY=${GROQ_API_KEY}
     depends_on:
       kafka:
         condition: service_healthy
