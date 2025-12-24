@@ -232,7 +232,7 @@ async def unassign_doctor(request: UnassignDoctorRequest, db: Session = Depends(
     event = DoctorUnassigned(
         medico_id=str(medico.medico_id),
         medico_nombre=medico.nombre,
-        hospital_id="chuac",
+        hospital_id=hospital_id or "chuac",  # Usar el hospital real donde estaba asignado
         consulta_id=consulta_id or 0,
         medicos_restantes_consulta=consulta.medicos_asignados if consulta else 1,
         velocidad_factor=float(consulta.medicos_asignados) if consulta else 1.0,
@@ -562,6 +562,69 @@ async def optimize_staff_distribution(
         logger.info(f"✅ Predicciones ML obtenidas para {len(predicciones_ml)} hospitales")
     
     # =========================================================================
+    # OBTENER DATOS REALES DEL SIMULADOR (INFLUXDB 2.x)
+    # =========================================================================
+    datos_reales = {}
+    influx_token = "mi-token-secreto-urgencias-dt"
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            for hospital_id in HOSPITALES.keys():
+                # InfluxDB 2.x usa Flux query language
+                flux_query = f'''
+                from(bucket: "urgencias")
+                  |> range(start: -5m)
+                  |> filter(fn: (r) => r._measurement == "stats_{hospital_id}")
+                  |> last()
+                '''
+                response = await client.post(
+                    "http://urgencias-influxdb:8086/api/v2/query",
+                    headers={
+                        "Authorization": f"Token {influx_token}",
+                        "Content-Type": "application/vnd.flux",
+                        "Accept": "application/csv"  # Pedir CSV para parseo más sencillo
+                    },
+                    params={"org": "urgencias"},
+                    content=flux_query
+                )
+                if response.status_code == 200:
+                    # Parsear respuesta CSV de InfluxDB
+                    # Formato: ,result,table,_start,_stop,_time,_value,_field,_measurement
+                    lines = response.text.strip().split('\n')
+                    data_row = {"cola_consulta": 0, "saturacion": 0}
+                    
+                    for line in lines:
+                        if not line or line.startswith('#') or line.startswith(',result'):
+                            continue
+                        parts = line.split(',')
+                        # CSV de InfluxDB: posición 5 = _value, posición 6 = _field
+                        if len(parts) >= 8:
+                            try:
+                                value_str = parts[6]  # _value
+                                field_name = parts[7]  # _field
+                                
+                                if field_name == 'cola_consulta':
+                                    data_row['cola_consulta'] = int(float(value_str))
+                                elif field_name == 'saturacion_global':
+                                    data_row['saturacion'] = float(value_str)
+                                elif field_name == 'cola_total':
+                                    data_row['cola_consulta'] = max(data_row['cola_consulta'], int(float(value_str)))
+                            except Exception as e:
+                                pass
+                    
+                    # Guardar si hay datos relevantes (incluso saturación baja es relevante)
+                    if data_row['cola_consulta'] > 0 or data_row['saturacion'] > 0:
+                        datos_reales[hospital_id] = {
+                            "cola_consulta": data_row.get('cola_consulta', 0),
+                            "cola_triaje": 0,
+                            "saturacion": data_row.get('saturacion', 0)
+                        }
+                        logger.info(f"📊 Datos reales {hospital_id}: cola={data_row['cola_consulta']}, sat={data_row['saturacion']:.2f}")
+                else:
+                    logger.warning(f"⚠️ InfluxDB {hospital_id}: status={response.status_code}")
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudo conectar con InfluxDB: {e}")
+    
+    # =========================================================================
     # CALCULAR COLAS Y NECESIDAD POR HOSPITAL
     # =========================================================================
     necesidad_hospital = {}  # hospital_id -> puntuación de necesidad
@@ -589,29 +652,48 @@ async def optimize_staff_distribution(
         else:
             llegadas = config["base_rate"] * factor_hora * factor_dia
         
-        # Calcular cola total y capacidad
+        # USAR DATOS REALES DE INFLUXDB SI ESTÁN DISPONIBLES
         colas = {}
         cola_total = 0
         capacidad_total = 0
         
-        for c in consultas:
-            cap_consulta = capacidad_base * c.medicos_asignados
-            capacidad_total += cap_consulta
+        if hospital_id in datos_reales:
+            # Datos reales del simulador
+            cola_real = datos_reales[hospital_id]["cola_consulta"]
+            saturacion_real = datos_reales[hospital_id]["saturacion"]
             
-            # Estimar cola por consulta
-            proporcion = 1.0 / len(consultas)
-            llegadas_c = llegadas * proporcion * random.uniform(0.8, 1.2)
-            cola = max(0, int((llegadas_c - cap_consulta) * random.uniform(0.5, 1.5)))
-            colas[c.numero_consulta] = cola
-            cola_total += cola
+            # Distribuir la cola total entre consultas proporcionalmente
+            for c in consultas:
+                cap_consulta = capacidad_base * c.medicos_asignados
+                capacidad_total += cap_consulta
+                # Distribuir cola según capacidad inversa (menos capacidad = más cola)
+                if c.medicos_asignados < 2:
+                    cola = int(cola_real * 0.4 / len([x for x in consultas if x.medicos_asignados < 2] or [1]))
+                else:
+                    cola = int(cola_real * 0.6 / len([x for x in consultas if x.medicos_asignados >= 2] or [1]))
+                colas[c.numero_consulta] = max(0, cola)
+                cola_total += cola
+            
+            # Necesidad basada en saturación real
+            necesidad = saturacion_real * config["peso"] * 10  # Escalar para comparabilidad
+        else:
+            # Fallback: estimar colas
+            for c in consultas:
+                cap_consulta = capacidad_base * c.medicos_asignados
+                capacidad_total += cap_consulta
+                proporcion = 1.0 / len(consultas)
+                llegadas_c = llegadas * proporcion * random.uniform(0.8, 1.2)
+                cola = max(0, int((llegadas_c - cap_consulta) * random.uniform(0.5, 1.5)))
+                colas[c.numero_consulta] = cola
+                cola_total += cola
+            
+            # Puntuación de necesidad estimada
+            if capacidad_total > 0:
+                necesidad = (cola_total / capacidad_total) * config["peso"] * llegadas
+            else:
+                necesidad = 0
         
         colas_por_hospital[hospital_id] = colas
-        
-        # Puntuación de necesidad: cola / capacidad * peso
-        if capacidad_total > 0:
-            necesidad = (cola_total / capacidad_total) * config["peso"] * llegadas
-        else:
-            necesidad = 0
         necesidad_hospital[hospital_id] = necesidad
     
     # =========================================================================
@@ -624,86 +706,175 @@ async def optimize_staff_distribution(
     medicos_usados = set()
     
     for hospital_id, necesidad in hospitales_ordenados:
-        if necesidad <= 0:
-            continue
-            
+        # NUEVO: Usar predicción ML para determinar médicos necesarios
         consultas = todas_consultas.get(hospital_id, [])
         colas = colas_por_hospital.get(hospital_id, {})
         
-        # Ordenar consultas por cola (mayor primero)
-        consultas_ordenadas = sorted(consultas, key=lambda c: colas.get(c.numero_consulta, 0), reverse=True)
+        # Calcular médicos ideales según predicción ML + datos reales
+        # Mínimo: 1 médico por consulta activa (medicos_base del hospital)
+        num_consultas = len(consultas)
         
-        for consulta in consultas_ordenadas:
-            # Solo si hay cola y capacidad disponible
-            cola_consulta = colas.get(consulta.numero_consulta, 0)
-            if cola_consulta <= 0 or consulta.medicos_asignados >= 4:
-                continue
+        # Base: predicciones ML
+        if hospital_id in predicciones_ml:
+            llegadas_pred = predicciones_ml[hospital_id]["predicciones"][0]["llegadas_esperadas"]
+            # Capacidad: 2.5 pac/hora por médico. Necesitamos cubrir llegadas + 20% margen
+            medicos_por_demanda = int((llegadas_pred * 1.2 / capacidad_base) + 0.5)
+        else:
+            medicos_por_demanda = num_consultas
+        
+        # IMPORTANTE: Ajustar según datos REALES de InfluxDB (cola y saturación)
+        cola_real = 0
+        saturacion_real = 0
+        if hospital_id in datos_reales:
+            cola_real = datos_reales[hospital_id].get("cola_consulta", 0)
+            saturacion_real = datos_reales[hospital_id].get("saturacion", 0)
             
-            # Buscar médico disponible
-            for medico in medicos_sergas:
-                if str(medico.medico_id) in medicos_usados:
-                    continue
+            # Si hay cola significativa, necesitamos más médicos
+            # Regla: +1 médico por cada 5 pacientes en cola (más sensible)
+            medicos_extra_por_cola = cola_real // 5
+            
+            # Si saturación > 40%, añadir médicos extra de manera preventiva
+            # Escala: 40-50% = +1, 50-60% = +2, 60-70% = +3, 70%+ = +4 o más
+            if saturacion_real > 0.4:
+                medicos_extra_por_saturacion = int((saturacion_real - 0.4) * 15)  # 0-9 extra (más sensible)
+            else:
+                medicos_extra_por_saturacion = 0
+            
+            medicos_por_demanda += medicos_extra_por_cola + medicos_extra_por_saturacion
+        
+        # Garantizar mínimo de 1 médico por consulta
+        medicos_ideales = max(num_consultas, medicos_por_demanda)
+        
+        # Médicos actuales en este hospital
+        medicos_actuales = sum(c.medicos_asignados for c in consultas)
+        deficit = max(0, medicos_ideales - medicos_actuales)
+        
+        # Si hay déficit de personal o cola real, recomendar asignaciones
+        cola_total_hospital = max(cola_real, sum(colas.get(c.numero_consulta, 0) for c in consultas))
+        
+        logger.info(f"🔍 {hospital_id}: llegadas_pred={predicciones_ml.get(hospital_id, {}).get('predicciones', [{}])[0].get('llegadas_esperadas', 0):.1f}, "
+                   f"cola_real={cola_real}, sat_real={saturacion_real:.2f}, medicos_ideales={medicos_ideales}, actuales={medicos_actuales}, deficit={deficit}")
+        
+        if deficit > 0 or cola_total_hospital > 0:
+            # Ordenar consultas: primero las con menos médicos
+            consultas_ordenadas = sorted(consultas, key=lambda c: c.medicos_asignados)
+            
+            for consulta in consultas_ordenadas:
+                if consulta.medicos_asignados >= 4:
+                    continue  # Consulta llena
                 
-                medicos_usados.add(str(medico.medico_id))
+                cola_consulta = colas.get(consulta.numero_consulta, 0)
                 
-                # Prioridad basada en necesidad del hospital
-                if necesidad > 5:
-                    prioridad = 1  # Alta
-                elif necesidad > 2:
-                    prioridad = 2  # Media
-                else:
-                    prioridad = 3  # Baja
-                
-                recomendaciones.append({
-                    "medico_id": str(medico.medico_id),
-                    "medico_nombre": medico.nombre,
-                    "hospital_destino": hospital_id,
-                    "consulta_destino": consulta.numero_consulta,
-                    "prioridad": prioridad,
-                    "impacto_estimado": f"Reduce cola ~{cola_consulta*3} min",
-                    "accion": "asignar"
-                })
-                break  # Un médico por consulta por pasada
+                # Buscar médico disponible
+                for medico in medicos_sergas:
+                    if str(medico.medico_id) in medicos_usados:
+                        continue
+                    
+                    medicos_usados.add(str(medico.medico_id))
+                    
+                    # Prioridad basada en déficit y cola
+                    if deficit > 3 or cola_consulta > 5:
+                        prioridad = 1  # Alta
+                    elif deficit > 1 or cola_consulta > 2:
+                        prioridad = 2  # Media
+                    else:
+                        prioridad = 3  # Baja
+                    
+                    recomendaciones.append({
+                        "medico_id": str(medico.medico_id),
+                        "medico_nombre": medico.nombre,
+                        "hospital_destino": hospital_id,
+                        "consulta_destino": consulta.numero_consulta,
+                        "prioridad": prioridad,
+                        "impacto_estimado": f"Reduce cola ~{max(cola_consulta, deficit) * 3} min",
+                        "accion": "asignar"
+                    })
+                    break  # Un médico por consulta por pasada
     
     # =========================================================================
-    # CALCULAR MÉTRICAS
+    # CALCULAR MÉTRICAS USANDO DATOS REALES DE INFLUXDB
     # =========================================================================
-    cola_total_actual = sum(sum(c.values()) for c in colas_por_hospital.values())
-    tiempo_consulta = 10  # minutos promedio
+    # Cola total: usar datos reales si disponibles, sino estimados
+    cola_real_total = sum(d.get("cola_consulta", 0) for d in datos_reales.values())
+    cola_estimada_total = sum(sum(c.values()) for c in colas_por_hospital.values())
+    cola_total_actual = max(cola_real_total, cola_estimada_total)
+    
+    # Saturación promedio real (para calcular tiempo de espera estimado)
+    saturacion_promedio = sum(d.get("saturacion", 0) for d in datos_reales.values()) / max(1, len(datos_reales)) if datos_reales else 0
+    
+    tiempo_consulta = 10  # minutos promedio por paciente
+    
+    # Tiempo de espera basado en saturación real (más realista)
+    # Saturación 0% = 0 min espera, 50% = 15 min, 100% = 45 min
+    tiempo_espera_base = int(saturacion_promedio * 45) if datos_reales else cola_total_actual * tiempo_consulta
+    tiempo_espera_max_por_sat = max(
+        int(d.get("saturacion", 0) * 60) for d in datos_reales.values()
+    ) if datos_reales else max([max(c.values()) for c in colas_por_hospital.values() if c], default=0) * tiempo_consulta
     
     metricas_actuales = {
-        "tiempo_espera_total": cola_total_actual * tiempo_consulta,
-        "tiempo_espera_promedio": (cola_total_actual * tiempo_consulta) / max(1, len(recomendaciones) + 1),
-        "tiempo_espera_max": max([max(c.values()) for c in colas_por_hospital.values() if c], default=0) * tiempo_consulta,
-        "consultas_con_cola": sum(1 for colas in colas_por_hospital.values() for c in colas.values() if c > 0),
+        "tiempo_espera_total": tiempo_espera_base + cola_total_actual * tiempo_consulta,
+        "tiempo_espera_promedio": max(tiempo_espera_base, int(saturacion_promedio * 30)),
+        "tiempo_espera_max": max(tiempo_espera_max_por_sat, cola_total_actual * tiempo_consulta // 2),
+        "consultas_con_cola": sum(1 for d in datos_reales.values() if d.get("saturacion", 0) > 0.5) or sum(1 for colas in colas_por_hospital.values() for c in colas.values() if c > 0),
         "cola_total": cola_total_actual
     }
     
-    # Métricas proyectadas (después de asignar)
-    reduccion = len(recomendaciones) * 2  # Cada médico reduce ~2 pacientes de cola
+    # Métricas proyectadas (después de asignar médicos)
+    # Reducción proporcional: cada médico reduce ~5-10% del tiempo de espera
+    factor_reduccion = min(0.8, len(recomendaciones) * 0.08)  # Máximo 80% de reducción
+    reduccion_cola = len(recomendaciones) * 2  # 2 pacientes por médico
+    
     metricas_proyectadas = {
-        "tiempo_espera_total": max(0, metricas_actuales["tiempo_espera_total"] - reduccion * tiempo_consulta),
-        "tiempo_espera_promedio": max(0, metricas_actuales["tiempo_espera_promedio"] - reduccion),
-        "tiempo_espera_max": max(0, metricas_actuales["tiempo_espera_max"] - 10),
+        "tiempo_espera_total": int(metricas_actuales["tiempo_espera_total"] * (1 - factor_reduccion)),
+        "tiempo_espera_promedio": int(metricas_actuales["tiempo_espera_promedio"] * (1 - factor_reduccion)),
+        "tiempo_espera_max": int(metricas_actuales["tiempo_espera_max"] * (1 - factor_reduccion * 0.7)),
         "consultas_con_cola": max(0, metricas_actuales["consultas_con_cola"] - len(recomendaciones)),
-        "cola_total": max(0, cola_total_actual - reduccion)
+        "cola_total": max(0, cola_total_actual - reduccion_cola)
     }
     
-    mejora = ((metricas_actuales["tiempo_espera_total"] - metricas_proyectadas["tiempo_espera_total"]) 
-              / max(1, metricas_actuales["tiempo_espera_total"])) * 100 if metricas_actuales["tiempo_espera_total"] > 0 else 0
+    # Calcular mejora estimada (limitada a 80%)
+    if metricas_actuales["tiempo_espera_total"] > 0:
+        mejora = min(80, factor_reduccion * 100)
+    elif saturacion_promedio > 0.4 and len(recomendaciones) > 0:
+        # Si hay saturación alta pero no hay cola visible, estimar mejora basada en saturación
+        mejora = min(abs(len(recomendaciones)) * 8, 50)  # 8% por médico, max 50%
+    else:
+        mejora = 0
     
-    # Estado actual por hospital
+    # Estado actual por hospital con información de predicciones ML y datos reales
+    def calcular_medicos_recomendados(h_id, cfg):
+        num_consultas = len(todas_consultas.get(h_id, []))
+        llegadas = predicciones_ml.get(h_id, {}).get("predicciones", [{}])[0].get("llegadas_esperadas", cfg["base_rate"])
+        medicos_por_demanda = int((llegadas * 1.2 / capacidad_base) + 0.5)
+        
+        # Ajustar según datos reales de InfluxDB
+        if h_id in datos_reales:
+            cola_real = datos_reales[h_id].get("cola_consulta", 0)
+            saturacion_real = datos_reales[h_id].get("saturacion", 0)
+            medicos_extra_por_cola = cola_real // 5
+            medicos_extra_por_saturacion = int((saturacion_real - 0.4) * 15) if saturacion_real > 0.4 else 0
+            medicos_por_demanda += medicos_extra_por_cola + medicos_extra_por_saturacion
+        
+        return max(num_consultas, medicos_por_demanda)
+    
     estado_actual = {
         "hospitales": {
             h_id: {
                 "nombre": cfg["nombre"],
                 "consultas": len(todas_consultas.get(h_id, [])),
-                "cola_total": sum(colas_por_hospital.get(h_id, {}).values()),
-                "necesidad": round(necesidad_hospital.get(h_id, 0), 2)
+                "medicos_actuales": sum(c.medicos_asignados for c in todas_consultas.get(h_id, [])),
+                "medicos_recomendados": calcular_medicos_recomendados(h_id, cfg),
+                "llegadas_predichas": round(predicciones_ml.get(h_id, {}).get("predicciones", [{}])[0].get("llegadas_esperadas", 0), 1),
+                # Usar cola real de InfluxDB si está disponible, sino estimada
+                "cola_total": datos_reales.get(h_id, {}).get("cola_consulta", 0) or sum(colas_por_hospital.get(h_id, {}).values()),
+                "saturacion": round(datos_reales.get(h_id, {}).get("saturacion", 0), 2),
+                "estado": "óptimo" if sum(c.medicos_asignados for c in todas_consultas.get(h_id, [])) >= calcular_medicos_recomendados(h_id, cfg) else "déficit"
             }
             for h_id, cfg in HOSPITALES.items()
         },
-        "medicos_sergas_disponibles": len(medicos_sergas)
+        "medicos_sergas_disponibles": len(medicos_sergas),
+        "predicciones_ml_activas": len(predicciones_ml) > 0,
+        "datos_reales_disponibles": len(datos_reales) > 0
     }
     
     # Construir resultado
@@ -799,4 +970,135 @@ async def optimize_staff_distribution(
         medicos_disponibles=medicos_disponibles,
         medicos_a_asignar=medicos_a_asignar,
         cambios_aplicados=cambios_aplicados
+    )
+
+
+# ============================================================================
+# OPTIMIZACIÓN SEMANAL BASADA EN PREDICCIONES ML
+# ============================================================================
+
+class WeeklyRecommendation(BaseModel):
+    """Recomendación de personal por día de la semana"""
+    dia: str  # Lunes, Martes, etc.
+    dia_numero: int  # 0-6
+    hospital_id: str
+    hospital_nombre: str
+    medicos_recomendados: int
+    llegadas_previstas: float
+    pico_hora: int
+    nivel_demanda: str  # "bajo", "medio", "alto", "crítico"
+
+
+class WeeklyOptimizationResponse(BaseModel):
+    """Respuesta del endpoint de optimización semanal"""
+    exito: bool
+    semana_inicio: str
+    recomendaciones: List[WeeklyRecommendation]
+    resumen: Dict
+    mensaje: str
+
+
+@router.get("/optimize/weekly", response_model=WeeklyOptimizationResponse)
+async def optimize_weekly(db: Session = Depends(get_db)):
+    """
+    Genera recomendaciones de personal para la semana basadas en predicciones ML.
+    
+    Usa Prophet para predecir demanda por día y calcula personal necesario.
+    """
+    import httpx
+    from datetime import datetime, timedelta
+    
+    now = datetime.now()
+    # Inicio de la semana (lunes)
+    dias_hasta_lunes = now.weekday()
+    inicio_semana = (now - timedelta(days=dias_hasta_lunes)).replace(hour=0, minute=0, second=0)
+    
+    HOSPITALES = {
+        "chuac": {"nombre": "CHUAC", "consultas": 10, "base_medicos": 10},
+        "modelo": {"nombre": "H. Modelo", "consultas": 4, "base_medicos": 4},
+        "san_rafael": {"nombre": "San Rafael", "consultas": 4, "base_medicos": 4},
+    }
+    
+    DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    
+    recomendaciones = []
+    totales_por_hospital = {h: 0 for h in HOSPITALES}
+    
+    for dia_num, dia_nombre in enumerate(DIAS_SEMANA):
+        for hospital_id, config in HOSPITALES.items():
+            # Obtener predicción ML para ese día
+            llegadas = config["base_medicos"] * 2  # Fallback
+            pico_hora = 11
+            
+            try:
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    response = await client.post(
+                        "http://urgencias-prophet:8001/predict",
+                        json={"hospital_id": hospital_id, "hours_ahead": 24}
+                    )
+                    if response.status_code == 200:
+                        pred = response.json()
+                        # Ajustar por día de la semana
+                        factor_dia = {0: 1.15, 1: 1.05, 2: 1.0, 3: 1.0, 4: 1.1, 5: 0.85, 6: 0.75}[dia_num]
+                        llegadas = pred["resumen"]["total_esperado"] * factor_dia / 24
+                        pico_hora = pred["resumen"]["hora_pico"]
+            except Exception:
+                pass
+            
+            # Calcular médicos necesarios
+            # Capacidad: 2.5 pacientes/hora por médico
+            # Cobertura deseada: manejar pico + 20% margen
+            capacidad_por_medico = 2.5
+            medicos_necesarios = max(
+                config["base_medicos"],
+                int(llegadas * 1.2 / capacidad_por_medico) + 1
+            )
+            
+            # Limitar al máximo posible
+            medicos_recomendados = min(medicos_necesarios, config["consultas"] * 4)
+            
+            # Determinar nivel de demanda
+            if medicos_recomendados <= config["base_medicos"]:
+                nivel = "bajo"
+            elif medicos_recomendados <= config["base_medicos"] * 1.5:
+                nivel = "medio"
+            elif medicos_recomendados <= config["base_medicos"] * 2:
+                nivel = "alto"
+            else:
+                nivel = "crítico"
+            
+            totales_por_hospital[hospital_id] += medicos_recomendados
+            
+            recomendaciones.append(WeeklyRecommendation(
+                dia=dia_nombre,
+                dia_numero=dia_num,
+                hospital_id=hospital_id,
+                hospital_nombre=config["nombre"],
+                medicos_recomendados=medicos_recomendados,
+                llegadas_previstas=round(llegadas, 1),
+                pico_hora=pico_hora,
+                nivel_demanda=nivel
+            ))
+    
+    # Resumen
+    resumen = {
+        "por_hospital": {
+            h_id: {
+                "nombre": cfg["nombre"],
+                "promedio_diario": round(totales_por_hospital[h_id] / 7, 1),
+                "maximo_dia": max(r.medicos_recomendados for r in recomendaciones if r.hospital_id == h_id),
+                "minimo_dia": min(r.medicos_recomendados for r in recomendaciones if r.hospital_id == h_id),
+            }
+            for h_id, cfg in HOSPITALES.items()
+        },
+        "total_semanal": sum(totales_por_hospital.values()),
+        "dias_criticos": [r.dia for r in recomendaciones if r.nivel_demanda == "crítico"],
+    }
+    
+    return WeeklyOptimizationResponse(
+        exito=True,
+        semana_inicio=inicio_semana.strftime("%Y-%m-%d"),
+        recomendaciones=recomendaciones,
+        resumen=resumen,
+        mensaje=f"Planificación semanal generada para {len(HOSPITALES)} hospitales."
     )

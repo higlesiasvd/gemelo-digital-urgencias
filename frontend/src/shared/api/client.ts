@@ -71,12 +71,12 @@ export async function fetchListaSergas(disponible?: boolean): Promise<MedicoSerg
     return fetchAPI(`/staff/lista-sergas${params}`);
 }
 
-export async function assignDoctor(medicoId: string, consultaId: number): Promise<unknown> {
+export async function assignDoctor(medicoId: string, consultaId: number, hospitalId: string = 'chuac'): Promise<unknown> {
     return fetchAPI('/staff/assign', {
         method: 'POST',
         body: JSON.stringify({
             medico_id: medicoId,
-            hospital_id: 'chuac',
+            hospital_id: hospitalId,
             consulta_id: consultaId,
         }),
     });
@@ -135,16 +135,17 @@ export interface OptimizationResponse {
     exito: boolean;
     mensaje: string;
     estado_actual: {
-        consultas: Array<{
-            numero: number;
-            medicos_total: number;
-            medicos_base: number;
-            medicos_sergas: number;
-            cola: number;
-            tiempo_espera_estimado: number;
+        hospitales: Record<string, {
+            nombre: string;
+            consultas: number;
+            medicos_actuales: number;
+            medicos_recomendados: number;
+            llegadas_predichas: number;
+            cola_total: number;
+            estado: 'óptimo' | 'déficit';
         }>;
-        total_medicos_sergas_asignados: number;
-        total_cola: number;
+        medicos_sergas_disponibles: number;
+        predicciones_ml_activas: boolean;
     };
     recomendaciones: StaffRecommendation[];
     metricas_actuales: OptimizationMetrics;
@@ -161,6 +162,41 @@ export async function fetchStaffOptimization(apply: boolean = false): Promise<Op
 
 export async function applyStaffOptimization(): Promise<OptimizationResponse> {
     return fetchAPI('/staff/optimize?apply=true');
+}
+
+// Optimización semanal
+export interface WeeklyRecommendation {
+    dia: string;
+    dia_numero: number;
+    hospital_id: string;
+    hospital_nombre: string;
+    medicos_recomendados: number;
+    llegadas_previstas: number;
+    pico_hora: number;
+    nivel_demanda: 'bajo' | 'medio' | 'alto' | 'crítico';
+}
+
+export interface WeeklyOptimizationResponse {
+    exito: boolean;
+    semana_inicio: string;
+    recomendaciones: WeeklyRecommendation[];
+    resumen: {
+        por_hospital: {
+            [key: string]: {
+                nombre: string;
+                promedio_diario: number;
+                maximo_dia: number;
+                minimo_dia: number;
+            };
+        };
+        total_semanal: number;
+        dias_criticos: string[];
+    };
+    mensaje: string;
+}
+
+export async function fetchWeeklyOptimization(): Promise<WeeklyOptimizationResponse> {
+    return fetchAPI('/staff/optimize/weekly');
 }
 
 

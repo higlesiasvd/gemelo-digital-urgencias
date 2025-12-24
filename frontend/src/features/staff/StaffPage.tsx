@@ -24,6 +24,7 @@ import {
     Tooltip,
     Transition,
     TextInput,
+    SegmentedControl,
 } from '@mantine/core';
 import {
     IconStethoscope,
@@ -48,9 +49,11 @@ import {
     IconSearch,
     IconChevronDown,
     IconChevronUp,
+    IconCalendarWeek,
+    IconClock,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { fetchListaSergas, assignDoctor, unassignDoctor, fetchChuacConsultas, fetchStaffOptimization, applyStaffOptimization } from '@/shared/api/client';
+import { fetchListaSergas, assignDoctor, unassignDoctor, fetchChuacConsultas, fetchStaffOptimization, applyStaffOptimization, fetchWeeklyOptimization } from '@/shared/api/client';
 import { cssVariables } from '@/shared/theme';
 
 // Gradientes para tarjetas de hospitales
@@ -108,6 +111,7 @@ export function StaffPage() {
     const [assignModalOpen, setAssignModalOpen] = useState(false);
     const [selectedMedico, setSelectedMedico] = useState<string | null>(null);
     const [selectedConsulta, setSelectedConsulta] = useState<string | null>(null);
+    const [selectedHospital, setSelectedHospital] = useState<string>('chuac');
     const [hoveredDoctor, setHoveredDoctor] = useState<string | null>(null);
 
     // Estados para búsqueda y paginación de listas SERGAS
@@ -134,10 +138,18 @@ export function StaffPage() {
     });
 
     // Query y mutation para optimización
+    const [optimizerTab, setOptimizerTab] = useState<'realtime' | 'weekly'>('realtime');
+
     const { data: optimization, isLoading: isOptimizing, refetch: refetchOptimization } = useQuery({
         queryKey: ['staff', 'optimization'],
         queryFn: () => fetchStaffOptimization(false),
         refetchInterval: 30000,  // Refrescar cada 30s
+    });
+
+    const { data: weeklyOptimization, isLoading: isLoadingWeekly, refetch: refetchWeekly } = useQuery({
+        queryKey: ['staff', 'optimization', 'weekly'],
+        queryFn: () => fetchWeeklyOptimization(),
+        refetchInterval: 60000,  // Refrescar cada minuto
     });
 
     const applyOptimizationMutation = useMutation({
@@ -163,7 +175,7 @@ export function StaffPage() {
     });
 
     const assignMutation = useMutation({
-        mutationFn: ({ medicoId, consultaId }: { medicoId: string; consultaId: number }) => assignDoctor(medicoId, consultaId),
+        mutationFn: ({ medicoId, consultaId, hospitalId }: { medicoId: string; consultaId: number; hospitalId: string }) => assignDoctor(medicoId, consultaId, hospitalId),
         onSuccess: () => {
             notifications.show({ title: 'Médico asignado', message: 'El médico ha sido asignado correctamente', color: 'green' });
             queryClient.invalidateQueries({ queryKey: ['sergas'] });
@@ -171,6 +183,7 @@ export function StaffPage() {
             setAssignModalOpen(false);
             setSelectedMedico(null);
             setSelectedConsulta(null);
+            setSelectedHospital('chuac');
         },
         onError: (error) => {
             notifications.show({ title: 'Error', message: error instanceof Error ? error.message : 'Error al asignar', color: 'red' });
@@ -190,8 +203,8 @@ export function StaffPage() {
     });
 
     const handleAssign = () => {
-        if (selectedMedico && selectedConsulta) {
-            assignMutation.mutate({ medicoId: selectedMedico, consultaId: parseInt(selectedConsulta) });
+        if (selectedMedico && selectedConsulta && selectedHospital) {
+            assignMutation.mutate({ medicoId: selectedMedico, consultaId: parseInt(selectedConsulta), hospitalId: selectedHospital });
         }
     };
 
@@ -360,191 +373,442 @@ export function StaffPage() {
                             <Group gap="xs">
                                 <Title order={3}>Optimizador AI</Title>
                                 <Badge variant="gradient" gradient={{ from: 'violet', to: 'pink' }} size="sm">
-                                    BETA
+                                    ML
                                 </Badge>
                             </Group>
-                            <Text size="sm" c="dimmed">Distribución óptima automática de personal SERGAS</Text>
+                            <Text size="sm" c="dimmed">Distribución óptima basada en predicciones Prophet</Text>
                         </Box>
                     </Group>
                     <Group gap="sm">
-                        <Button
-                            variant="light"
-                            color="violet"
-                            size="sm"
-                            leftSection={<IconRefresh size={16} />}
-                            onClick={() => refetchOptimization()}
-                            loading={isOptimizing}
-                        >
-                            Recalcular
-                        </Button>
-                        <Button
-                            variant="gradient"
-                            gradient={{ from: 'violet', to: 'pink' }}
-                            size="md"
-                            leftSection={<IconRocket size={18} />}
-                            onClick={() => applyOptimizationMutation.mutate()}
-                            loading={applyOptimizationMutation.isPending}
-                            disabled={!optimization?.recomendaciones?.length}
-                            style={{ boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)' }}
-                        >
-                            Aplicar Optimización
-                        </Button>
+                        <SegmentedControl
+                            value={optimizerTab}
+                            onChange={(v) => setOptimizerTab(v as 'realtime' | 'weekly')}
+                            data={[
+                                { label: 'Tiempo Real', value: 'realtime' },
+                                { label: 'Planificación Semanal', value: 'weekly' },
+                            ]}
+                            styles={{
+                                root: {
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                },
+                            }}
+                        />
                     </Group>
                 </Group>
 
-                {/* Métricas de mejora estimada */}
-                {optimization && (
-                    <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md" mb="lg">
-                        <Paper
-                            p="md"
-                            radius="lg"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(52, 211, 153, 0.08) 100%)',
-                                border: '1px solid rgba(16, 185, 129, 0.2)',
-                            }}
-                        >
-                            <Group gap="sm">
-                                <ThemeIcon size={36} radius="xl" color="green" variant="light">
-                                    <IconChartBar size={20} />
-                                </ThemeIcon>
-                                <Box>
-                                    <Text size="1.5rem" fw={700} lh={1} c="green">
-                                        {optimization.mejora_estimada > 0 ? '+' : ''}{optimization.mejora_estimada}%
-                                    </Text>
-                                    <Text size="xs" c="dimmed">Mejora Estimada</Text>
-                                </Box>
-                            </Group>
-                        </Paper>
+                {/* ═══ PESTAÑA TIEMPO REAL ═══ */}
+                {optimizerTab === 'realtime' && (
+                    <>
+                        <Group justify="flex-end" mb="md">
+                            <Button
+                                variant="light"
+                                color="violet"
+                                size="sm"
+                                leftSection={<IconRefresh size={16} />}
+                                onClick={() => refetchOptimization()}
+                                loading={isOptimizing}
+                            >
+                                Recalcular
+                            </Button>
+                            <Button
+                                variant="gradient"
+                                gradient={{ from: 'violet', to: 'pink' }}
+                                size="sm"
+                                leftSection={<IconRocket size={18} />}
+                                onClick={() => applyOptimizationMutation.mutate()}
+                                loading={applyOptimizationMutation.isPending}
+                                disabled={!optimization?.recomendaciones?.length}
+                            >
+                                Aplicar Recomendaciones
+                            </Button>
+                        </Group>
 
-                        <Paper
-                            p="md"
-                            radius="lg"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(99, 102, 241, 0.08) 100%)',
-                                border: '1px solid rgba(59, 130, 246, 0.2)',
-                            }}
-                        >
-                            <Group gap="sm">
-                                <ThemeIcon size={36} radius="xl" color="blue" variant="light">
-                                    <IconUsers size={20} />
-                                </ThemeIcon>
-                                <Box>
-                                    <Text size="1.5rem" fw={700} lh={1}>{optimization.medicos_disponibles}</Text>
-                                    <Text size="xs" c="dimmed">Disponibles</Text>
-                                </Box>
-                            </Group>
-                        </Paper>
-
-                        <Paper
-                            p="md"
-                            radius="lg"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(253, 126, 20, 0.15) 0%, rgba(255, 183, 77, 0.08) 100%)',
-                                border: '1px solid rgba(253, 126, 20, 0.2)',
-                            }}
-                        >
-                            <Group gap="sm">
-                                <ThemeIcon size={36} radius="xl" color="orange" variant="light">
-                                    <IconUserPlus size={20} />
-                                </ThemeIcon>
-                                <Box>
-                                    <Text size="1.5rem" fw={700} lh={1}>{optimization.medicos_a_asignar}</Text>
-                                    <Text size="xs" c="dimmed">A Asignar</Text>
-                                </Box>
-                            </Group>
-                        </Paper>
-
-                        <Paper
-                            p="md"
-                            radius="lg"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(248, 113, 113, 0.08) 100%)',
-                                border: '1px solid rgba(236, 72, 153, 0.2)',
-                            }}
-                        >
-                            <Group gap="sm">
-                                <ThemeIcon size={36} radius="xl" color="pink" variant="light">
-                                    <IconGauge size={20} />
-                                </ThemeIcon>
-                                <Box>
-                                    <Text size="1.5rem" fw={700} lh={1}>
-                                        {optimization.metricas_actuales.tiempo_espera_promedio.toFixed(0)}→{optimization.metricas_proyectadas.tiempo_espera_promedio.toFixed(0)}
-                                    </Text>
-                                    <Text size="xs" c="dimmed">Espera (min)</Text>
-                                </Box>
-                            </Group>
-                        </Paper>
-                    </SimpleGrid>
-                )}
-
-                {/* Lista de recomendaciones */}
-                {optimization?.recomendaciones && optimization.recomendaciones.length > 0 ? (
-                    <Box>
-                        <Text size="sm" fw={600} mb="sm" c="dimmed">
-                            <IconSparkles size={14} style={{ display: 'inline', marginRight: 4 }} />
-                            Recomendaciones de asignación
-                        </Text>
-                        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm">
-                            {optimization.recomendaciones.map((rec, index) => (
+                        {/* Métricas de mejora estimada */}
+                        {optimization && (
+                            <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md" mb="lg">
                                 <Paper
-                                    key={`${rec.medico_id}-${index}`}
-                                    p="sm"
-                                    radius="md"
+                                    p="md"
+                                    radius="lg"
                                     style={{
-                                        background: rec.prioridad === 1
-                                            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(52, 211, 153, 0.06) 100%)'
-                                            : rec.prioridad === 2
-                                                ? 'linear-gradient(135deg, rgba(253, 126, 20, 0.12) 0%, rgba(255, 183, 77, 0.06) 100%)'
-                                                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
-                                        border: rec.prioridad === 1
-                                            ? '1px solid rgba(16, 185, 129, 0.3)'
-                                            : rec.prioridad === 2
-                                                ? '1px solid rgba(253, 126, 20, 0.3)'
-                                                : '1px solid rgba(255, 255, 255, 0.1)',
+                                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(52, 211, 153, 0.08) 100%)',
+                                        border: '1px solid rgba(16, 185, 129, 0.2)',
                                     }}
                                 >
-                                    <Group justify="space-between" wrap="nowrap">
-                                        <Group gap="xs" wrap="nowrap">
-                                            <Avatar size={32} radius="xl" color={rec.prioridad === 1 ? 'green' : rec.prioridad === 2 ? 'orange' : 'gray'}>
-                                                {rec.medico_nombre.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                            </Avatar>
-                                            <Box>
-                                                <Text size="sm" fw={500} lineClamp={1}>{rec.medico_nombre}</Text>
-                                                <Text size="xs" c="dimmed">{rec.impacto_estimado}</Text>
-                                            </Box>
-                                        </Group>
-                                        <Group gap={4} wrap="nowrap">
-                                            <IconArrowRight size={14} style={{ opacity: 0.5 }} />
-                                            <Badge
-                                                size="lg"
-                                                variant={rec.prioridad === 1 ? 'filled' : 'light'}
-                                                color={rec.hospital_destino === 'chuac' ? 'blue' : rec.hospital_destino === 'modelo' ? 'orange' : 'teal'}
-                                            >
-                                                {rec.hospital_destino === 'chuac' ? 'CHU' : rec.hospital_destino === 'modelo' ? 'MOD' : 'SRF'}-C{rec.consulta_destino}
-                                            </Badge>
-                                        </Group>
+                                    <Group gap="sm">
+                                        <ThemeIcon size={36} radius="xl" color="green" variant="light">
+                                            <IconChartBar size={20} />
+                                        </ThemeIcon>
+                                        <Box>
+                                            <Text size="1.5rem" fw={700} lh={1} c="green">
+                                                {optimization.mejora_estimada > 0 ? '+' : ''}{optimization.mejora_estimada}%
+                                            </Text>
+                                            <Text size="xs" c="dimmed">Mejora Estimada</Text>
+                                        </Box>
                                     </Group>
                                 </Paper>
-                            ))}
-                        </SimpleGrid>
-                    </Box>
-                ) : (
-                    <Paper
-                        p="xl"
-                        radius="md"
-                        ta="center"
-                        style={{
-                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
-                        }}
-                    >
-                        <ThemeIcon size={50} radius="xl" color="violet" variant="light" mx="auto" mb="sm">
-                            <IconCheck size={26} />
-                        </ThemeIcon>
-                        <Text fw={500}>Distribución Óptima</Text>
-                        <Text size="sm" c="dimmed">
-                            {optimization?.mensaje || 'No hay recomendaciones de cambios en este momento'}
-                        </Text>
-                    </Paper>
+
+                                <Paper
+                                    p="md"
+                                    radius="lg"
+                                    style={{
+                                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(99, 102, 241, 0.08) 100%)',
+                                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                                    }}
+                                >
+                                    <Group gap="sm">
+                                        <ThemeIcon size={36} radius="xl" color="blue" variant="light">
+                                            <IconUsers size={20} />
+                                        </ThemeIcon>
+                                        <Box>
+                                            <Text size="1.5rem" fw={700} lh={1}>{optimization.medicos_disponibles}</Text>
+                                            <Text size="xs" c="dimmed">Disponibles</Text>
+                                        </Box>
+                                    </Group>
+                                </Paper>
+
+                                <Paper
+                                    p="md"
+                                    radius="lg"
+                                    style={{
+                                        background: 'linear-gradient(135deg, rgba(253, 126, 20, 0.15) 0%, rgba(255, 183, 77, 0.08) 100%)',
+                                        border: '1px solid rgba(253, 126, 20, 0.2)',
+                                    }}
+                                >
+                                    <Group gap="sm">
+                                        <ThemeIcon size={36} radius="xl" color="orange" variant="light">
+                                            <IconUserPlus size={20} />
+                                        </ThemeIcon>
+                                        <Box>
+                                            <Text size="1.5rem" fw={700} lh={1}>{optimization.medicos_a_asignar}</Text>
+                                            <Text size="xs" c="dimmed">A Asignar</Text>
+                                        </Box>
+                                    </Group>
+                                </Paper>
+
+                                <Paper
+                                    p="md"
+                                    radius="lg"
+                                    style={{
+                                        background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(248, 113, 113, 0.08) 100%)',
+                                        border: '1px solid rgba(236, 72, 153, 0.2)',
+                                    }}
+                                >
+                                    <Group gap="sm">
+                                        <ThemeIcon size={36} radius="xl" color="pink" variant="light">
+                                            <IconGauge size={20} />
+                                        </ThemeIcon>
+                                        <Box>
+                                            <Text size="1.5rem" fw={700} lh={1}>
+                                                {optimization.metricas_actuales.tiempo_espera_promedio.toFixed(0)}→{optimization.metricas_proyectadas.tiempo_espera_promedio.toFixed(0)}
+                                            </Text>
+                                            <Text size="xs" c="dimmed">Espera (min)</Text>
+                                        </Box>
+                                    </Group>
+                                </Paper>
+                            </SimpleGrid>
+                        )}
+
+                        {/* Lista de recomendaciones */}
+                        {optimization?.recomendaciones && optimization.recomendaciones.length > 0 ? (
+                            <Box>
+                                <Text size="sm" fw={600} mb="sm" c="dimmed">
+                                    <IconSparkles size={14} style={{ display: 'inline', marginRight: 4 }} />
+                                    Recomendaciones de asignación
+                                </Text>
+                                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm">
+                                    {optimization.recomendaciones.map((rec, index) => (
+                                        <Paper
+                                            key={`${rec.medico_id}-${index}`}
+                                            p="sm"
+                                            radius="md"
+                                            style={{
+                                                background: rec.prioridad === 1
+                                                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(52, 211, 153, 0.06) 100%)'
+                                                    : rec.prioridad === 2
+                                                        ? 'linear-gradient(135deg, rgba(253, 126, 20, 0.12) 0%, rgba(255, 183, 77, 0.06) 100%)'
+                                                        : 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                                                border: rec.prioridad === 1
+                                                    ? '1px solid rgba(16, 185, 129, 0.3)'
+                                                    : rec.prioridad === 2
+                                                        ? '1px solid rgba(253, 126, 20, 0.3)'
+                                                        : '1px solid rgba(255, 255, 255, 0.1)',
+                                            }}
+                                        >
+                                            <Group justify="space-between" wrap="nowrap">
+                                                <Group gap="xs" wrap="nowrap">
+                                                    <Avatar size={32} radius="xl" color={rec.prioridad === 1 ? 'green' : rec.prioridad === 2 ? 'orange' : 'gray'}>
+                                                        {rec.medico_nombre.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                    </Avatar>
+                                                    <Box>
+                                                        <Text size="sm" fw={500} lineClamp={1}>{rec.medico_nombre}</Text>
+                                                        <Text size="xs" c="dimmed">{rec.impacto_estimado}</Text>
+                                                    </Box>
+                                                </Group>
+                                                <Group gap={4} wrap="nowrap">
+                                                    <IconArrowRight size={14} style={{ opacity: 0.5 }} />
+                                                    <Badge
+                                                        size="lg"
+                                                        variant={rec.prioridad === 1 ? 'filled' : 'light'}
+                                                        color={rec.hospital_destino === 'chuac' ? 'blue' : rec.hospital_destino === 'modelo' ? 'orange' : 'teal'}
+                                                    >
+                                                        {rec.hospital_destino === 'chuac' ? 'CHU' : rec.hospital_destino === 'modelo' ? 'MOD' : 'SRF'}-C{rec.consulta_destino}
+                                                    </Badge>
+                                                </Group>
+                                            </Group>
+                                        </Paper>
+                                    ))}
+                                </SimpleGrid>
+                            </Box>
+                        ) : (
+                            <Box>
+                                {/* Estado actual de hospitales con predicciones ML */}
+                                <Group justify="space-between" mb="md">
+                                    <Text size="sm" fw={600} c="dimmed">
+                                        <IconCheck size={14} style={{ display: 'inline', marginRight: 4, color: 'var(--mantine-color-green-5)' }} />
+                                        Estado Óptimo - Todos los hospitales cubiertos
+                                    </Text>
+                                    <Badge color="green" variant="light" size="sm">
+                                        Predicciones ML activas
+                                    </Badge>
+                                </Group>
+
+                                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+                                    {optimization?.estado_actual?.hospitales && Object.entries(optimization.estado_actual.hospitales).map(([hId, hospital]: [string, any]) => (
+                                        <Paper
+                                            key={hId}
+                                            p="lg"
+                                            radius="lg"
+                                            style={{
+                                                background: hId === 'chuac'
+                                                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.06) 100%)'
+                                                    : hId === 'modelo'
+                                                        ? 'linear-gradient(135deg, rgba(253, 126, 20, 0.12) 0%, rgba(255, 183, 77, 0.06) 100%)'
+                                                        : 'linear-gradient(135deg, rgba(20, 184, 166, 0.12) 0%, rgba(94, 234, 212, 0.06) 100%)',
+                                                border: `1px solid ${hId === 'chuac' ? 'rgba(59, 130, 246, 0.25)' : hId === 'modelo' ? 'rgba(253, 126, 20, 0.25)' : 'rgba(20, 184, 166, 0.25)'}`,
+                                            }}
+                                        >
+                                            <Group justify="space-between" mb="sm">
+                                                <Group gap="xs">
+                                                    <ThemeIcon
+                                                        size={32}
+                                                        radius="xl"
+                                                        color={hId === 'chuac' ? 'blue' : hId === 'modelo' ? 'orange' : 'teal'}
+                                                        variant="light"
+                                                    >
+                                                        <IconBuildingHospital size={16} />
+                                                    </ThemeIcon>
+                                                    <Text fw={600}>{hospital.nombre}</Text>
+                                                </Group>
+                                                <Badge
+                                                    color={hospital.estado === 'óptimo' ? 'green' : 'red'}
+                                                    variant="light"
+                                                    size="sm"
+                                                >
+                                                    {hospital.estado === 'óptimo' ? '✓ Óptimo' : '⚠ Déficit'}
+                                                </Badge>
+                                            </Group>
+
+                                            <SimpleGrid cols={2} spacing="xs">
+                                                <Box>
+                                                    <Text size="xs" c="dimmed">Médicos actuales</Text>
+                                                    <Text size="xl" fw={700}>{hospital.medicos_actuales}</Text>
+                                                </Box>
+                                                <Box>
+                                                    <Text size="xs" c="dimmed">Recomendados (ML)</Text>
+                                                    <Text size="xl" fw={700} c={hospital.medicos_actuales >= hospital.medicos_recomendados ? 'green' : 'red'}>
+                                                        {hospital.medicos_recomendados}
+                                                    </Text>
+                                                </Box>
+                                            </SimpleGrid>
+
+                                            <Box mt="sm" pt="sm" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                                <Group justify="space-between">
+                                                    <Text size="xs" c="dimmed">Llegadas predichas</Text>
+                                                    <Text size="sm" fw={500}>{hospital.llegadas_predichas} pac/hora</Text>
+                                                </Group>
+                                                <Group justify="space-between" mt={4}>
+                                                    <Text size="xs" c="dimmed">Cola actual</Text>
+                                                    <Text size="sm" fw={500}>{hospital.cola_total} pacientes</Text>
+                                                </Group>
+                                            </Box>
+                                        </Paper>
+                                    ))}
+                                </SimpleGrid>
+                            </Box>
+                        )}
+                    </>
+                )}
+
+                {/* ═══ PESTAÑA PLANIFICACIÓN SEMANAL ═══ */}
+                {optimizerTab === 'weekly' && (
+                    <>
+                        <Group justify="flex-end" mb="md">
+                            <Button
+                                variant="light"
+                                color="violet"
+                                size="sm"
+                                leftSection={<IconRefresh size={16} />}
+                                onClick={() => refetchWeekly()}
+                                loading={isLoadingWeekly}
+                            >
+                                Actualizar Predicciones
+                            </Button>
+                        </Group>
+
+                        {weeklyOptimization && (
+                            <>
+                                {/* Resumen por hospital */}
+                                <Text size="sm" fw={600} mb="sm" c="dimmed">
+                                    <IconCalendarWeek size={14} style={{ display: 'inline', marginRight: 4 }} />
+                                    Resumen semanal (desde {weeklyOptimization.semana_inicio})
+                                </Text>
+                                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" mb="lg">
+                                    {Object.entries(weeklyOptimization.resumen.por_hospital).map(([hId, data]) => (
+                                        <Paper
+                                            key={hId}
+                                            p="md"
+                                            radius="lg"
+                                            style={{
+                                                background: hId === 'chuac'
+                                                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(99, 102, 241, 0.08) 100%)'
+                                                    : hId === 'modelo'
+                                                        ? 'linear-gradient(135deg, rgba(253, 126, 20, 0.15) 0%, rgba(255, 183, 77, 0.08) 100%)'
+                                                        : 'linear-gradient(135deg, rgba(20, 184, 166, 0.15) 0%, rgba(94, 234, 212, 0.08) 100%)',
+                                                border: `1px solid ${hId === 'chuac' ? 'rgba(59, 130, 246, 0.3)' : hId === 'modelo' ? 'rgba(253, 126, 20, 0.3)' : 'rgba(20, 184, 166, 0.3)'}`,
+                                            }}
+                                        >
+                                            <Group justify="space-between" mb="xs">
+                                                <Text fw={600}>{data.nombre}</Text>
+                                                <Badge color={hId === 'chuac' ? 'blue' : hId === 'modelo' ? 'orange' : 'teal'}>
+                                                    Ø {data.promedio_diario} médicos/día
+                                                </Badge>
+                                            </Group>
+                                            <Group gap="lg">
+                                                <Box>
+                                                    <Text size="xs" c="dimmed">Mínimo</Text>
+                                                    <Text fw={500}>{data.minimo_dia}</Text>
+                                                </Box>
+                                                <Box>
+                                                    <Text size="xs" c="dimmed">Máximo</Text>
+                                                    <Text fw={500}>{data.maximo_dia}</Text>
+                                                </Box>
+                                            </Group>
+                                        </Paper>
+                                    ))}
+                                </SimpleGrid>
+
+                                {/* Tabla compacta de configuración semanal */}
+                                <Text size="sm" fw={600} mb="sm" c="dimmed">
+                                    <IconClock size={14} style={{ display: 'inline', marginRight: 4 }} />
+                                    Configuración diaria recomendada
+                                </Text>
+
+                                <Box style={{ overflowX: 'auto' }}>
+                                    <table style={{
+                                        width: '100%',
+                                        borderCollapse: 'collapse',
+                                        fontSize: '0.875rem',
+                                    }}>
+                                        <thead>
+                                            <tr style={{ background: 'rgba(139, 92, 246, 0.15)' }}>
+                                                <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>Día</th>
+                                                <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    <Badge color="blue" size="xs">CHUAC</Badge>
+                                                </th>
+                                                <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    <Badge color="orange" size="xs">Modelo</Badge>
+                                                </th>
+                                                <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    <Badge color="teal" size="xs">San Rafael</Badge>
+                                                </th>
+                                                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map((dia, index) => {
+                                                const recsDia = weeklyOptimization.recomendaciones.filter(r => r.dia === dia);
+                                                const isWeekend = dia === 'Sábado' || dia === 'Domingo';
+                                                const totalMedicos = recsDia.reduce((sum, r) => sum + r.medicos_recomendados, 0);
+
+                                                const getNivelColor = (nivel: string) => {
+                                                    switch (nivel) {
+                                                        case 'crítico': return '#ef4444';
+                                                        case 'alto': return '#f97316';
+                                                        case 'medio': return '#eab308';
+                                                        default: return '#22c55e';
+                                                    }
+                                                };
+
+                                                return (
+                                                    <tr key={dia} style={{
+                                                        background: isWeekend ? 'rgba(99, 102, 241, 0.06)' : 'transparent',
+                                                        borderBottom: '1px solid rgba(255,255,255,0.05)'
+                                                    }}>
+                                                        <td style={{ padding: '8px 12px', fontWeight: 500 }}>
+                                                            <Group gap={6}>
+                                                                <Text size="sm" fw={600} c={isWeekend ? 'violet' : undefined}>
+                                                                    {['L', 'M', 'X', 'J', 'V', 'S', 'D'][index]}
+                                                                </Text>
+                                                                <Text size="sm">{dia}</Text>
+                                                            </Group>
+                                                        </td>
+                                                        {['chuac', 'modelo', 'san_rafael'].map(hId => {
+                                                            const rec = recsDia.find(r => r.hospital_id === hId);
+                                                            return (
+                                                                <td key={hId} style={{ padding: '8px', textAlign: 'center' }}>
+                                                                    {rec && (
+                                                                        <Stack gap={2} align="center">
+                                                                            <Text
+                                                                                fw={700}
+                                                                                size="lg"
+                                                                                style={{ color: getNivelColor(rec.nivel_demanda) }}
+                                                                            >
+                                                                                {rec.medicos_recomendados}
+                                                                            </Text>
+                                                                            <Text size="xs" c="dimmed">
+                                                                                {rec.llegadas_previstas}/h
+                                                                            </Text>
+                                                                        </Stack>
+                                                                    )}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                        <td style={{ padding: '8px', textAlign: 'center' }}>
+                                                            <Badge variant="gradient" gradient={{ from: 'violet', to: 'grape' }} size="sm">
+                                                                {totalMedicos}
+                                                            </Badge>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </Box>
+
+                                {weeklyOptimization.resumen.dias_criticos.length > 0 && (
+                                    <Alert color="red" variant="light" mt="md" icon={<IconAlertCircle size={18} />}>
+                                        <Text size="sm">
+                                            <strong>⚠️ Días con demanda crítica:</strong> {weeklyOptimization.resumen.dias_criticos.join(', ')}
+                                        </Text>
+                                    </Alert>
+                                )}
+                            </>
+                        )}
+
+                        {!weeklyOptimization && !isLoadingWeekly && (
+                            <Paper
+                                p="xl"
+                                radius="md"
+                                ta="center"
+                                style={{
+                                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+                                }}
+                            >
+                                <Text c="dimmed">No hay datos de predicción semanal disponibles</Text>
+                            </Paper>
+                        )}
+                    </>
                 )}
             </Card>
 
@@ -1115,9 +1379,23 @@ export function StaffPage() {
                 overlayProps={{ backgroundOpacity: 0.55, blur: 3 }}
             >
                 <Stack gap="lg">
-                    <Alert icon={<IconBuildingHospital size={16} />} color="blue" variant="light" radius="md">
-                        Los médicos del SERGAS solo pueden asignarse a consultas del <strong>CHUAC</strong>.
-                    </Alert>
+                    <Select
+                        label="Hospital"
+                        placeholder="Seleccionar hospital"
+                        value={selectedHospital}
+                        onChange={(v) => {
+                            setSelectedHospital(v || 'chuac');
+                            setSelectedConsulta(null); // Reset consulta al cambiar hospital
+                        }}
+                        data={[
+                            { value: 'chuac', label: 'CHUAC (10 consultas)' },
+                            { value: 'modelo', label: 'H. Modelo (4 consultas)' },
+                            { value: 'san_rafael', label: 'San Rafael (4 consultas)' },
+                        ]}
+                        leftSection={<IconBuildingHospital size={16} />}
+                        radius="md"
+                        size="md"
+                    />
 
                     <Select
                         label="Médico"
@@ -1131,11 +1409,14 @@ export function StaffPage() {
                     />
 
                     <Select
-                        label="Consulta (CHUAC)"
+                        label={`Consulta (${selectedHospital === 'chuac' ? 'CHUAC' : selectedHospital === 'modelo' ? 'H. Modelo' : 'San Rafael'})`}
                         placeholder="Seleccionar consulta"
                         value={selectedConsulta}
                         onChange={setSelectedConsulta}
-                        data={Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: `Consulta ${i + 1}` }))}
+                        data={Array.from(
+                            { length: selectedHospital === 'chuac' ? 10 : 4 },
+                            (_, i) => ({ value: String(i + 1), label: `Consulta ${i + 1}` })
+                        )}
                         leftSection={<IconClipboardCheck size={16} />}
                         radius="md"
                         size="md"
@@ -1152,7 +1433,7 @@ export function StaffPage() {
                         leftSection={<IconUserPlus size={20} />}
                         style={{ boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)' }}
                     >
-                        Confirmar Asignación
+                        Asignar a {selectedHospital === 'chuac' ? 'CHUAC' : selectedHospital === 'modelo' ? 'Modelo' : 'San Rafael'}
                     </Button>
                 </Stack>
             </Modal>

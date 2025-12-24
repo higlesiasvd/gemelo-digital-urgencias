@@ -274,7 +274,7 @@ class DoctorAssigned(BaseModel):
     """
     medico_id: str
     medico_nombre: str
-    hospital_id: Literal["chuac"]  # Solo CHUAC permite escalado
+    hospital_id: HospitalId  # Todos los hospitales permiten asignación SERGAS
     consulta_id: int = Field(ge=1, le=10)
     medicos_totales_consulta: int = Field(ge=1, le=4)
     velocidad_factor: float = Field(ge=1.0, le=4.0)
@@ -300,7 +300,7 @@ class DoctorUnassigned(BaseModel):
     """
     medico_id: str
     medico_nombre: str
-    hospital_id: Literal["chuac"]
+    hospital_id: HospitalId  # Todos los hospitales permiten desasignación SERGAS
     consulta_id: int
     medicos_restantes_consulta: int = Field(ge=1, le=4)
     velocidad_factor: float = Field(ge=1.0, le=4.0)
