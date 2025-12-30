@@ -1,0 +1,11 @@
+\usepackage{graphicx}
+\usepackage{eso-pic}
+
+% Cover page command - will be called at document start
+\newcommand{\coverpage}[1]{
+  \newgeometry{margin=0pt}
+  \thispagestyle{empty}
+  \noindent\includegraphics[width=\paperwidth,height=\paperheight]{#1}
+  \restoregeometry
+  \clearpage
+}

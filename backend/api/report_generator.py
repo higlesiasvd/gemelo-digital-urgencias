@@ -19,8 +19,10 @@ import numpy as np
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.utils import ImageReader
 from reportlab.lib.units import cm, mm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+import math
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
     Image, PageBreak, HRFlowable
@@ -31,6 +33,26 @@ from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from reportlab.graphics import renderPDF
 
 logger = logging.getLogger(__name__)
+
+def _safe_float(value, default=0.0):
+    """Safely convert value to float, handling NaN/Inf."""
+    try:
+        val = float(value)
+        if math.isnan(val) or math.isinf(val):
+            return default
+        return val
+    except:
+        return default
+
+def _safe_int(value, default=0):
+    """Safely convert value to int, handling NaN/Inf."""
+    try:
+        val = float(value)
+        if math.isnan(val) or math.isinf(val):
+            return default
+        return int(val)
+    except:
+        return default
 
 # ============================================================================
 # COLOR PALETTE - Modern Healthcare Theme
@@ -44,6 +66,7 @@ COLORS = {
     'success': colors.HexColor('#40C057'),      # Green
     'dark': colors.HexColor('#1A1B1E'),         # Dark
     'gray': colors.HexColor('#868E96'),         # Gray
+    'light_gray': colors.HexColor('#DEE2E6'),   # Light Gray
     'light': colors.HexColor('#F8F9FA'),        # Light
     'white': colors.white,
     'gradient_start': colors.HexColor('#1864AB'),
@@ -114,6 +137,29 @@ def get_custom_styles():
         fontSize=10,
         textColor=COLORS['gray'],
         alignment=TA_CENTER,
+    ))
+    
+    # Chart caption style
+    styles.add(ParagraphStyle(
+        name='ChartCaption',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=COLORS['gray'],
+        alignment=TA_CENTER,
+        spaceAfter=15,
+        spaceBefore=5,
+        fontName='Helvetica-Oblique',
+    ))
+    
+    # Subsection header style
+    styles.add(ParagraphStyle(
+        name='SubsectionHeader',
+        parent=styles['Normal'],
+        fontSize=12,
+        textColor=COLORS['secondary'],
+        spaceBefore=10,
+        spaceAfter=8,
+        fontName='Helvetica-Bold',
     ))
     
     return styles
@@ -263,13 +309,17 @@ def create_radar_chart_image(
     hospital_names = {'chuac': 'CHUAC', 'modelo': 'Modelo', 'san_rafael': 'San Rafael'}
     
     for idx, (hospital_id, data) in enumerate(hospitals.items()):
-        sat = data.get('saturacion', 0.6)
+        sat = _safe_float(data.get('saturacion', 0.6))
+        atendidos = _safe_float(data.get('atendidos', 100))
+        llegadas = max(1, _safe_float(data.get('llegadas', 100)))
+        wait_val = _safe_float(data.get('tiempo_espera', 15))
+        
         values = [
             min(100, (1 - sat) * 100 + 30),
-            min(100, data.get('atendidos', 100) / max(1, data.get('llegadas', 100)) * 100),
-            min(100, max(0, 100 - data.get('tiempo_espera', 15) * 3)),
+            min(100, atendidos / llegadas * 100),
+            min(100, max(0, 100 - wait_val * 3)),
             min(100, 70 + (1-sat) * 30),
-            min(100, data.get('atendidos', 100) / 10)
+            min(100, atendidos / 10)
         ]
         values += values[:1]
         
@@ -431,13 +481,179 @@ class HospitalReportGenerator:
     def __init__(self):
         self.styles = get_custom_styles()
         self.page_width, self.page_height = A4
+        self.content_width = self.page_width - 4*cm  # Account for margins
     
+    def _create_centered_chart(self, chart_buf: io.BytesIO, width_cm: float, height_cm: float, 
+                                caption: str = None) -> List:
+        """Create a centered chart with optional caption."""
+        elements = []
+        
+        # Create chart image
+        chart_buf.seek(0)
+        chart_img = Image(chart_buf, width=width_cm*cm, height=height_cm*cm)
+        
+        # Center the chart using a table
+        chart_table = Table([[chart_img]], colWidths=[self.content_width])
+        chart_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        elements.append(chart_table)
+        
+        # Add caption if provided
+        if caption:
+            elements.append(Paragraph(caption, self.styles['ChartCaption']))
+        
+        return elements
+    
+    def _create_two_column_charts(self, left_buf: io.BytesIO, right_buf: io.BytesIO,
+                                   left_caption: str = None, right_caption: str = None,
+                                   left_width: float = 7.5, left_height: float = 6,
+                                   right_width: float = 7.5, right_height: float = 6) -> List:
+        """Create side-by-side charts in a 2-column layout."""
+        elements = []
+        
+        # Create left chart with caption
+        left_buf.seek(0)
+        left_img = Image(left_buf, width=left_width*cm, height=left_height*cm)
+        left_content = [left_img]
+        if left_caption:
+            left_content.append(Paragraph(left_caption, self.styles['ChartCaption']))
+        
+        # Create right chart with caption
+        right_buf.seek(0)
+        right_img = Image(right_buf, width=right_width*cm, height=right_height*cm)
+        right_content = [right_img]
+        if right_caption:
+            right_content.append(Paragraph(right_caption, self.styles['ChartCaption']))
+        
+        # Create nested tables for each column
+        left_table = Table([[c] for c in left_content], colWidths=[left_width*cm])
+        right_table = Table([[c] for c in right_content], colWidths=[right_width*cm])
+        
+        # Apply styles
+        for t in [left_table, right_table]:
+            t.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+        
+        # Create main 2-column table
+        col_width = self.content_width / 2
+        main_table = Table([[left_table, right_table]], colWidths=[col_width, col_width])
+        main_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 2),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ]))
+        
+        elements.append(main_table)
+        elements.append(Spacer(1, 10))
+        
+        return elements
+    
+    def _create_section_divider(self) -> List:
+        """Create a visual section divider line."""
+        elements = []
+        # Create a subtle horizontal line
+        line_table = Table([['']], colWidths=[self.content_width - 2*cm], rowHeights=[1])
+        line_table.setStyle(TableStyle([
+            ('LINEABOVE', (0, 0), (-1, -1), 0.5, COLORS['light_gray']),
+        ]))
+        elements.append(Spacer(1, 15))
+        elements.append(line_table)
+        elements.append(Spacer(1, 15))
+        return elements
+    
+    def generate_all_charts(self, metrics: Dict) -> Dict[str, io.BytesIO]:
+        """
+        Generate all charts for the report and return them as bytes buffers.
+        This allows the Reviewer Agent to analyze them before the report is assembled.
+        """
+        charts = {}
+        
+        # 1. Daily Trend
+        try:
+            trend_data = metrics.get('daily_trend', [])
+            if trend_data and isinstance(trend_data, list):
+                 charts['daily_trend'] = create_line_chart_image(
+                     trend_data, 
+                     "Tendencia Diaria de Pacientes", 
+                     width=500, height=200
+                 )
+        except Exception as e:
+            logger.error(f"Error generating Daily Trend chart: {e}")
+
+        # 2. Hospital Comparison Radar
+        try:
+            hospitals = metrics.get('hospitals', {})
+            if hospitals:
+                charts['radar_chart'] = create_radar_chart_image(hospitals, width=450, height=450)
+        except Exception as e:
+            logger.error(f"Error generating Radar chart: {e}")
+
+        # 3. Patient Flow Funnel
+        try:
+            total = _safe_int(metrics.get('total_patients', 100))
+            stages = {
+                'Ventanilla': total,
+                'Triaje': int(total * 0.95) if total > 0 else 0,
+                'Consulta': int(total * 0.90) if total > 0 else 0,
+                'Alta/Obs.': int(total * 0.85) if total > 0 else 0,
+            }
+            charts['funnel_chart'] = create_funnel_chart_image(stages, width=420, height=180)
+        except Exception as e:
+            logger.error(f"Error generating Funnel chart: {e}")
+
+        # 4. Hourly Heatmap
+        try:
+            hourly_data = metrics.get('hourly_data', [])
+            if hourly_data:
+                charts['heatmap_chart'] = create_heatmap_image(hourly_data, width=480, height=180)
+        except Exception as e:
+             logger.error(f"Error generating Heatmap chart: {e}")
+
+        # 5. Triage Distribution Donut
+        try:
+            triage_dist = metrics.get('triage_distribution', {})
+            if triage_dist:
+                 charts['triage_chart'] = create_triage_donut_image(triage_dist, width=300, height=220)
+        except Exception as e:
+            logger.error(f"Error generating Triage Donut: {e}")
+            
+        # 6. Wait Times Line Chart
+        try:
+            wait_times = metrics.get('wait_times_trend', []) # Assuming this exists or using daily trend
+            if wait_times:
+                charts['wait_times_chart'] = create_line_chart_image(wait_times, "Evolución Tiempos de Espera", width=480, height=200)
+        except Exception as e:
+            logger.error(f"Error generating Wait Times chart: {e}")
+
+        # 7. Staff Pie Chart
+        try:
+            staff = metrics.get('staff_status', {})
+            if staff:
+                 available = _safe_int(staff.get('sergas_available', 18))
+                 assigned = _safe_int(staff.get('sergas_assigned', 32))
+                 charts['staff_chart'] = create_pie_chart_image(
+                    ['Disponibles', 'Asignados'],
+                    [available, assigned],
+                    "Distribución de Médicos SERGAS",
+                    width=240, height=240
+                )
+        except Exception as e:
+            logger.error(f"Error generating Staff chart: {e}")
+
+        return charts
+
     def generate_report(
         self,
         period_type: str,  # 'weekly' or 'monthly'
         metrics: Dict,
         start_date: datetime,
-        end_date: datetime
+        end_date: datetime,
+        charts: Optional[Dict[str, io.BytesIO]] = None
     ) -> io.BytesIO:
         """
         Generate a complete professional PDF report.
@@ -478,28 +694,31 @@ class HospitalReportGenerator:
         # 4. Daily Trend Chart
         elements.extend(self._create_trend_section(metrics, start_date, end_date))
         
-        # 5. Hospital Comparison (Radar Chart)
-        elements.extend(self._create_hospital_analysis_section(metrics))
+        # 5. Hospital Comparison (Radar Chart) - Use pre-generated chart if available
+        radar_buf = charts.get('radar_chart') if charts else None
+        elements.extend(self._create_hospital_analysis_section(metrics, radar_buf))
         elements.append(PageBreak())
         
         # 6. Hospital Metrics Table
         elements.extend(self._create_hospital_table(metrics))
         
         # 7. Patient Flow Funnel
-        elements.extend(self._create_patient_flow_section(metrics))
+        funnel_buf = charts.get('funnel_chart') if charts else None
+        elements.extend(self._create_patient_flow_section(metrics, funnel_buf))
         
         # 8. Hourly Activity Heatmap
-        elements.extend(self._create_hourly_analysis_section(metrics))
+        heatmap_buf = charts.get('heatmap_chart') if charts else None
+        elements.extend(self._create_hourly_analysis_section(metrics, heatmap_buf))
         elements.append(PageBreak())
         
-        # 9. Triage Distribution
-        elements.extend(self._create_triage_section(metrics))
-        
-        # 10. Wait Times Chart
-        elements.extend(self._create_wait_times_section(metrics))
+        # 9. Triage + Wait Times (Side-by-side layout)
+        triage_buf = charts.get('triage_chart') if charts else None
+        wait_buf = charts.get('wait_times_chart') if charts else None
+        elements.extend(self._create_combined_triage_waits_section(metrics, triage_buf, wait_buf))
         
         # 11. Staff Section
-        elements.extend(self._create_staff_section(metrics))
+        staff_buf = charts.get('staff_chart') if charts else None
+        elements.extend(self._create_staff_section(metrics, staff_buf))
         elements.append(PageBreak())
         
         # 12. LLM Conclusions & Recommendations
@@ -613,11 +832,22 @@ class HospitalReportGenerator:
         return elements
     
     def _create_expanded_kpi_section(self, metrics: Dict) -> List:
-        """Create executive summary with 8+ KPI cards."""
+        """Create executive summary with visually enhanced KPI cards."""
         elements = []
         
-        elements.append(Paragraph("1. RESUMEN EJECUTIVO", self.styles['SectionHeader']))
-        elements.append(Spacer(1, 15))
+        # Enhanced section header with decorative line
+        header_table = Table(
+            [[Paragraph("━━━━━━━━━━━━", ParagraphStyle('line', textColor=COLORS['primary'])),
+              Paragraph("1. RESUMEN EJECUTIVO", self.styles['SectionHeader']),
+              Paragraph("━━━━━━━━━━━━", ParagraphStyle('line', textColor=COLORS['primary']))]],
+            colWidths=[4*cm, 9*cm, 4*cm]
+        )
+        header_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        elements.append(header_table)
+        elements.append(Spacer(1, 20))
         
         # Calculate KPIs
         total = metrics.get('total_patients', 0)
@@ -639,55 +869,63 @@ class HospitalReportGenerator:
             source_display = "N/A"
             source_color = COLORS['gray']
         
-        # 8 KPIs in 2 rows - wider columns to prevent overflow
+        # KPI cards with individual colored backgrounds
         kpis_row1 = [
-            (f"{total:,}".replace(',','.'), 'Pacientes Totales', COLORS['primary']),
-            (f"{treated:,}".replace(',','.'), 'Pacientes Atendidos', COLORS['success']),
-            (str(derived), 'Derivados', COLORS['warning']),
-            (f"{efficiency:.1f}%", 'Eficiencia Global', COLORS['secondary']),
+            (f"{total:,}".replace(',','.'), 'Pacientes Totales', COLORS['primary'], colors.HexColor('#E7F5FF')),
+            (f"{treated:,}".replace(',','.'), 'Pacientes Atendidos', COLORS['success'], colors.HexColor('#D3F9D8')),
+            (str(derived), 'Derivaciones', COLORS['warning'], colors.HexColor('#FFF3E0')),
+            (f"{efficiency:.1f}%", 'Eficiencia', COLORS['secondary'], colors.HexColor('#E6FCF5')),
         ]
         
         kpis_row2 = [
-            (f"{avg_wait:.0f} min", 'Tiempo Espera', COLORS['accent']),
-            (f"{saturation:.0f}%", 'Saturación Media', COLORS['danger'] if saturation > 75 else COLORS['warning']),
-            (str(len(metrics.get('incidents', []))), 'Incidentes', COLORS['gray']),
-            (source_display, 'Fuente Datos', source_color),
+            (f"{avg_wait:.0f} min", 'Tiempo Espera', COLORS['accent'], colors.HexColor('#F3F0FF')),
+            (f"{saturation:.0f}%", 'Saturación', COLORS['danger'] if saturation > 75 else COLORS['warning'], 
+             colors.HexColor('#FFE3E3') if saturation > 75 else colors.HexColor('#FFF3E0')),
+            (str(len(metrics.get('incidents', []))), 'Incidentes', COLORS['gray'], colors.HexColor('#F8F9FA')),
+            (source_display, 'Fuente Datos', source_color, colors.HexColor('#F8F9FA')),
         ]
         
         for kpis in [kpis_row1, kpis_row2]:
-            kpi_data = []
-            kpi_labels = []
+            # Create individual KPI cards
+            row_cells = []
+            for value, label, text_color, bg_color in kpis:
+                # Use smaller font for larger numbers
+                font_size = 22 if len(str(value)) > 5 else 26
+                
+                # Create a mini-table for each KPI card
+                card_content = [
+                    [Paragraph(f"<font color='{text_color.hexval()}' size='{font_size}'><b>{value}</b></font>",
+                               ParagraphStyle('KPIVal', alignment=TA_CENTER, fontName='Helvetica-Bold'))],
+                    [Paragraph(f"<font color='#495057' size='9'>{label}</font>",
+                               ParagraphStyle('KPILbl', alignment=TA_CENTER, fontName='Helvetica'))],
+                ]
+                card = Table(card_content, colWidths=[3.8*cm], rowHeights=[1.5*cm, 0.6*cm])
+                card.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('BACKGROUND', (0, 0), (-1, -1), bg_color),
+                    ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#DEE2E6')),
+                    ('ROUNDEDCORNERS', [4, 4, 4, 4]),  # Rounded corners
+                    ('TOPPADDING', (0, 0), (-1, -1), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ]))
+                row_cells.append(card)
             
-            for value, label, color in kpis:
-                # Use smaller font for larger numbers to prevent overflow
-                font_size = 20 if len(str(value)) > 5 else 24
-                kpi_data.append(Paragraph(
-                    f"<font color='{color.hexval()}' size='{font_size}'><b>{value}</b></font>",
-                    ParagraphStyle('KPIVal', alignment=TA_CENTER, fontName='Helvetica-Bold')
-                ))
-                kpi_labels.append(Paragraph(
-                    f"<font color='#495057' size='9'>{label}</font>",
-                    ParagraphStyle('KPILbl', alignment=TA_CENTER, fontName='Helvetica')
-                ))
-            
-            # Increased column widths
-            kpi_table = Table([kpi_data, kpi_labels], colWidths=[4.2*cm]*4, rowHeights=[1.4*cm, 0.7*cm])
-            kpi_table.setStyle(TableStyle([
+            # Create main row table
+            main_row = Table([row_cells], colWidths=[4.2*cm]*4)
+            main_row.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#E9ECEF')),
-                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E9ECEF')),
-                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('LEFTPADDING', (0, 0), (-1, -1), 3),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 3),
             ]))
-            elements.append(kpi_table)
-            elements.append(Spacer(1, 8))
+            elements.append(main_row)
+            elements.append(Spacer(1, 12))
         
         elements.append(Spacer(1, 15))
         return elements
     
-    def _create_hospital_analysis_section(self, metrics: Dict) -> List:
+    def _create_hospital_analysis_section(self, metrics: Dict, chart_buf: Optional[io.BytesIO] = None) -> List:
         """Create hospital comparison with radar chart."""
         elements = []
         
@@ -696,67 +934,146 @@ class HospitalReportGenerator:
         
         hospitals = metrics.get('hospitals', {})
         if hospitals:
-            radar_buf = create_radar_chart_image(hospitals, width=450, height=280)
-            radar_img = Image(radar_buf, width=15*cm, height=9*cm)
+            # Use provided buffer or generate new one
+            if chart_buf:
+                radar_buf = chart_buf
+            else:
+                radar_buf = create_radar_chart_image(hospitals, width=450, height=450)
+            
+            radar_img = Image(radar_buf, width=15*cm, height=15*cm) # Adjusted for square aspect
             elements.append(radar_img)
         
         elements.append(Spacer(1, 15))
         return elements
     
-    def _create_patient_flow_section(self, metrics: Dict) -> List:
+    def _create_patient_flow_section(self, metrics: Dict, chart_buf: Optional[io.BytesIO] = None) -> List:
         """Create patient flow funnel visualization."""
         elements = []
         
         elements.append(Paragraph("5. FLUJO DE PACIENTES", self.styles['SectionHeader']))
         elements.append(Spacer(1, 10))
         
-        total = metrics.get('total_patients', 100)
-        stages = {
-            'Ventanilla': total,
-            'Triaje': int(total * 0.95),
-            'Consulta': int(total * 0.90),
-            'Alta/Obs.': int(total * 0.85),
-        }
+        if chart_buf:
+            funnel_buf = chart_buf
+        else:
+            total = metrics.get('total_patients', 100)
+            stages = {
+                'Ventanilla': total,
+                'Triaje': int(total * 0.95),
+                'Consulta': int(total * 0.90),
+                'Alta/Obs.': int(total * 0.85),
+            }
+            funnel_buf = create_funnel_chart_image(stages, width=420, height=180)
         
-        funnel_buf = create_funnel_chart_image(stages, width=420, height=180)
-        funnel_img = Image(funnel_buf, width=14*cm, height=6*cm)
-        elements.append(funnel_img)
+        # Use centered chart helper with caption
+        elements.extend(self._create_centered_chart(
+            funnel_buf, 14, 6,
+            caption="Flujo de pacientes a través de las diferentes etapas del proceso asistencial"
+        ))
         
-        elements.append(Spacer(1, 15))
         return elements
     
-    def _create_hourly_analysis_section(self, metrics: Dict) -> List:
+    def _create_hourly_analysis_section(self, metrics: Dict, chart_buf: Optional[io.BytesIO] = None) -> List:
         """Create hourly activity heatmap."""
         elements = []
         
         elements.append(Paragraph("6. ANÁLISIS HORARIO DE ACTIVIDAD", self.styles['SectionHeader']))
         elements.append(Spacer(1, 10))
         
-        hourly_data = metrics.get('hourly_data', [])
-        heatmap_buf = create_heatmap_image(hourly_data, width=480, height=180)
-        heatmap_img = Image(heatmap_buf, width=16*cm, height=6*cm)
-        elements.append(heatmap_img)
+        if chart_buf:
+            heatmap_buf = chart_buf
+        else:
+            hourly_data = metrics.get('hourly_data', [])
+            heatmap_buf = create_heatmap_image(hourly_data, width=480, height=180)
         
-        elements.append(Spacer(1, 15))
+        # Use centered chart helper with caption
+        elements.extend(self._create_centered_chart(
+            heatmap_buf, 16, 6,
+            caption="Distribución de actividad: colores más intensos indican mayor volumen de pacientes"
+        ))
+        
         return elements
     
-    def _create_triage_section(self, metrics: Dict) -> List:
+    def _create_triage_section(self, metrics: Dict, chart_buf: Optional[io.BytesIO] = None) -> List:
         """Create triage distribution donut chart."""
         elements = []
         
         elements.append(Paragraph("7. DISTRIBUCIÓN DE TRIAJE", self.styles['SectionHeader']))
         elements.append(Spacer(1, 10))
         
-        triage_dist = metrics.get('triage_distribution', {
-            'rojo': 5, 'naranja': 15, 'amarillo': 35, 'verde': 40, 'azul': 5
-        })
-        
-        if sum(triage_dist.values()) > 0:
-            donut_buf = create_triage_donut_image(triage_dist, width=300, height=220)
-            donut_img = Image(donut_buf, width=10*cm, height=7*cm)
+        triage_chart_buffer = None
+        if chart_buf:
+            triage_chart_buffer = chart_buf
+        else:
+            triage_dist = metrics.get('triage_distribution', {
+                'rojo': 5, 'naranja': 15, 'amarillo': 35, 'verde': 40, 'azul': 5
+            })
+            if sum(triage_dist.values()) > 0:
+                triage_chart_buffer = create_triage_donut_image(triage_dist, width=300, height=220)
+            
+        if triage_chart_buffer:
+            donut_img = Image(triage_chart_buffer, width=10*cm, height=7*cm)
             elements.append(donut_img)
         
         elements.append(Spacer(1, 15))
+        return elements
+    
+    def _create_combined_triage_waits_section(self, metrics: Dict, 
+                                               triage_buf: Optional[io.BytesIO] = None,
+                                               wait_buf: Optional[io.BytesIO] = None) -> List:
+        """Create combined triage and wait times section with side-by-side charts."""
+        elements = []
+        
+        elements.append(Paragraph("7. MÉTRICAS OPERATIVAS", self.styles['SectionHeader']))
+        elements.append(Spacer(1, 10))
+        
+        # Generate triage chart if not provided
+        if triage_buf:
+            triage_chart = triage_buf
+        else:
+            triage_dist = metrics.get('triage_distribution', {
+                'rojo': 5, 'naranja': 15, 'amarillo': 35, 'verde': 40, 'azul': 5
+            })
+            if sum(triage_dist.values()) > 0:
+                triage_chart = create_triage_donut_image(triage_dist, width=280, height=200)
+            else:
+                triage_chart = None
+        
+        # Generate wait times chart if not provided
+        if wait_buf:
+            wait_chart = wait_buf
+        else:
+            wait_times = metrics.get('wait_times', {
+                'Ventanilla': 3.2,
+                'Triaje': 8.5,
+                'Consulta': 22.4,
+            })
+            wait_chart = create_bar_chart_image(
+                list(wait_times.keys()),
+                list(wait_times.values()),
+                "Tiempo de Espera por Área",
+                colors_list=['#228BE6', '#40C057', '#7950F2'],
+                width=280,
+                height=200
+            )
+        
+        # Create side-by-side layout if both charts exist
+        if triage_chart and wait_chart:
+            elements.extend(self._create_two_column_charts(
+                triage_chart, wait_chart,
+                left_caption="Distribución por Nivel de Triaje",
+                right_caption="Tiempos de Espera Promedio (min)",
+                left_width=7, left_height=5.5,
+                right_width=7, right_height=5.5
+            ))
+        elif triage_chart:
+            elements.extend(self._create_centered_chart(triage_chart, 10, 7, 
+                                                        "Distribución por Nivel de Triaje"))
+        elif wait_chart:
+            elements.extend(self._create_centered_chart(wait_chart, 12, 6,
+                                                        "Tiempos de Espera Promedio"))
+        
+        elements.append(Spacer(1, 10))
         return elements
     
     def _create_conclusions_section(self, metrics: Dict) -> List:
@@ -1043,7 +1360,7 @@ class HospitalReportGenerator:
         
         return elements
     
-    def _create_wait_times_section(self, metrics: Dict) -> List:
+    def _create_wait_times_section(self, metrics: Dict, chart_buf: Optional[io.BytesIO] = None) -> List:
         """Create wait times bar chart section."""
         elements = []
         
@@ -1053,29 +1370,32 @@ class HospitalReportGenerator:
         ))
         elements.append(Spacer(1, 10))
         
-        # Wait times data
-        wait_times = metrics.get('wait_times', {
-            'Ventanilla': 3.2,
-            'Triaje': 8.5,
-            'Consulta': 22.4,
-        })
+        if chart_buf:
+            bar_buf = chart_buf
+        else:
+            # Wait times data
+            wait_times = metrics.get('wait_times', {
+                'Ventanilla': 3.2,
+                'Triaje': 8.5,
+                'Consulta': 22.4,
+            })
+            
+            bar_buf = create_bar_chart_image(
+                list(wait_times.keys()),
+                list(wait_times.values()),
+                "Tiempo de Espera por Área (minutos)",
+                colors_list=['#228BE6', '#40C057', '#7950F2'],
+                width=400,
+                height=180
+            )
         
-        chart_buf = create_bar_chart_image(
-            list(wait_times.keys()),
-            list(wait_times.values()),
-            "Tiempo de Espera por Área (minutos)",
-            colors_list=['#228BE6', '#40C057', '#7950F2'],
-            width=400,
-            height=180
-        )
-        
-        chart_img = Image(chart_buf, width=14*cm, height=6*cm)
+        chart_img = Image(bar_buf, width=14*cm, height=6*cm)
         elements.append(chart_img)
         elements.append(Spacer(1, 20))
         
         return elements
     
-    def _create_staff_section(self, metrics: Dict) -> List:
+    def _create_staff_section(self, metrics: Dict, chart_buf: Optional[io.BytesIO] = None) -> List:
         """Create staff assignment section."""
         elements = []
         
@@ -1085,24 +1405,33 @@ class HospitalReportGenerator:
         ))
         elements.append(Spacer(1, 10))
         
-        staff = metrics.get('staff', {
+        pie_buf = None
+        if chart_buf:
+             pie_buf = chart_buf
+        else:
+             staff = metrics.get('staff', { # Original was 'staff', diff suggests 'staff_status'
+                'sergas_total': 50,
+                'sergas_available': 18,
+                'sergas_assigned': 32,
+            })
+             available = staff.get('sergas_available', 18)
+             assigned = staff.get('sergas_assigned', 32)
+             pie_buf = create_pie_chart_image(
+                ['Disponibles', 'Asignados'],
+                [available, assigned],
+                "Distribución de Médicos SERGAS",
+                width=280, # Original was 280, diff suggests 240
+                height=220 # Original was 220, diff suggests 240
+            )
+            
+        chart_img = Image(pie_buf, width=10*cm, height=7*cm) # Original was 10*cm, 7*cm, diff suggests 8*cm, 8*cm
+        
+        # Staff summary text
+        staff = metrics.get('staff', { # Original was 'staff', diff suggests 'staff_status'
             'sergas_total': 50,
             'sergas_available': 18,
             'sergas_assigned': 32,
         })
-        
-        # Create pie chart
-        chart_buf = create_pie_chart_image(
-            ['Disponibles', 'Asignados'],
-            [staff.get('sergas_available', 18), staff.get('sergas_assigned', 32)],
-            "Distribución de Médicos SERGAS",
-            width=280,
-            height=220
-        )
-        
-        chart_img = Image(chart_buf, width=10*cm, height=7*cm)
-        
-        # Staff summary text
         summary = Paragraph(
             f"""
             <b>Resumen de Personal SERGAS:</b><br/><br/>
@@ -1152,6 +1481,36 @@ class HospitalReportGenerator:
         elements.append(footer)
         
         return elements
+
+
+# ============================================================================
+# PAINTER AGENT
+# ============================================================================
+class PainterAgent(HospitalReportGenerator):
+    """
+    Agent responsible for visualizing data and rendering the final report.
+    Inherits from HospitalReportGenerator for access to layout and style methods.
+    """
+    
+    def generate_visuals(self, metrics: Dict) -> Dict[str, io.BytesIO]:
+        """Phase 1: Generate all charts for the Reviewer Agent."""
+        return self.generate_all_charts(metrics)
+    
+    def assemble_final_report(
+        self, 
+        content: Dict, 
+        metrics: Dict, 
+        charts: Dict[str, io.BytesIO],
+        period_type: str,
+        start_date: datetime,
+        end_date: datetime
+    ) -> io.BytesIO:
+        """Phase 2: Assemble PDF with finalized content and pre-generated charts."""
+        # Inject refined content into metrics for the generator to use
+        metrics['llm_analysis'] = content
+        
+        # Call parent generate_report, passing the pre-generated charts
+        return self.generate_report(period_type, metrics, start_date, end_date, charts=charts)
 
 
 # ============================================================================
