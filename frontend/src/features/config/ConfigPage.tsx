@@ -17,13 +17,23 @@ import {
     Button,
     Box,
     Alert,
+    SegmentedControl,
+    SimpleGrid,
+    Paper,
+    Loader,
 } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
 import {
     IconSettings,
     IconPlayerPlay,
     IconClock,
     IconCheck,
     IconAlertCircle,
+    IconFileTypePdf,
+    IconDownload,
+    IconCalendarWeek,
+    IconCalendarMonth,
+    IconCalendarStats,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { motion } from 'framer-motion';
@@ -44,10 +54,17 @@ const SPEED_DESCRIPTIONS: Record<number, string> = {
     60: 'Ultra rápido: 1 hora real = 1 hora simulada',
 };
 
+const API_URL = import.meta.env.VITE_STAFF_API_URL || 'http://localhost:8000';
+
 export function ConfigPage() {
     const [speed, setSpeed] = useState<number>(10);
     const [isLoading, setIsLoading] = useState(false);
     const [status, setStatus] = useState<{ running: boolean; speed: number } | null>(null);
+
+    // Report export state
+    const [reportType, setReportType] = useState<string>('weekly');
+    const [customDateRange, setCustomDateRange] = useState<[Date | null, Date | null]>([null, null]);
+    const [isGenerating, setIsGenerating] = useState(false);
 
     // Fetch current status on mount
     useEffect(() => {
@@ -56,7 +73,7 @@ export function ConfigPage() {
 
     const fetchStatus = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_STAFF_API_URL || 'http://localhost:8000'}/simulation/status`);
+            const res = await fetch(`${API_URL}/simulation/status`);
             if (res.ok) {
                 const data = await res.json();
                 setStatus(data);
@@ -75,7 +92,7 @@ export function ConfigPage() {
         setIsLoading(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_STAFF_API_URL || 'http://localhost:8000'}/simulation/speed`,
+                `${API_URL}/simulation/speed`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -113,6 +130,67 @@ export function ConfigPage() {
         return SPEED_DESCRIPTIONS[60];
     };
 
+    const downloadReport = async () => {
+        setIsGenerating(true);
+        try {
+            let url = '';
+            let filename = '';
+
+            if (reportType === 'weekly') {
+                url = `${API_URL}/reports/weekly`;
+                filename = `informe_semanal_${new Date().toISOString().split('T')[0]}.pdf`;
+            } else if (reportType === 'monthly') {
+                url = `${API_URL}/reports/monthly`;
+                filename = `informe_mensual_${new Date().toISOString().slice(0, 7)}.pdf`;
+            } else if (reportType === 'custom' && customDateRange[0] && customDateRange[1]) {
+                const start = customDateRange[0].toISOString().split('T')[0];
+                const end = customDateRange[1].toISOString().split('T')[0];
+                url = `${API_URL}/reports/custom?start=${start}&end=${end}`;
+                filename = `informe_${start}_${end}.pdf`;
+            } else {
+                notifications.show({
+                    title: 'Selecciona fechas',
+                    message: 'Por favor selecciona un rango de fechas para el informe personalizado',
+                    color: 'yellow',
+                });
+                setIsGenerating(false);
+                return;
+            }
+
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error('Error al generar el informe');
+            }
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+
+            notifications.show({
+                title: 'Informe generado',
+                message: `${filename} descargado correctamente`,
+                color: 'green',
+                icon: <IconCheck size={16} />,
+            });
+        } catch (error) {
+            notifications.show({
+                title: 'Error',
+                message: 'No se pudo generar el informe PDF',
+                color: 'red',
+                icon: <IconAlertCircle size={16} />,
+            });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     return (
         <Stack gap="lg">
             <Group justify="space-between">
@@ -124,11 +202,156 @@ export function ConfigPage() {
                 )}
             </Group>
 
-            {/* Simulation Speed Card */}
+            {/* Report Export Card */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
+            >
+                <Card
+                    style={{
+                        background: 'linear-gradient(135deg, rgba(34, 139, 230, 0.15) 0%, rgba(18, 184, 134, 0.1) 100%)',
+                        border: `1px solid ${cssVariables.glassBorder}`,
+                    }}
+                >
+                    <Group gap="md" mb="lg">
+                        <ThemeIcon
+                            size={50}
+                            variant="gradient"
+                            gradient={{ from: 'violet', to: 'grape' }}
+                            radius="xl"
+                        >
+                            <IconFileTypePdf size={28} />
+                        </ThemeIcon>
+                        <Box>
+                            <Title order={3}>Exportación de Informes</Title>
+                            <Text c="dimmed" size="sm">
+                                Genera informes PDF con métricas visuales
+                            </Text>
+                        </Box>
+                    </Group>
+
+                    <Stack gap="md">
+                        <SegmentedControl
+                            value={reportType}
+                            onChange={setReportType}
+                            fullWidth
+                            data={[
+                                {
+                                    value: 'weekly',
+                                    label: (
+                                        <Group gap="xs" justify="center">
+                                            <IconCalendarWeek size={16} />
+                                            <Text size="sm">Semanal</Text>
+                                        </Group>
+                                    ),
+                                },
+                                {
+                                    value: 'monthly',
+                                    label: (
+                                        <Group gap="xs" justify="center">
+                                            <IconCalendarMonth size={16} />
+                                            <Text size="sm">Mensual</Text>
+                                        </Group>
+                                    ),
+                                },
+                                {
+                                    value: 'custom',
+                                    label: (
+                                        <Group gap="xs" justify="center">
+                                            <IconCalendarStats size={16} />
+                                            <Text size="sm">Personalizado</Text>
+                                        </Group>
+                                    ),
+                                },
+                            ]}
+                            styles={{
+                                root: { background: 'rgba(0,0,0,0.2)' },
+                            }}
+                        />
+
+                        {reportType === 'custom' && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <DatePickerInput
+                                    type="range"
+                                    label="Rango de fechas"
+                                    placeholder="Selecciona inicio y fin"
+                                    value={customDateRange}
+                                    onChange={setCustomDateRange}
+                                    maxDate={new Date()}
+                                    styles={{
+                                        input: { background: 'rgba(0,0,0,0.2)' },
+                                    }}
+                                />
+                            </motion.div>
+                        )}
+
+                        <SimpleGrid cols={3} spacing="sm">
+                            <Paper
+                                p="sm"
+                                radius="md"
+                                style={{ background: 'rgba(255,255,255,0.05)', textAlign: 'center' }}
+                            >
+                                <Text size="xs" c="dimmed">Incluye</Text>
+                                <Text size="sm" fw={500}>📊 KPIs</Text>
+                            </Paper>
+                            <Paper
+                                p="sm"
+                                radius="md"
+                                style={{ background: 'rgba(255,255,255,0.05)', textAlign: 'center' }}
+                            >
+                                <Text size="xs" c="dimmed">Incluye</Text>
+                                <Text size="sm" fw={500}>📈 Gráficos</Text>
+                            </Paper>
+                            <Paper
+                                p="sm"
+                                radius="md"
+                                style={{ background: 'rgba(255,255,255,0.05)', textAlign: 'center' }}
+                            >
+                                <Text size="xs" c="dimmed">Incluye</Text>
+                                <Text size="sm" fw={500}>🏥 Tablas</Text>
+                            </Paper>
+                        </SimpleGrid>
+
+                        <Alert
+                            variant="light"
+                            color="violet"
+                            icon={<IconFileTypePdf size={16} />}
+                            style={{ background: 'rgba(121,80,242,0.1)' }}
+                        >
+                            <Text size="sm">
+                                {reportType === 'weekly' && 'El informe incluirá métricas de los últimos 7 días.'}
+                                {reportType === 'monthly' && 'El informe incluirá métricas de los últimos 30 días.'}
+                                {reportType === 'custom' && 'Selecciona un rango de fechas para generar el informe.'}
+                            </Text>
+                        </Alert>
+
+                        <Group justify="flex-end">
+                            <Button
+                                onClick={downloadReport}
+                                loading={isGenerating}
+                                leftSection={isGenerating ? <Loader size={16} /> : <IconDownload size={16} />}
+                                variant="gradient"
+                                gradient={{ from: 'violet', to: 'grape' }}
+                                size="md"
+                                disabled={reportType === 'custom' && (!customDateRange[0] || !customDateRange[1])}
+                            >
+                                {isGenerating ? 'Generando...' : 'Descargar PDF'}
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Card>
+            </motion.div>
+
+            {/* Simulation Speed Card */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
             >
                 <Card
                     style={{
@@ -206,7 +429,7 @@ export function ConfigPage() {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
             >
                 <Card
                     style={{
@@ -239,7 +462,7 @@ export function ConfigPage() {
                         <Divider my="md" style={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
                         <Text size="xs" c="dimmed">
-                            HealthVerse Coruña v1.0 • Gemelo Digital Hospitalario
+                            HealthVerse Coruña v2.0 • Gemelo Digital Hospitalario
                         </Text>
                     </Stack>
                 </Card>
