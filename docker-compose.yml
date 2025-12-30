@@ -135,13 +135,49 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-piechart-panel
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:
       - influxdb
+      - prometheus
+      - jaeger
     restart: unless-stopped
     networks:
       - urgencias-network
+
+  # ==========================================================================
+  # PROMETHEUS - Metricas de sistema y aplicacion
+  # ==========================================================================
+  prometheus:
+    build: ./docker/prometheus
+    container_name: urgencias-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    networks:
+      - urgencias-network
+
+  # ==========================================================================
+  # JAEGER - Distributed Tracing
+  # ==========================================================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.53
+    container_name: urgencias-jaeger
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "6831:6831/udp" # Jaeger Thrift compact
+      - "14268:14268"   # Jaeger HTTP collector
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
+    networks:
+      - urgencias-network
+
 
   # ==========================================================================
   # NODE-RED - Integracion y procesamiento (Kafka)
@@ -303,6 +339,7 @@ volumes:
   kafka_data:
   influxdb_data:
   grafana_data:
+  prometheus_data:
 
 # ============================================================================
 # NETWORKS

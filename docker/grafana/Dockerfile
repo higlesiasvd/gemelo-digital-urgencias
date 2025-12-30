@@ -6,6 +6,7 @@ RUN grafana-cli plugins install grafana-clock-panel && \
     grafana-cli plugins install grafana-piechart-panel && \
     grafana-cli plugins install marcusolsson-treemap-panel && \
     grafana-cli plugins install volkovlabs-image-panel && \
+    grafana-cli plugins install grafana-polystat-panel && \
     chown -R grafana:root /var/lib/grafana/plugins
 
 # Copiar configuración de datasources y dashboards

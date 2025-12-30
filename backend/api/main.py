@@ -21,11 +21,17 @@ from datetime import datetime
 from common.config import settings
 from common.models import init_db
 from common.kafka_client import create_all_topics
+from common.observability import (
+    setup_tracing,
+    setup_fastapi_instrumentation,
+    setup_httpx_instrumentation
+)
 
 from .staff_routes import router as staff_router
 from .simulation_routes import router as simulation_router
 from .prediction_routes import router as prediction_router
 from .incident_routes import router as incident_router
+from .report_routes import router as report_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,6 +49,23 @@ async def lifespan(app: FastAPI):
     """Lifecycle hooks de la aplicación"""
     # Startup
     logger.info("Iniciando API...")
+
+    # Setup distributed tracing (Jaeger)
+    try:
+        setup_tracing(
+            service_name="hospital-api",
+            jaeger_endpoint="http://jaeger:4318/v1/traces",
+            enabled=True
+        )
+        logger.info("Tracing configurado (Jaeger)")
+    except Exception as e:
+        logger.warning(f"Error configurando tracing: {e}")
+    
+    # Setup HTTPX instrumentation for outgoing HTTP calls
+    try:
+        setup_httpx_instrumentation()
+    except Exception as e:
+        logger.warning(f"Error configurando HTTPX instrumentation: {e}")
 
     # Inicializar base de datos
     try:
@@ -103,6 +126,14 @@ app.include_router(staff_router)
 app.include_router(simulation_router)
 app.include_router(prediction_router)
 app.include_router(incident_router)
+app.include_router(report_router)
+
+# Setup Prometheus instrumentation (exposes /metrics endpoint)
+try:
+    setup_fastapi_instrumentation(app, excluded_handlers=["/health", "/metrics", "/docs", "/openapi.json"])
+    logger.info("Prometheus instrumentation configurada - /metrics disponible")
+except Exception as e:
+    logger.warning(f"Error configurando Prometheus: {e}")
 
 
 # ============================================================================
@@ -128,6 +159,14 @@ async def health():
         "status": "healthy",
         "timestamp": datetime.now().isoformat()
     }
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint"""
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from fastapi.responses import Response
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/hospitals")

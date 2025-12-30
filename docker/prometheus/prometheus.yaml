@@ -1,0 +1,54 @@
+# ============================================================================
+# PROMETHEUS CONFIGURATION
+# ============================================================================
+# Scrape configuration for Hospital Digital Twin services
+# ============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'hospital-digital-twin'
+
+# ============================================================================
+# SCRAPE CONFIGS
+# ============================================================================
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # FastAPI API Service
+  - job_name: 'api'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api:8000']
+        labels:
+          service: 'api'
+          component: 'backend'
+
+  # Prophet Prediction Service
+  - job_name: 'prophet'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['prophet:8001']
+        labels:
+          service: 'prophet'
+          component: 'ml'
+
+  # Chatbot MCP Service
+  - job_name: 'chatbot'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['chatbot:8080']
+        labels:
+          service: 'chatbot'
+          component: 'ai'
+
+  # Kafka metrics (if kafka-exporter is added later)
+  # - job_name: 'kafka'
+  #   static_configs:
+  #     - targets: ['kafka-exporter:9308']

@@ -1,0 +1,62 @@
+# ============================================================================
+# GRAFANA DATASOURCES - Unified Configuration
+# ============================================================================
+# Datasources: InfluxDB (simulation), Prometheus (metrics), Jaeger (traces)
+# ============================================================================
+
+apiVersion: 1
+
+datasources:
+  # ==========================================================================
+  # INFLUXDB - Simulation & Hospital Stats
+  # ==========================================================================
+  - name: InfluxDB-Urgencias
+    uid: influxdb
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    jsonData:
+      version: Flux
+      organization: urgencias
+      defaultBucket: urgencias
+      tlsSkipVerify: true
+    secureJsonData:
+      token: mi-token-secreto-urgencias-dt
+    isDefault: true
+    editable: true
+
+  # ==========================================================================
+  # PROMETHEUS - System & API Metrics
+  # ==========================================================================
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    jsonData:
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      httpMethod: POST
+    isDefault: false
+    editable: true
+
+  # ==========================================================================
+  # JAEGER - Distributed Tracing
+  # ==========================================================================
+  - name: Jaeger
+    uid: jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    jsonData:
+      tracesToLogs:
+        datasourceUid: 'loki'
+        tags: ['job', 'instance', 'pod', 'namespace']
+        mappedTags: [{ key: 'service.name', value: 'service' }]
+        mapTagNamesEnabled: false
+        spanStartTimeShift: '1h'
+        spanEndTimeShift: '-1h'
+        filterByTraceID: false
+        filterBySpanID: false
+    isDefault: false
+    editable: true
