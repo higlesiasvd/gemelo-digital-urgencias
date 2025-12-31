@@ -264,3 +264,39 @@ export function useLeaderboard(type: 'global' | 'weekly' | 'streak' = 'global', 
         staleTime: 60000, // 1 minute
     });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HOOKS - GAMIFICATION STATS (for homepage)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export function useGamificationStats() {
+    const { token, user } = useAuth();
+
+    return useQuery({
+        queryKey: ['gamification', 'stats'],
+        queryFn: async () => {
+            // Combine data from user and profile
+            try {
+                const profile = await fetchWithAuth('/gamification/profile', token);
+                return {
+                    racha_actual: profile?.racha_dias || 0,
+                    vidas_actuales: user?.vidas || 5,
+                    xp_total: profile?.xp_total || user?.xp_total || 0,
+                    nivel_actual: profile?.nivel || user?.nivel || 1,
+                    lecciones_completadas: profile?.lecciones_completadas || 0,
+                };
+            } catch {
+                return {
+                    racha_actual: 0,
+                    vidas_actuales: user?.vidas || 5,
+                    xp_total: user?.xp_total || 0,
+                    nivel_actual: user?.nivel || 1,
+                    lecciones_completadas: 0,
+                };
+            }
+        },
+        enabled: !!token,
+        staleTime: 30000,
+    });
+}
+
