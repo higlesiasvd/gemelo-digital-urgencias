@@ -30,6 +30,7 @@ import {
   LessonPage,
   ProfilePage,
   LeaderboardPage,
+  ProfessorPage,
 } from '@/features/training';
 
 import { theme } from '@/shared/theme';
@@ -110,6 +111,7 @@ export function App() {
               >
                 <Route index element={<TrainingHomePage />} />
                 <Route path="leccion/:id" element={<LessonPage />} />
+                <Route path="profesor" element={<ProfessorPage />} />
                 <Route path="perfil" element={<ProfilePage />} />
                 <Route path="ranking" element={<LeaderboardPage />} />
               </Route>

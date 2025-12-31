@@ -240,6 +240,428 @@ INSERT INTO lista_sergas (nombre, especialidad, disponible) VALUES
     ('Dr. Lucas Guerrero', 'Medicina General', true),
     ('Dra. Paula Campos', 'Urgencias', true),
     ('Dr. Adrián Rojas', 'Cardiología', true);
+-- ============================================================================
+-- SISTEMA DE USUARIOS Y GAMIFICACIÓN
+-- ============================================================================
+
+-- TABLA: users (OAuth + gamificación)
+CREATE TABLE IF NOT EXISTS users (
+    user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    -- OAuth campos
+    oauth_provider VARCHAR(20) NOT NULL DEFAULT 'google',
+    oauth_id VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    -- Perfil
+    nombre VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100),
+    avatar_url VARCHAR(500),
+    rol VARCHAR(20) DEFAULT 'estudiante' CHECK (rol IN ('estudiante', 'admin')),
+    -- Gamificación
+    xp_total INT DEFAULT 0,
+    nivel INT DEFAULT 1,
+    racha_dias INT DEFAULT 0,
+    racha_max INT DEFAULT 0,
+    vidas INT DEFAULT 5,
+    ultima_actividad DATE,
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT NOW(),
+    last_login TIMESTAMP,
+    UNIQUE(oauth_provider, oauth_id)
+);
+
+-- TABLA: lessons (Lecciones/Niveles del árbol)
+CREATE TABLE IF NOT EXISTS lessons (
+    lesson_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    orden INT NOT NULL,
+    codigo VARCHAR(50) UNIQUE NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    icono VARCHAR(50) NOT NULL,
+    color VARCHAR(20) NOT NULL,
+    xp_recompensa INT DEFAULT 50,
+    ejercicios_requeridos INT DEFAULT 10,
+    lesson_prerequisito UUID REFERENCES lessons(lesson_id),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- TABLA: user_lessons (Progreso del usuario en lecciones)
+CREATE TABLE IF NOT EXISTS user_lessons (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    lesson_id UUID REFERENCES lessons(lesson_id) ON DELETE CASCADE,
+    ejercicios_completados INT DEFAULT 0,
+    estrellas INT DEFAULT 0 CHECK (estrellas >= 0 AND estrellas <= 3),
+    completada BOOLEAN DEFAULT false,
+    xp_obtenido INT DEFAULT 0,
+    started_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP,
+    UNIQUE(user_id, lesson_id)
+);
+
+-- TABLA: clinical_cases (Casos clínicos para ejercicios)
+CREATE TABLE IF NOT EXISTS clinical_cases (
+    case_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    lesson_id UUID REFERENCES lessons(lesson_id),
+    titulo VARCHAR(200) NOT NULL,
+    descripcion TEXT NOT NULL,
+    paciente_edad INT,
+    paciente_sexo VARCHAR(10),
+    motivo_consulta TEXT NOT NULL,
+    sintomas JSONB NOT NULL,
+    constantes_vitales JSONB,
+    antecedentes TEXT,
+    triaje_correcto VARCHAR(20) NOT NULL CHECK (triaje_correcto IN ('rojo', 'naranja', 'amarillo', 'verde', 'azul')),
+    explicacion TEXT NOT NULL,
+    xp_base INT DEFAULT 10,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- TABLA: exercise_attempts (Intentos de ejercicios)
+CREATE TABLE IF NOT EXISTS exercise_attempts (
+    attempt_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    case_id UUID REFERENCES clinical_cases(case_id),
+    lesson_id UUID REFERENCES lessons(lesson_id),
+    respuesta_usuario VARCHAR(20) NOT NULL,
+    es_correcta BOOLEAN NOT NULL,
+    tiempo_ms INT,
+    xp_obtenido INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- TABLA: badges
+CREATE TABLE IF NOT EXISTS badges (
+    badge_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    codigo VARCHAR(50) UNIQUE NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    icono VARCHAR(50) NOT NULL,
+    color VARCHAR(20) NOT NULL,
+    criterio JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- TABLA: user_badges
+CREATE TABLE IF NOT EXISTS user_badges (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    badge_id UUID REFERENCES badges(badge_id) ON DELETE CASCADE,
+    obtenido_en TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, badge_id)
+);
+
+-- TABLA: daily_challenges (Reto diario)
+CREATE TABLE IF NOT EXISTS daily_challenges (
+    challenge_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    fecha DATE UNIQUE NOT NULL,
+    casos_ids UUID[] NOT NULL,
+    xp_bonus INT DEFAULT 50,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- TABLA: user_daily_progress (Progreso diario del usuario)
+CREATE TABLE IF NOT EXISTS user_daily_progress (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+    fecha DATE NOT NULL,
+    ejercicios_completados INT DEFAULT 0,
+    xp_ganado INT DEFAULT 0,
+    racha_mantenida BOOLEAN DEFAULT false,
+    UNIQUE(user_id, fecha)
+);
+
+-- Índices para gamificación
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_oauth ON users(oauth_provider, oauth_id);
+CREATE INDEX IF NOT EXISTS idx_exercise_attempts_user ON exercise_attempts(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_lessons_user ON user_lessons(user_id);
+CREATE INDEX IF NOT EXISTS idx_clinical_cases_lesson ON clinical_cases(lesson_id);
+CREATE INDEX IF NOT EXISTS idx_user_daily_progress_user ON user_daily_progress(user_id, fecha);
+
+-- ============================================================================
+-- DATOS INICIALES: Lecciones del árbol de formación
+-- ============================================================================
+
+INSERT INTO lessons (orden, codigo, nombre, descripcion, icono, color, xp_recompensa, ejercicios_requeridos) VALUES
+(1, 'fundamentos', 'Fundamentos del Triaje', 'Aprende los conceptos básicos del sistema Manchester de triaje', '📘', '#3b82f6', 100, 10),
+(2, 'verde_azul', 'Triaje Verde y Azul', 'Casos no urgentes y de baja prioridad que pueden esperar', '🟢', '#22c55e', 150, 10),
+(3, 'amarillo', 'Triaje Amarillo', 'Urgencias que pueden esperar hasta 60 minutos', '🟡', '#eab308', 200, 12),
+(4, 'naranja', 'Triaje Naranja', 'Urgencias que requieren atención en 10 minutos', '🟠', '#f97316', 250, 12),
+(5, 'rojo', 'Triaje Rojo', 'Emergencias vitales que requieren atención inmediata', '🔴', '#ef4444', 300, 15),
+(6, 'gestion', 'Gestión de Crisis', 'Manejo de situaciones de alta demanda y recursos limitados', '🏥', '#8b5cf6', 400, 10);
+
+-- Actualizar prerrequisitos de lecciones
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'fundamentos') WHERE codigo = 'verde_azul';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'verde_azul') WHERE codigo = 'amarillo';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'amarillo') WHERE codigo = 'naranja';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'naranja') WHERE codigo = 'rojo';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'rojo') WHERE codigo = 'gestion';
+
+-- ============================================================================
+-- DATOS INICIALES: Badges del sistema de gamificación
+-- ============================================================================
+
+INSERT INTO badges (codigo, nombre, descripcion, icono, color, criterio) VALUES
+('primer_triaje', 'Primer Triaje', 'Completa tu primera evaluación de triaje', '🩺', '#3b82f6', '{"tipo": "ejercicios", "cantidad": 1}'),
+('racha_3', 'Constancia', '3 días seguidos practicando', '🔥', '#f97316', '{"tipo": "racha", "dias": 3}'),
+('racha_7', 'Dedicación', '7 días seguidos practicando', '🔥', '#ef4444', '{"tipo": "racha", "dias": 7}'),
+('racha_30', 'Maestría', '30 días seguidos practicando', '🔥', '#fbbf24', '{"tipo": "racha", "dias": 30}'),
+('perfecta_leccion', 'Lección Perfecta', 'Completa una lección sin ningún error', '⭐', '#fbbf24', '{"tipo": "leccion_perfecta"}'),
+('nivel_verde', 'Verde Experto', 'Completa el nivel de Triaje Verde y Azul', '🟢', '#22c55e', '{"tipo": "leccion_completada", "leccion": "verde_azul"}'),
+('nivel_amarillo', 'Amarillo Experto', 'Completa el nivel de Triaje Amarillo', '🟡', '#eab308', '{"tipo": "leccion_completada", "leccion": "amarillo"}'),
+('nivel_naranja', 'Naranja Experto', 'Completa el nivel de Triaje Naranja', '🟠', '#f97316', '{"tipo": "leccion_completada", "leccion": "naranja"}'),
+('nivel_rojo', 'Experto en Críticos', 'Completa el nivel de Triaje Rojo', '🔴', '#ef4444', '{"tipo": "leccion_completada", "leccion": "rojo"}'),
+('maestro_triaje', 'Maestro del Triaje', 'Completa todos los niveles de triaje', '🏆', '#8b5cf6', '{"tipo": "todos_niveles"}'),
+('xp_500', 'Aprendiz', 'Acumula 500 XP', '💎', '#06b6d4', '{"tipo": "xp", "cantidad": 500}'),
+('xp_1000', 'Experto', 'Acumula 1000 XP', '💎', '#0891b2', '{"tipo": "xp", "cantidad": 1000}'),
+('xp_5000', 'Leyenda', 'Acumula 5000 XP', '💎', '#0e7490', '{"tipo": "xp", "cantidad": 5000}'),
+('velocista', 'Velocista', 'Responde correctamente en menos de 10 segundos', '⚡', '#eab308', '{"tipo": "tiempo", "segundos": 10}'),
+('sin_errores_10', 'Racha Perfecta', '10 respuestas correctas seguidas', '🎯', '#10b981', '{"tipo": "racha_correctas", "cantidad": 10}');
+
+-- ============================================================================
+-- DATOS INICIALES: Casos clínicos para Nivel 1 - Fundamentos
+-- ============================================================================
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Dolor torácico severo',
+    'Paciente que acude por dolor torácico opresivo de inicio súbito',
+    67, 'Mujer',
+    'Dolor en el pecho que me aprieta desde hace 30 minutos',
+    '["Dolor torácico opresivo irradiado a brazo izquierdo", "Sudoración profusa", "Náuseas", "Disnea"]'::jsonb,
+    '{"pa": "90/60", "fc": 110, "sato2": 94, "temp": 36.8}'::jsonb,
+    'HTA, DM tipo 2, fumadora',
+    'rojo',
+    'Cuadro clínico compatible con síndrome coronario agudo (SCA). El dolor torácico opresivo irradiado a brazo izquierdo, con cortejo vegetativo (sudoración, náuseas) y compromiso hemodinámico (hipotensión, taquicardia) requiere atención INMEDIATA. Triaje ROJO - riesgo vital.',
+    15
+FROM lessons WHERE codigo = 'fundamentos';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Resfriado común',
+    'Paciente con síntomas catarrales de varios días de evolución',
+    28, 'Varón',
+    'Llevo 3 días con mocos y dolor de garganta',
+    '["Rinorrea", "Odinofagia leve", "Tos seca ocasional", "Malestar general leve"]'::jsonb,
+    '{"pa": "120/80", "fc": 72, "sato2": 99, "temp": 37.2}'::jsonb,
+    'Sin antecedentes de interés',
+    'azul',
+    'Cuadro catarral sin signos de gravedad. Constantes normales, afebril, sin disnea ni otros signos de alarma. Puede esperar y ser atendido en consulta no urgente. Triaje AZUL - no urgente.',
+    10
+FROM lessons WHERE codigo = 'fundamentos';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Cefalea intensa',
+    'Paciente con cefalea severa de inicio brusco',
+    45, 'Varón',
+    'Me ha dado el peor dolor de cabeza de mi vida, de repente',
+    '["Cefalea súbita muy intensa (10/10)", "Rigidez de nuca", "Fotofobia", "Náuseas"]'::jsonb,
+    '{"pa": "160/95", "fc": 88, "sato2": 98, "temp": 37.0}'::jsonb,
+    'HTA mal controlada',
+    'rojo',
+    'Cefalea thunderclap (inicio súbito, máxima intensidad) con rigidez de nuca. Alta sospecha de hemorragia subaracnoidea (HSA). Requiere atención INMEDIATA y TAC craneal urgente. Triaje ROJO.',
+    15
+FROM lessons WHERE codigo = 'fundamentos';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Esguince de tobillo',
+    'Paciente joven tras torcedura de tobillo jugando fútbol',
+    22, 'Varón',
+    'Me he torcido el tobillo hace 2 horas jugando al fútbol',
+    '["Dolor en tobillo derecho", "Inflamación moderada", "Puede apoyar con molestias", "Sin deformidad visible"]'::jsonb,
+    '{"pa": "125/75", "fc": 78, "sato2": 99, "temp": 36.5}'::jsonb,
+    'Sin antecedentes',
+    'verde',
+    'Traumatismo de tobillo sin criterios de gravedad. Puede apoyar, sin deformidad, constantes normales. Puede esperar a ser atendido. Triaje VERDE - urgencia menor.',
+    10
+FROM lessons WHERE codigo = 'fundamentos';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Crisis asmática',
+    'Paciente asmático con dificultad respiratoria progresiva',
+    35, 'Mujer',
+    'No puedo respirar bien, el inhalador no me hace efecto',
+    '["Disnea moderada-severa", "Sibilancias audibles", "Uso de musculatura accesoria", "Dificultad para hablar frases completas"]'::jsonb,
+    '{"pa": "130/85", "fc": 105, "sato2": 91, "temp": 36.6}'::jsonb,
+    'Asma bronquial desde la infancia, varios ingresos previos',
+    'naranja',
+    'Crisis asmática moderada-severa. Saturación baja (91%), uso de musculatura accesoria, dificultad para hablar. Requiere atención en menos de 10 minutos para iniciar broncodilatadores y valorar respuesta. Triaje NARANJA.',
+    12
+FROM lessons WHERE codigo = 'fundamentos';
+
+-- ============================================================================
+-- DATOS INICIALES: Casos clínicos para Nivel 2 - Verde y Azul
+-- ============================================================================
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Dolor lumbar crónico',
+    'Paciente con dolor de espalda de larga evolución',
+    55, 'Varón',
+    'Me duele la espalda baja desde hace meses, hoy está peor',
+    '["Lumbalgia mecánica", "Sin irradiación a piernas", "Movilidad conservada", "Sin pérdida de fuerza"]'::jsonb,
+    '{"pa": "135/85", "fc": 76, "sato2": 98, "temp": 36.4}'::jsonb,
+    'Lumbalgia crónica, obesidad',
+    'verde',
+    'Lumbalgia mecánica sin signos de alarma (no hay irradiación, no pérdida de fuerza, no síndrome de cola de caballo). Puede esperar. Triaje VERDE.',
+    10
+FROM lessons WHERE codigo = 'verde_azul';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Conjuntivitis',
+    'Paciente con ojo rojo de 2 días de evolución',
+    30, 'Mujer',
+    'Tengo el ojo rojo y me pica mucho desde ayer',
+    '["Ojo rojo bilateral", "Picor intenso", "Secreción acuosa", "Sin dolor", "Sin alteración visual"]'::jsonb,
+    '{"pa": "118/72", "fc": 68, "sato2": 99, "temp": 36.3}'::jsonb,
+    'Alergia primaveral',
+    'azul',
+    'Conjuntivitis probablemente alérgica. Sin signos de gravedad (dolor intenso, alteración visual, fotofobia intensa). Puede ser atendida en consulta no urgente. Triaje AZUL.',
+    10
+FROM lessons WHERE codigo = 'verde_azul';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Gastroenteritis leve',
+    'Paciente con diarrea y vómitos de 24 horas',
+    40, 'Varón',
+    'Llevo desde ayer con diarrea y he vomitado 2 veces',
+    '["Diarrea acuosa (4-5 deposiciones)", "2 vómitos", "Dolor abdominal tipo cólico", "Tolera líquidos", "Sin fiebre alta"]'::jsonb,
+    '{"pa": "115/70", "fc": 82, "sato2": 99, "temp": 37.4}'::jsonb,
+    'Sin antecedentes',
+    'verde',
+    'Gastroenteritis aguda leve. Tolera líquidos, sin signos de deshidratación severa, afebril o febrícula. Puede esperar. Triaje VERDE.',
+    10
+FROM lessons WHERE codigo = 'verde_azul';
+
+-- ============================================================================
+-- DATOS INICIALES: Casos clínicos para Nivel 3 - Amarillo
+-- ============================================================================
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Dolor abdominal moderado',
+    'Paciente con dolor en fosa ilíaca derecha',
+    25, 'Mujer',
+    'Me duele mucho aquí abajo a la derecha desde anoche',
+    '["Dolor en FID", "Náuseas sin vómitos", "Anorexia", "Febrícula"]'::jsonb,
+    '{"pa": "120/75", "fc": 88, "sato2": 99, "temp": 37.8}'::jsonb,
+    'Última regla hace 2 semanas, normal',
+    'amarillo',
+    'Dolor en fosa ilíaca derecha con febrícula y anorexia. Hay que descartar apendicitis aguda. No hay signos de shock ni peritonitis generalizada. Requiere evaluación en 60 minutos. Triaje AMARILLO.',
+    12
+FROM lessons WHERE codigo = 'amarillo';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Fiebre alta',
+    'Paciente con fiebre elevada sin foco claro',
+    60, 'Varón',
+    'Tengo fiebre de 39°C desde hace 2 días',
+    '["Fiebre persistente 39°C", "Malestar general", "Mialgias", "Sin tos ni disnea", "Sin focalidad urinaria"]'::jsonb,
+    '{"pa": "125/80", "fc": 95, "sato2": 97, "temp": 39.2}'::jsonb,
+    'DM tipo 2, HTA',
+    'amarillo',
+    'Fiebre elevada en paciente con comorbilidades (diabético). Sin foco claro y sin signos de sepsis grave. Requiere evaluación para descartar infección y estudio. Triaje AMARILLO - 60 minutos.',
+    12
+FROM lessons WHERE codigo = 'amarillo';
+
+-- ============================================================================
+-- DATOS INICIALES: Casos clínicos para Nivel 4 - Naranja
+-- ============================================================================
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Dolor torácico atípico',
+    'Paciente con dolor torácico y antecedentes cardíacos',
+    58, 'Varón',
+    'Me duele el pecho desde hace 1 hora, como una presión',
+    '["Dolor torácico opresivo central", "Sin irradiación clara", "Sin sudoración", "Leve disnea"]'::jsonb,
+    '{"pa": "145/90", "fc": 85, "sato2": 96, "temp": 36.6}'::jsonb,
+    'Infarto previo hace 3 años, stent coronario, HTA, dislipemia',
+    'naranja',
+    'Dolor torácico en paciente con cardiopatía isquémica previa. Aunque no es un cuadro típico de SCA, los antecedentes obligan a descartar nuevo evento coronario urgentemente. Triaje NARANJA - 10 minutos para ECG.',
+    12
+FROM lessons WHERE codigo = 'naranja';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Reacción alérgica',
+    'Paciente con urticaria generalizada tras comer marisco',
+    35, 'Mujer',
+    'Me han salido ronchas por todo el cuerpo y me pica mucho',
+    '["Urticaria generalizada", "Prurito intenso", "Sin disnea", "Sin edema facial ni lingual", "Sin disfagia"]'::jsonb,
+    '{"pa": "110/70", "fc": 92, "sato2": 99, "temp": 36.5}'::jsonb,
+    'Alergia conocida a mariscos (primera reacción sistémica)',
+    'naranja',
+    'Reacción alérgica sistémica. Aunque no hay signos de anafilaxia (sin compromiso respiratorio ni shock), la urticaria generalizada puede progresar. Requiere valoración en 10 minutos e inicio de antihistamínicos/corticoides. Triaje NARANJA.',
+    12
+FROM lessons WHERE codigo = 'naranja';
+
+-- ============================================================================
+-- DATOS INICIALES: Casos clínicos para Nivel 5 - Rojo
+-- ============================================================================
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Shock anafiláctico',
+    'Paciente con reacción alérgica severa tras picadura de abeja',
+    42, 'Varón',
+    'Me ha picado una abeja y no puedo respirar',
+    '["Disnea severa", "Estridor laríngeo", "Urticaria generalizada", "Edema facial y lingual", "Mareo intenso"]'::jsonb,
+    '{"pa": "80/50", "fc": 125, "sato2": 88, "temp": 36.8}'::jsonb,
+    'Alergia a himenópteros conocida',
+    'rojo',
+    'ANAFILAXIA con compromiso respiratorio (estridor, disnea severa, desaturación) y hemodinámico (hipotensión, taquicardia). Riesgo vital inminente. Requiere adrenalina IM INMEDIATA. Triaje ROJO.',
+    15
+FROM lessons WHERE codigo = 'rojo';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'ACV - Ictus',
+    'Paciente con déficit neurológico brusco',
+    72, 'Mujer',
+    'La familia: "De repente ha dejado de hablar y no mueve el brazo"',
+    '["Afasia de expresión", "Hemiparesia derecha", "Desviación de comisura bucal", "Inicio hace 45 minutos"]'::jsonb,
+    '{"pa": "180/100", "fc": 88, "sato2": 96, "temp": 36.5}'::jsonb,
+    'FA en anticoagulación, HTA',
+    'rojo',
+    'Ictus isquémico en ventana terapéutica (<4.5h). Los déficits neurológicos focales de inicio brusco requieren activación inmediata del CÓDIGO ICTUS. Cada minuto cuenta. Triaje ROJO.',
+    15
+FROM lessons WHERE codigo = 'rojo';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT 
+    lesson_id,
+    'Parada cardiorrespiratoria',
+    'Paciente encontrado inconsciente',
+    65, 'Varón',
+    'Traído por SVB: encontrado en la calle inconsciente',
+    '["Inconsciente", "No respira", "Sin pulso palpable", "RCP en curso por SVB"]'::jsonb,
+    '{"pa": "0/0", "fc": 0, "sato2": 0, "temp": null}'::jsonb,
+    'Desconocidos (paciente no identificado)',
+    'rojo',
+    'PARADA CARDIORRESPIRATORIA. Máxima prioridad. Continuar RCP, desfibrilador, acceso IV, adrenalina según protocolo. Box de reanimación inmediato. Triaje ROJO - INMEDIATO.',
+    15
+FROM lessons WHERE codigo = 'rojo';
 
 -- ============================================================================
 -- FIN

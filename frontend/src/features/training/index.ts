@@ -4,6 +4,7 @@ export { TrainingHomePage } from './TrainingHomePage';
 export { LessonPage } from './LessonPage';
 export { ProfilePage } from './ProfilePage';
 export { LeaderboardPage } from './LeaderboardPage';
+export { ProfessorPage } from './ProfessorPage';
 
 // Components
 export * from './components';

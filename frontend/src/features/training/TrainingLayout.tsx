@@ -12,6 +12,7 @@ import {
     Menu,
     UnstyledButton,
     Tooltip,
+    Paper,
 } from '@mantine/core';
 import {
     IconArrowLeft,
@@ -19,6 +20,7 @@ import {
     IconLogout,
     IconTrophy,
     IconHome,
+    IconSchool,
 } from '@tabler/icons-react';
 import { useAuth } from '@/features/auth';
 import { cssVariables } from '@/shared/theme';
@@ -97,6 +99,29 @@ export function TrainingLayout() {
 
                     {/* Right side - Navigation & Profile */}
                     <Group gap="sm">
+                        {/* Professor Button - More Prominent */}
+                        <Paper
+                            px="sm"
+                            py={6}
+                            radius="xl"
+                            onClick={() => navigate('/formacion/profesor')}
+                            style={{
+                                background: location.pathname.includes('/profesor')
+                                    ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%)'
+                                    : 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%)',
+                                border: '1px solid rgba(139, 92, 246, 0.3)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                            }}
+                        >
+                            <Group gap={6}>
+                                <IconSchool size={18} color="#a78bfa" />
+                                <Text size="xs" fw={600} c="violet.3">
+                                    Profesor IA
+                                </Text>
+                            </Group>
+                        </Paper>
+
                         <Tooltip label="Ranking">
                             <ActionIcon
                                 variant="subtle"
@@ -161,7 +186,6 @@ export function TrainingLayout() {
                     </Group>
                 </Group>
             </Box>
-
             {/* Main content */}
             <Box
                 component="main"
