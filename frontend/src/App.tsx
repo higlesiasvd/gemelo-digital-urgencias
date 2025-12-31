@@ -21,6 +21,17 @@ import { MapPage } from '@/features/map/MapPage';
 import { MCPPage } from '@/features/mcp/MCPPage';
 import { ConfigPage } from '@/features/config/ConfigPage';
 
+// Auth & Training
+import { AuthProvider, AuthGuard, LoginPage, RegisterPage, VerifyEmailPage } from '@/features/auth';
+import { ModeSelectorPage } from '@/features/mode-selector';
+import {
+  TrainingLayout,
+  TrainingHomePage,
+  LessonPage,
+  ProfilePage,
+  LeaderboardPage,
+} from '@/features/training';
+
 import { theme } from '@/shared/theme';
 import { queryClient } from '@/shared/api/client';
 
@@ -39,24 +50,72 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <MantineProvider theme={theme} defaultColorScheme="dark">
         <Notifications position="top-right" />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<AppLayout />}>
-              <Route index element={<DashboardPage />} />
-              <Route path="hospitales" element={<HospitalListPage />} />
-              <Route path="hospitales/chuac" element={<CHUACPage />} />
-              <Route path="hospitales/modelo" element={<ModeloPage />} />
-              <Route path="hospitales/san-rafael" element={<SanRafaelPage />} />
-              <Route path="personal" element={<StaffPage />} />
-              <Route path="derivaciones" element={<DerivacionesPage />} />
-              <Route path="simulacion" element={<SimulationPage />} />
-              <Route path="demanda/predictor" element={<PredictorPage />} />
-              <Route path="mapa" element={<MapPage />} />
-              <Route path="mcp" element={<MCPPage />} />
-              <Route path="configuracion" element={<ConfigPage />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* ========================================= */}
+              {/* PUBLIC ROUTES */}
+              {/* ========================================= */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+              {/* ========================================= */}
+              {/* MODE SELECTOR (requires auth) */}
+              {/* ========================================= */}
+              <Route
+                path="/"
+                element={
+                  <AuthGuard>
+                    <ModeSelectorPage />
+                  </AuthGuard>
+                }
+              />
+
+              {/* ========================================= */}
+              {/* GEMELO DIGITAL (current app) */}
+              {/* ========================================= */}
+              <Route
+                path="/gemelo"
+                element={
+                  <AuthGuard>
+                    <AppLayout />
+                  </AuthGuard>
+                }
+              >
+                <Route index element={<DashboardPage />} />
+                <Route path="hospitales" element={<HospitalListPage />} />
+                <Route path="hospitales/chuac" element={<CHUACPage />} />
+                <Route path="hospitales/modelo" element={<ModeloPage />} />
+                <Route path="hospitales/san-rafael" element={<SanRafaelPage />} />
+                <Route path="personal" element={<StaffPage />} />
+                <Route path="derivaciones" element={<DerivacionesPage />} />
+                <Route path="simulacion" element={<SimulationPage />} />
+                <Route path="demanda/predictor" element={<PredictorPage />} />
+                <Route path="mapa" element={<MapPage />} />
+                <Route path="mcp" element={<MCPPage />} />
+                <Route path="configuracion" element={<ConfigPage />} />
+              </Route>
+
+              {/* ========================================= */}
+              {/* TRAINING MODE (new) */}
+              {/* ========================================= */}
+              <Route
+                path="/formacion"
+                element={
+                  <AuthGuard>
+                    <TrainingLayout />
+                  </AuthGuard>
+                }
+              >
+                <Route index element={<TrainingHomePage />} />
+                <Route path="leccion/:id" element={<LessonPage />} />
+                <Route path="perfil" element={<ProfilePage />} />
+                <Route path="ranking" element={<LeaderboardPage />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </MantineProvider>
     </QueryClientProvider>
   );

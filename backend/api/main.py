@@ -32,6 +32,9 @@ from .simulation_routes import router as simulation_router
 from .prediction_routes import router as prediction_router
 from .incident_routes import router as incident_router
 from .report_routes import router as report_router
+from .auth_routes import router as auth_router
+from .training_routes import router as training_router
+from .gamification_routes import router as gamification_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -127,6 +130,9 @@ app.include_router(simulation_router)
 app.include_router(prediction_router)
 app.include_router(incident_router)
 app.include_router(report_router)
+app.include_router(auth_router)
+app.include_router(training_router)
+app.include_router(gamification_router)
 
 # Setup Prometheus instrumentation (exposes /metrics endpoint)
 try:

@@ -57,3 +57,14 @@ opentelemetry-instrumentation-sqlalchemy>=0.43b0
 reportlab>=4.0.0
 matplotlib>=3.8.0
 Pillow>=10.0.0
+
+# Authentication
+PyJWT>=2.8.0
+passlib[bcrypt]>=1.7.4
+bcrypt==4.0.1
+aiosmtplib>=3.0.0
+email-validator>=2.1.0
+
+# RAG System
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
