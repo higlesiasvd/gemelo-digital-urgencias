@@ -8,7 +8,8 @@ import {
     IconTarget, IconChevronRight, IconFlame, IconHeart, IconStar, IconTrophy,
     IconLock, IconCheck, IconBook, IconAlertTriangle,
     IconStethoscope, IconHeartbeat, IconBrain, IconBabyCarriage,
-    IconOld, IconFirstAidKit, IconActivityHeartbeat, IconClock
+    IconOld, IconFirstAidKit, IconActivityHeartbeat, IconClock, IconSchool,
+    IconAmbulance, IconBolt, IconPill
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -321,12 +322,24 @@ function LeaderboardPreview() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export function TrainingHomePage() {
-    const { data: lessons, isLoading } = useLessons();
+    const [selectedCourse, setSelectedCourse] = useState<string>('triaje');
+    const { data: lessons, isLoading } = useLessons(selectedCourse);
     const { data: stats } = useGamificationStats();
+    const navigate = useNavigate();
 
     // Timer persistente para recuperación de vidas
     const currentLives = stats?.vidas_actuales || 5;
     const lifeTimer = useLifeTimer(currentLives, 5);
+
+    // Course names for display
+    const COURSE_NAMES: Record<string, string> = {
+        'triaje': 'Triaje Manchester',
+        'rcp': 'RCP y Soporte Vital',
+        'pediatria': 'Urgencias Pediátricas',
+        'farmacologia': 'Farmacología de Urgencias',
+        'trauma': 'Trauma y Politraumatismo',
+        'ecg': 'ECG en Urgencias'
+    };
 
     // Mock positions for zig-zag path
     const getPosition = (index: number): 'left' | 'center' | 'right' => {
@@ -400,6 +413,116 @@ export function TrainingHomePage() {
             </motion.div>
 
             {/* ═══════════════════════════════════════════════════════════════════
+                PROFESSOR AI - Banner Prominente
+            ═══════════════════════════════════════════════════════════════════ */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                <Paper
+                    p="lg"
+                    radius="xl"
+                    onClick={() => navigate('/formacion/profesor')}
+                    style={{
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(99, 102, 241, 0.15) 50%, rgba(6, 182, 212, 0.1) 100%)',
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        position: 'relative',
+                        overflow: 'hidden',
+                    }}
+                    className="hover-scale"
+                >
+                    <Group justify="space-between" align="center">
+                        <Group gap="lg">
+                            <ThemeIcon size={64} radius="xl" style={{
+                                background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
+                                boxShadow: '0 0 30px rgba(139, 92, 246, 0.4)',
+                            }}>
+                                <IconSchool size={34} />
+                            </ThemeIcon>
+                            <Box>
+                                <Text size="xl" fw={800} style={{
+                                    background: 'linear-gradient(135deg, #fff 0%, #a78bfa 100%)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                }}>
+                                    🎓 Profesor IA de Urgencias
+                                </Text>
+                                <Text size="sm" c="dimmed" mt={4}>
+                                    Pregunta cualquier duda sobre triaje, protocolos, medicamentos o procedimientos de urgencias
+                                </Text>
+                                <Group gap="xs" mt="xs">
+                                    <Badge size="sm" color="violet" variant="light">Respuestas instantáneas</Badge>
+                                    <Badge size="sm" color="cyan" variant="light">Fuentes académicas</Badge>
+                                    <Badge size="sm" color="green" variant="light">Disponible 24/7</Badge>
+                                </Group>
+                            </Box>
+                        </Group>
+                        <Button
+                            size="lg"
+                            radius="xl"
+                            rightSection={<IconChevronRight size={20} />}
+                            style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)' }}
+                        >
+                            Preguntar ahora
+                        </Button>
+                    </Group>
+                </Paper>
+            </motion.div>
+
+            {/* ═══════════════════════════════════════════════════════════════════
+                CURSOS DISPONIBLES - Selector de cursos
+            ═══════════════════════════════════════════════════════════════════ */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                <Box mb="md">
+                    <Text size="xl" fw={700} mb="xs">Cursos de Formación</Text>
+                    <Text size="sm" c="dimmed">Elige un área de especialización en urgencias</Text>
+                </Box>
+                <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+                    {[
+                        { id: 'triaje', name: 'Triaje Manchester', subtitle: 'Sistema de clasificación', color: 'violet', icon: <IconAlertTriangle size={26} /> },
+                        { id: 'rcp', name: 'RCP y Soporte Vital', subtitle: 'ACLS / BLS / PALS', color: 'red', icon: <IconHeartbeat size={26} /> },
+                        { id: 'pediatria', name: 'Urgencias Pediátricas', subtitle: 'Triángulo de evaluación', color: 'pink', icon: <IconBabyCarriage size={26} /> },
+                        { id: 'farmacologia', name: 'Farmacología de Urgencias', subtitle: 'Drogas y dosis críticas', color: 'teal', icon: <IconPill size={26} /> },
+                        { id: 'trauma', name: 'Trauma y Politraumatismo', subtitle: 'ATLS / Valoración primaria', color: 'orange', icon: <IconAmbulance size={26} /> },
+                        { id: 'ecg', name: 'ECG en Urgencias', subtitle: 'Interpretación rápida', color: 'cyan', icon: <IconBolt size={26} /> },
+                    ].map((course) => (
+                        <Paper
+                            key={course.id}
+                            p="lg"
+                            radius="xl"
+                            onClick={() => setSelectedCourse(course.id)}
+                            style={{
+                                background: selectedCourse === course.id
+                                    ? `linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)`
+                                    : cssVariables.glassBg,
+                                border: selectedCourse === course.id
+                                    ? '2px solid rgba(139, 92, 246, 0.5)'
+                                    : `1px solid ${cssVariables.glassBorder}`,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                            }}
+                        >
+                            <Group gap="md" mb="sm">
+                                <ThemeIcon size={48} radius="xl" color={course.color}>
+                                    {course.icon}
+                                </ThemeIcon>
+                                <Box style={{ flex: 1 }}>
+                                    <Text fw={700}>{course.name}</Text>
+                                    <Text size="xs" c="dimmed">{course.subtitle}</Text>
+                                </Box>
+                                <Badge color={selectedCourse === course.id ? 'green' : 'blue'}>
+                                    {selectedCourse === course.id ? 'Activo' : 'Disponible'}
+                                </Badge>
+                            </Group>
+                            <Progress value={selectedCourse === course.id ? ((stats?.lecciones_completadas || 0) / (lessons?.length || 1)) * 100 : 0} color={course.color} size="sm" radius="xl" />
+                            <Text size="xs" c="dimmed" mt={4}>
+                                {selectedCourse === course.id ? `${stats?.lecciones_completadas || 0}/${lessons?.length || 0}` : 'Click para ver'} lecciones
+                            </Text>
+                        </Paper>
+                    ))}
+                </SimpleGrid>
+            </motion.div>
+
+            {/* ═══════════════════════════════════════════════════════════════════
                 MAIN CONTENT: Lesson Path + Sidebar
             ═══════════════════════════════════════════════════════════════════ */}
             <Group align="flex-start" gap="xl" style={{ flexWrap: 'nowrap' }}>
@@ -416,10 +539,10 @@ export function TrainingHomePage() {
                         <Group justify="space-between" mb="xl">
                             <Box>
                                 <Text fw={700} size="xl">Tu Camino de Aprendizaje</Text>
-                                <Text size="sm" c="dimmed">Completa las lecciones para dominar el triaje Manchester</Text>
+                                <Text size="sm" c="dimmed">Completa las lecciones del curso seleccionado</Text>
                             </Box>
                             <Badge size="lg" color="violet" variant="light">
-                                Sistema Manchester
+                                {COURSE_NAMES[selectedCourse] || selectedCourse}
                             </Badge>
                         </Group>
 

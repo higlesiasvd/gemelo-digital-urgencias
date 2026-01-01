@@ -281,6 +281,7 @@ CREATE TABLE IF NOT EXISTS lessons (
     xp_recompensa INT DEFAULT 50,
     ejercicios_requeridos INT DEFAULT 10,
     lesson_prerequisito UUID REFERENCES lessons(lesson_id),
+    curso VARCHAR(50) DEFAULT 'triaje',
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -664,5 +665,187 @@ SELECT
 FROM lessons WHERE codigo = 'rojo';
 
 -- ============================================================================
+-- CURSO 2: RCP Y SOPORTE VITAL (ACLS/BLS/PALS)
+-- ============================================================================
+
+INSERT INTO lessons (orden, codigo, nombre, descripcion, icono, color, xp_recompensa, ejercicios_requeridos, curso) VALUES
+(7, 'rcp_fundamentos', 'Fundamentos de RCP', 'Soporte vital básico: cadena de supervivencia, compresiones, ventilación', '❤️', '#ef4444', 120, 8, 'rcp'),
+(8, 'rcp_adulto', 'RCP en Adultos (BLS)', 'Algoritmo de soporte vital básico en adultos', '🫀', '#dc2626', 150, 10, 'rcp'),
+(9, 'rcp_acls', 'ACLS - Soporte Vital Avanzado', 'Ritmos desfibrilables, drogas, vía aérea avanzada', '⚡', '#b91c1c', 200, 12, 'rcp'),
+(10, 'rcp_pals', 'RCP Pediátrica (PALS)', 'Particularidades del soporte vital en niños', '👶', '#f87171', 180, 10, 'rcp');
+
+-- Prerrequisitos curso RCP
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'rcp_fundamentos') WHERE codigo = 'rcp_adulto';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'rcp_adulto') WHERE codigo = 'rcp_acls';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'rcp_acls') WHERE codigo = 'rcp_pals';
+
+-- Casos clínicos: RCP Fundamentos
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'Parada presenciada en centro comercial', 'Varón que colapsa súbitamente mientras caminaba', 58, 'Varón',
+    'Caída súbita, testigos llaman al 112',
+    '["Inconsciente", "No responde a estímulos", "No respira", "Cianosis perioral"]'::jsonb,
+    '{"pa": "0/0", "fc": 0, "sato2": 0, "temp": null}'::jsonb,
+    'Desconocidos', 'rojo',
+    'PARADA CARDIORRESPIRATORIA presenciada. Activar cadena de supervivencia: 1) Reconocer PCR, 2) Llamar 112, 3) Iniciar RCP 30:2, 4) Usar DEA cuando llegue. Compresiones de calidad: 100-120/min, 5-6cm profundidad.',
+    15
+FROM lessons WHERE codigo = 'rcp_fundamentos';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'Atragantamiento severo', 'Persona atragantada en restaurante, no puede hablar ni toser', 45, 'Mujer',
+    'Se atraganta con comida, hace señal universal de asfixia',
+    '["No puede hablar", "No puede toser", "Cianosis progresiva", "Señal de manos al cuello"]'::jsonb,
+    '{"pa": "100/60", "fc": 120, "sato2": 70, "temp": 36.5}'::jsonb,
+    'Sin antecedentes relevantes', 'rojo',
+    'OBSTRUCCIÓN COMPLETA de vía aérea (OVACE). Algoritmo: 5 golpes interescapulares + 5 compresiones abdominales (Heimlich). Si inconsciente: RCP. Prioridad absoluta - riesgo de muerte en minutos.',
+    15
+FROM lessons WHERE codigo = 'rcp_fundamentos';
+
+-- Casos clínicos: ACLS
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'Fibrilación ventricular', 'PCR con monitor que muestra FV', 62, 'Varón',
+    'PCR en box de urgencias durante observación',
+    '["Inconsciente", "Sin pulso", "FV en monitor", "RCP iniciada"]'::jsonb,
+    '{"pa": "0/0", "fc": 0, "sato2": 0, "temp": null}'::jsonb,
+    'Cardiopatía isquémica, IAM previo', 'rojo',
+    'FV = RITMO DESFIBRILABLE. Protocolo ACLS: 1) Descarga 200J bifásico, 2) RCP 2 min, 3) Adrenalina 1mg IV cada 3-5min, 4) Amiodarona 300mg tras 3ª descarga. Continuar hasta RCE o criterios de cese.',
+    18
+FROM lessons WHERE codigo = 'rcp_acls';
+
+-- ============================================================================
+-- CURSO 3: URGENCIAS PEDIÁTRICAS
+-- ============================================================================
+
+INSERT INTO lessons (orden, codigo, nombre, descripcion, icono, color, xp_recompensa, ejercicios_requeridos, curso) VALUES
+(11, 'ped_evaluacion', 'Triángulo de Evaluación Pediátrica', 'Apariencia, Respiración, Circulación - evaluación rápida', '👶', '#ec4899', 130, 8, 'pediatria'),
+(12, 'ped_respiratorio', 'Urgencias Respiratorias Pediátricas', 'Bronquiolitis, crup, asma, neumonía en niños', '🫁', '#f472b6', 160, 10, 'pediatria'),
+(13, 'ped_fiebre', 'Fiebre y Sepsis Pediátrica', 'Manejo de fiebre sin foco, signos de sepsis', '🌡️', '#db2777', 180, 10, 'pediatria');
+
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'ped_evaluacion') WHERE codigo = 'ped_respiratorio';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'ped_respiratorio') WHERE codigo = 'ped_fiebre';
+
+-- Casos clínicos: Pediatría
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'Lactante con dificultad respiratoria', 'Bebé de 4 meses con tos y dificultad para respirar', 0, 'Varón',
+    'Mi bebé respira muy rápido y no quiere comer',
+    '["Taquipnea (FR 65)", "Tiraje subcostal e intercostal", "Aleteo nasal", "Rechazo de tomas", "Sibilancias espiratorias"]'::jsonb,
+    '{"pa": "75/45", "fc": 160, "sato2": 90, "temp": 37.8}'::jsonb,
+    'Prematuro 34 semanas, hermano con catarro', 'naranja',
+    'BRONQUIOLITIS con signos de dificultad respiratoria moderada. TEP: Trabajo respiratorio aumentado. Requiere oxigenoterapia, monitorización, valorar suero y nebulización. Triaje NARANJA.',
+    14
+FROM lessons WHERE codigo = 'ped_respiratorio';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'Niño con estridor inspiratorio', 'Niño de 2 años con tos perruna y ruido al respirar', 2, 'Varón',
+    'Tiene tos muy rara como de perro y hace ruido al respirar',
+    '["Estridor inspiratorio", "Tos perruna", "Disfonía leve", "No babeo ni disfagia", "Consciente y reactivo"]'::jsonb,
+    '{"pa": "90/55", "fc": 130, "sato2": 96, "temp": 38.2}'::jsonb,
+    'Catarro UVA hace 2 días', 'amarillo',
+    'LARINGOTRAQUEÍTIS (CRUP) leve-moderado. Score de Westley. Dexametasona 0.6mg/kg VO/IM. Si estridor en reposo: adrenalina nebulizada + observación 3-4h. Triaje AMARILLO.',
+    12
+FROM lessons WHERE codigo = 'ped_respiratorio';
+
+-- ============================================================================
+-- CURSO 4: FARMACOLOGÍA DE URGENCIAS
+-- ============================================================================
+
+INSERT INTO lessons (orden, codigo, nombre, descripcion, icono, color, xp_recompensa, ejercicios_requeridos, curso) VALUES
+(14, 'farma_rcp', 'Fármacos de RCP', 'Adrenalina, amiodarona, atropina, bicarbonato', '💉', '#14b8a6', 140, 8, 'farmacologia'),
+(15, 'farma_sedacion', 'Sedoanalgesia en Urgencias', 'Opioides, benzodiacepinas, ketamina, propofol', '💊', '#0d9488', 160, 10, 'farmacologia'),
+(16, 'farma_vasoactivos', 'Drogas Vasoactivas', 'Noradrenalina, dopamina, dobutamina - indicaciones y dosis', '🩸', '#0f766e', 180, 10, 'farmacologia');
+
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'farma_rcp') WHERE codigo = 'farma_sedacion';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'farma_sedacion') WHERE codigo = 'farma_vasoactivos';
+
+-- Casos clínicos: Farmacología
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'Shock séptico refractario', 'Paciente en shock séptico sin respuesta a fluidos', 72, 'Mujer',
+    'Hipotensión persistente tras 2L de cristaloides',
+    '["Hipotensión refractaria", "Oliguria", "Lactato 6mmol/L", "Foco urinario", "Fiebre 39°C"]'::jsonb,
+    '{"pa": "70/40", "fc": 115, "sato2": 94, "temp": 39.2}'::jsonb,
+    'DM2, ITUs de repetición', 'rojo',
+    'SHOCK SÉPTICO con necesidad de NORADRENALINA. Dosis: 0.05-0.5 mcg/kg/min en bomba. Objetivo PAM ≥65mmHg. Si disfunción cardíaca asociada: añadir dobutamina. Acceso venoso central preferible.',
+    16
+FROM lessons WHERE codigo = 'farma_vasoactivos';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'Sedación para cardioversión', 'Paciente requiere cardioversión eléctrica sincronizada', 55, 'Varón',
+    'FA rápida inestable, se decide cardioversión',
+    '["FA 170lpm", "Mareo", "Hipotensión leve", "Consciente orientado"]'::jsonb,
+    '{"pa": "95/60", "fc": 168, "sato2": 97, "temp": 36.6}'::jsonb,
+    'FA paroxística conocida', 'naranja',
+    'Sedación breve para CVE: PROPOFOL 1mg/kg IV o MIDAZOLAM 0.05-0.1mg/kg + FENTANILO 1mcg/kg. Monitorización continua, material de VAD preparado. Siempre con médico y enfermera presentes.',
+    14
+FROM lessons WHERE codigo = 'farma_sedacion';
+
+-- ============================================================================
+-- CURSO 5: TRAUMA Y POLITRAUMATISMO
+-- ============================================================================
+
+INSERT INTO lessons (orden, codigo, nombre, descripcion, icono, color, xp_recompensa, ejercicios_requeridos, curso) VALUES
+(17, 'trauma_abcde', 'Valoración Primaria ABCDE', 'Vía aérea, respiración, circulación, neurológico, exposición', '🚑', '#f97316', 150, 10, 'trauma'),
+(18, 'trauma_tce', 'Traumatismo Craneoencefálico', 'Escala Glasgow, signos de alarma, manejo inicial', '🧠', '#ea580c', 170, 10, 'trauma'),
+(19, 'trauma_torax', 'Trauma Torácico', 'Neumotórax, hemotórax, contusión pulmonar', '🫁', '#c2410c', 180, 12, 'trauma'),
+(20, 'trauma_abdominal', 'Trauma Abdominal', 'Lesiones de órganos sólidos y víscera hueca', '💢', '#9a3412', 180, 10, 'trauma');
+
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'trauma_abcde') WHERE codigo = 'trauma_tce';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'trauma_tce') WHERE codigo = 'trauma_torax';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'trauma_torax') WHERE codigo = 'trauma_abdominal';
+
+-- Casos clínicos: Trauma
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'Accidente de moto alta velocidad', 'Motorista 80km/h impacta contra vehículo', 28, 'Varón',
+    'Accidente de moto, casco puesto, eyectado',
+    '["Pérdida de consciencia inicial", "Dolor torácico derecho", "Dolor abdominal", "Herida en pierna derecha"]'::jsonb,
+    '{"pa": "100/65", "fc": 110, "sato2": 94, "temp": 36.2}'::jsonb,
+    'Sin antecedentes conocidos', 'rojo',
+    'POLITRAUMATIZADO. Criterios de trauma grave (alta energía, eyectado). ABCDE: Inmovilización cervical, 2 vías gruesas, analítica+pruebas cruzadas, eFAST, TAC body. Activar código trauma.',
+    18
+FROM lessons WHERE codigo = 'trauma_abcde';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'Caída de altura con TCE', 'Obrero cae de andamio 4 metros', 45, 'Varón',
+    'Caída de 4 metros, golpe en cabeza',
+    '["GCS 12 (O3V4M5)", "Herida scalp sangrante", "Vómitos", "Amnesia del accidente", "Pupilas isocóricas reactivas"]'::jsonb,
+    '{"pa": "150/90", "fc": 65, "sato2": 98, "temp": 36.5}'::jsonb,
+    'Sin antecedentes', 'naranja',
+    'TCE MODERADO (GCS 9-13). Criterios de TAC urgente: pérdida consciencia, amnesia, vómitos. Vigilar: respuesta pupilar, deterioro GCS, signos de herniación. Cabecero 30°, normocapnia, evitar hipotensión.',
+    15
+FROM lessons WHERE codigo = 'trauma_tce';
+
+-- ============================================================================
+-- CURSO 6: ECG EN URGENCIAS
+-- ============================================================================
+
+INSERT INTO lessons (orden, codigo, nombre, descripcion, icono, color, xp_recompensa, ejercicios_requeridos, curso) VALUES
+(21, 'ecg_basico', 'Interpretación ECG Básica', 'Ritmo, frecuencia, eje, intervalos', '📈', '#06b6d4', 130, 8, 'ecg'),
+(22, 'ecg_arritmias', 'Arritmias Frecuentes', 'FA, flutter, TSV, bradicardias, bloqueos', '💓', '#0891b2', 160, 10, 'ecg'),
+(23, 'ecg_isquemia', 'ECG en Síndrome Coronario', 'SCACEST, SCASEST, patrones de IAM', '❤️‍🔥', '#0e7490', 180, 12, 'ecg');
+
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'ecg_basico') WHERE codigo = 'ecg_arritmias';
+UPDATE lessons SET lesson_prerequisito = (SELECT lesson_id FROM lessons WHERE codigo = 'ecg_arritmias') WHERE codigo = 'ecg_isquemia';
+
+-- Casos clínicos: ECG
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'Palpitaciones con FA rápida', 'Paciente con palpitaciones irregulares de inicio súbito', 68, 'Mujer',
+    'Noto el corazón muy rápido e irregular desde hace 3 horas',
+    '["Palpitaciones irregulares", "Disnea de esfuerzo", "Mareo leve", "Sin dolor torácico"]'::jsonb,
+    '{"pa": "125/80", "fc": 142, "sato2": 97, "temp": 36.5}'::jsonb,
+    'HTA, hipertiroidismo', 'amarillo',
+    'FA de reciente comienzo con respuesta ventricular rápida. ECG: ritmo irregular, sin ondas P, intervalos RR variables. Control de frecuencia con betabloqueantes o diltiazem. Valorar anticoagulación (CHA2DS2-VASc).',
+    14
+FROM lessons WHERE codigo = 'ecg_arritmias';
+
+INSERT INTO clinical_cases (lesson_id, titulo, descripcion, paciente_edad, paciente_sexo, motivo_consulta, sintomas, constantes_vitales, antecedentes, triaje_correcto, explicacion, xp_base)
+SELECT lesson_id, 'IAMCEST anterior', 'Paciente con dolor torácico y elevación ST en precordiales', 55, 'Varón',
+    'Dolor fuerte en el pecho que me baja al brazo',
+    '["Dolor torácico opresivo 9/10", "Irradiación a brazo izquierdo", "Sudoración profusa", "Náuseas"]'::jsonb,
+    '{"pa": "110/70", "fc": 85, "sato2": 96, "temp": 36.5}'::jsonb,
+    'Fumador, dislipemia', 'rojo',
+    'IAMCEST ANTERIOR. ECG: elevación ST >2mm en V1-V4 (cara anterior). Tiempo es miocardio. Activar Código Infarto, AAS 300mg, clopidogrel 600mg, heparina, nitroglicerina si persiste dolor. ICP primaria <90 min.',
+    18
+FROM lessons WHERE codigo = 'ecg_isquemia';
+
+-- ============================================================================
 -- FIN
 -- ============================================================================
+

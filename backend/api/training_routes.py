@@ -229,11 +229,68 @@ def verificar_badges(session, user_id: str, user_data: dict) -> List[str]:
 
 
 # ============================================================================
+# ENDPOINTS - CURSOS
+# ============================================================================
+
+@router.get("/courses")
+async def get_courses(user: dict = Depends(require_auth)):
+    """
+    Obtiene la lista de cursos disponibles con estadísticas de progreso.
+    """
+    user_id = user["user_id"]
+    
+    COURSE_NAMES = {
+        'triaje': 'Triaje Manchester',
+        'rcp': 'RCP y Soporte Vital',
+        'pediatria': 'Urgencias Pediátricas',
+        'farmacologia': 'Farmacología de Urgencias',
+        'trauma': 'Trauma y Politraumatismo',
+        'ecg': 'ECG en Urgencias'
+    }
+    
+    with get_session() as session:
+        result = session.execute(text("""
+            SELECT 
+                COALESCE(l.curso, 'triaje') as curso,
+                COUNT(l.lesson_id) as total_lecciones,
+                COUNT(CASE WHEN ul.completada = true THEN 1 END) as completadas
+            FROM lessons l
+            LEFT JOIN user_lessons ul ON l.lesson_id = ul.lesson_id AND ul.user_id = :user_id
+            GROUP BY COALESCE(l.curso, 'triaje')
+            ORDER BY 
+                CASE COALESCE(l.curso, 'triaje')
+                    WHEN 'triaje' THEN 1
+                    WHEN 'rcp' THEN 2
+                    WHEN 'pediatria' THEN 3
+                    WHEN 'farmacologia' THEN 4
+                    WHEN 'trauma' THEN 5
+                    WHEN 'ecg' THEN 6
+                    ELSE 99
+                END
+        """), {"user_id": user_id})
+        
+        courses = []
+        for row in result.fetchall():
+            codigo = row[0]
+            courses.append({
+                "curso": codigo,
+                "nombre": COURSE_NAMES.get(codigo, codigo.title()),
+                "total_lecciones": row[1],
+                "completadas": row[2]
+            })
+        
+        return courses
+
+
+# ============================================================================
 # ENDPOINTS - LECCIONES
 # ============================================================================
 
 @router.get("/lessons", response_model=List[LessonProgress])
-async def get_lessons(user: dict = Depends(require_auth)):
+async def get_lessons(
+    curso: str = Query(None, description="Filtrar por curso"),
+    user: dict = Depends(require_auth)
+):
     """
     Obtiene el árbol de lecciones con el progreso del usuario.
     Las lecciones bloqueadas se indican con desbloqueada=False.
@@ -241,9 +298,8 @@ async def get_lessons(user: dict = Depends(require_auth)):
     user_id = user["user_id"]
     
     with get_session() as session:
-        # Obtener todas las lecciones con progreso del usuario
-        result = session.execute(text("""
-
+        # Construir query con filtro opcional de curso
+        query = """
             SELECT 
                 l.lesson_id, l.codigo, l.nombre, l.descripcion, l.icono, l.color,
                 l.orden, l.ejercicios_requeridos, l.xp_recompensa, l.lesson_prerequisito,
@@ -252,10 +308,17 @@ async def get_lessons(user: dict = Depends(require_auth)):
                 COALESCE(ul.completada, false) as completada
             FROM lessons l
             LEFT JOIN user_lessons ul ON l.lesson_id = ul.lesson_id AND ul.user_id = :user_id
-            ORDER BY l.orden
-            """),
-            {"user_id": user_id}
-        )
+        """
+        
+        params = {"user_id": user_id}
+        
+        if curso:
+            query += " WHERE COALESCE(l.curso, 'triaje') = :curso"
+            params["curso"] = curso
+        
+        query += " ORDER BY l.orden"
+        
+        result = session.execute(text(query), params)
         
         lessons = []
         completadas = set()

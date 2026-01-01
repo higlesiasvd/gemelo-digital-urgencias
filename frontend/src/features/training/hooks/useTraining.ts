@@ -143,14 +143,26 @@ async function fetchWithAuth(endpoint: string, token: string | null, options: Re
 // HOOKS - LESSONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function useLessons() {
+export function useLessons(curso?: string) {
     const { token } = useAuth();
 
     return useQuery<Lesson[]>({
-        queryKey: ['training', 'lessons'],
-        queryFn: () => fetchWithAuth('/training/lessons', token),
+        queryKey: ['training', 'lessons', curso || 'all'],
+        queryFn: () => fetchWithAuth(`/training/lessons${curso ? `?curso=${curso}` : ''}`, token),
         enabled: !!token,
         staleTime: 30000, // 30 seconds
+    });
+}
+
+// Obtener todos los cursos disponibles con sus estadísticas
+export function useCourses() {
+    const { token } = useAuth();
+
+    return useQuery<{ curso: string, nombre: string, total_lecciones: number, completadas: number }[]>({
+        queryKey: ['training', 'courses'],
+        queryFn: () => fetchWithAuth('/training/courses', token),
+        enabled: !!token,
+        staleTime: 60000,
     });
 }
 
